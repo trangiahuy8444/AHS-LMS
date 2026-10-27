@@ -104,6 +104,31 @@
       const [lockReason, setLockReason] = useState(null); // 'violation_3_times' | 'proctor_lock'
       const [examStartTime, setExamStartTime] = useState(null);
 
+      // Class Access Control State ('practice_only' | 'exam_only' | 'both_open' | 'closed')
+      const [classAccessMode, setClassAccessMode] = useState(
+        window.AsianSchoolStorage ? window.AsianSchoolStorage.getClassAccessMode(studentClass) : 'practice_only'
+      );
+
+      // Cập nhật quyền truy cập khi đổi lớp hoặc cấu hình thay đổi thời gian thực từ Cloud
+      useEffect(() => {
+        if (!window.AsianSchoolStorage) return;
+        const syncAccess = () => {
+          const acc = window.AsianSchoolStorage.getClassAccessMode(studentClass);
+          setClassAccessMode(acc);
+          if (acc === 'exam_only') {
+            setMode('exam');
+          } else if (acc === 'practice_only') {
+            setMode('practice');
+          }
+        };
+        syncAccess();
+
+        const unsub = window.AsianSchoolStorage.onConfigChange(() => {
+          syncAccess();
+        });
+        return () => unsub();
+      }, [studentClass]);
+
       // Data references
       const gradeData = grade === 8 ? window.EXAM_DATA_G8 : (grade === 9 ? window.EXAM_DATA_G9 : window.EXAM_DATA_G10);
       const practiceQuestions = gradeData ? (gradeData.practiceQuestions || []) : [];
@@ -257,6 +282,21 @@
       const handleStart = async () => {
         if (!fullName.trim()) {
           alert('Vui lòng nhập đầy đủ Họ và tên học sinh!');
+          return;
+        }
+
+        // Kiểm tra quyền truy cập ca thi của lớp
+        const currentClassAccess = window.AsianSchoolStorage.getClassAccessMode(studentClass);
+        if (mode === 'exam' && currentClassAccess === 'practice_only') {
+          alert(`🔒 Ca thi chính thức của Lớp ${studentClass} chưa bắt đầu!\n\nEm vui lòng chọn chế độ "ÔN TẬP ĐỀ CƯƠNG" để luyện tập nhé.`);
+          return;
+        }
+        if (mode === 'practice' && currentClassAccess === 'exam_only') {
+          alert(`⚠️ Lớp ${studentClass} hiện đang trong ca kiểm tra chính thức 45 phút!\n\nEm vui lòng chọn chế độ "THI GIỮA HK1" để làm bài.`);
+          return;
+        }
+        if (currentClassAccess === 'closed') {
+          alert(`🔒 Cổng làm bài tạm thời đóng đối với Lớp ${studentClass}.\n\nVui lòng báo Giám thị Thầy Trần Gia Huy để được hỗ trợ.`);
           return;
         }
 
@@ -987,44 +1027,89 @@
                   
                   {/* Chọn Chế Độ: Ôn Tập hay Thi */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                      1. Chọn Mục Đích Làm Bài <span className="text-red-500">*</span>
-                    </label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                        1. Chọn Mục Đích Làm Bài <span className="text-red-500">*</span>
+                      </label>
+                      <span className="text-[11px] font-bold text-blue-900 bg-blue-100 px-2.5 py-0.5 rounded-full border border-blue-200">
+                        Lớp {studentClass}: {
+                          classAccessMode === 'exam_only' ? '🔴 Đang trong ca thi' :
+                          (classAccessMode === 'practice_only' ? '🟢 Đang mở ôn tập' :
+                          (classAccessMode === 'both_open' ? '🟡 Mở cả 2 chế độ' : '⚫ Đang đóng cổng'))
+                        }
+                      </span>
+                    </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* NÚT ÔN TẬP ĐỀ CƯƠNG */}
                       <button
                         type="button"
-                        onClick={() => setMode('practice')}
-                        className={`p-4 rounded-2xl border-2 text-left transition ${
-                          mode === 'practice'
-                            ? 'border-blue-600 bg-blue-50/70 shadow-sm'
-                            : 'border-slate-200 hover:border-slate-300 bg-slate-50'
+                        onClick={() => {
+                          if (classAccessMode === 'exam_only') {
+                            alert(`⚠️ Lớp ${studentClass} hiện đang trong ca kiểm tra chính thức 45 phút! Chế độ ôn tập đang tạm đóng để các em tập trung làm bài thi.`);
+                            return;
+                          }
+                          setMode('practice');
+                        }}
+                        disabled={classAccessMode === 'closed'}
+                        className={`p-4 rounded-2xl border-2 text-left transition relative ${
+                          classAccessMode === 'exam_only'
+                            ? 'opacity-40 border-slate-200 bg-slate-100 cursor-not-allowed'
+                            : (mode === 'practice'
+                                ? 'border-blue-600 bg-blue-50/70 shadow-sm'
+                                : 'border-slate-200 hover:border-slate-300 bg-slate-50')
                         }`}
                       >
                         <div className="flex items-center space-x-2">
                           <span className="text-2xl">📖</span>
                           <span className="font-bold text-sm text-blue-950">ÔN TẬP ĐỀ CƯƠNG</span>
                         </div>
-                        <p className="text-xs text-slate-600 mt-1 font-medium">
-                          Luyện tập ngân hàng câu hỏi, được xem SGK, đánh giá kết quả và xem hướng dẫn tự luận.
+                        <p className="text-xs text-slate-600 mt-1 font-medium leading-relaxed">
+                          Luyện tập ngân hàng câu hỏi đề cương, được xem SGK, đánh giá kết quả và xem hướng dẫn tự luận.
                         </p>
+                        {classAccessMode === 'exam_only' && (
+                          <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                            ⚠️ Tạm đóng (Lớp đang thi)
+                          </span>
+                        )}
                       </button>
 
+                      {/* NÚT THI GIỮA HK1 */}
                       <button
                         type="button"
-                        onClick={() => setMode('exam')}
-                        className={`p-4 rounded-2xl border-2 text-left transition ${
-                          mode === 'exam'
-                            ? 'border-red-600 bg-red-50/70 shadow-sm'
-                            : 'border-slate-200 hover:border-slate-300 bg-slate-50'
+                        onClick={() => {
+                          if (classAccessMode === 'practice_only') {
+                            alert(`🔒 Ca thi chính thức của Lớp ${studentClass} chưa bắt đầu!\n\nEm vui lòng chọn "ÔN TẬP ĐỀ CƯƠNG" để luyện tập trước nhé.`);
+                            return;
+                          }
+                          setMode('exam');
+                        }}
+                        disabled={classAccessMode === 'closed'}
+                        className={`p-4 rounded-2xl border-2 text-left transition relative ${
+                          classAccessMode === 'practice_only'
+                            ? 'opacity-40 border-slate-200 bg-slate-100 cursor-not-allowed'
+                            : (mode === 'exam'
+                                ? 'border-red-600 bg-red-50/70 shadow-sm'
+                                : 'border-slate-200 hover:border-slate-300 bg-slate-50')
                         }`}
                       >
                         <div className="flex items-center space-x-2">
                           <span className="text-2xl">📝</span>
                           <span className="font-bold text-sm text-red-950">THI GIỮA HK1</span>
                         </div>
-                        <p className="text-xs text-slate-600 mt-1 font-medium">
-                          Kiểm tra chính thức 45 phút, cần mật khẩu phòng thi, chống chuyển tab, bảo mật toàn màn hình.
+                        <p className="text-xs text-slate-600 mt-1 font-medium leading-relaxed">
+                          Kiểm tra chính thức 45 phút, cần mật khẩu phòng thi, bảo mật chống gian lận đa tầng.
                         </p>
+                        {classAccessMode === 'practice_only' && (
+                          <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700 border border-slate-300">
+                            🔒 Chưa mở ca thi của lớp
+                          </span>
+                        )}
+                        {classAccessMode === 'exam_only' && (
+                          <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-300 animate-pulse">
+                            🔴 Ca thi đang diễn ra!
+                          </span>
+                        )}
                       </button>
                     </div>
                   </div>

@@ -266,3 +266,27 @@ test('Kiểm tra Timer & AntiCheat cơ bản & Gia Hạn Thời Gian', (t) => {
   assert.strictEqual(violationsReported, 2);
   antiCheat.stop();
 });
+
+test('Kiểm tra Phân quyền Ca thi Độc lập theo Từng Lớp Học (Class Access Control Matrix)', (t) => {
+  // Mặc định tất cả các lớp là practice_only
+  assert.strictEqual(storage.getClassAccessMode('8/19'), 'practice_only');
+  assert.strictEqual(storage.getClassAccessMode('9/20'), 'practice_only');
+  assert.strictEqual(storage.getClassAccessMode('10/14'), 'practice_only');
+
+  // Giáo viên bắt đầu ca thi cho Lớp 8/19
+  storage.setQuickExamClass('8/19');
+  assert.strictEqual(storage.getClassAccessMode('8/19'), 'exam_only', 'Lớp 8/19 phải ở chế độ thi chính thức (exam_only)');
+  assert.strictEqual(storage.getClassAccessMode('8/20'), 'practice_only', 'Lớp 8/20 vẫn phải ở chế độ ôn tập (practice_only)');
+  assert.strictEqual(storage.getClassAccessMode('9/20'), 'practice_only', 'Lớp 9/20 vẫn phải ở chế độ ôn tập (practice_only)');
+
+  // Giáo viên tùy chỉnh lớp 9/20 mở cả 2
+  storage.setClassAccessMode('9/20', 'both_open');
+  assert.strictEqual(storage.getClassAccessMode('9/20'), 'both_open');
+
+  // Đóng toàn bộ ca thi -> tất cả về practice_only
+  storage.closeAllExamSessions();
+  assert.strictEqual(storage.getClassAccessMode('8/19'), 'practice_only');
+  assert.strictEqual(storage.getClassAccessMode('9/20'), 'practice_only');
+  assert.strictEqual(storage.getClassAccessMode('10/14'), 'practice_only');
+});
+

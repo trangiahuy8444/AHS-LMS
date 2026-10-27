@@ -28,7 +28,28 @@
     allowPracticeReview: true,
     allowExamReview: false, // Trong lúc thi không hiện đáp án ngay
     examPassword: 'asian2026', // Mật khẩu phòng thi chính thức
-    adminPasswordHash: '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918' // 'admin' sha256
+    adminPasswordHash: '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918', // 'admin' sha256
+    
+    // Ma trận phân quyền truy cập theo từng lớp học:
+    // 'practice_only' (chỉ được ôn tập) | 'exam_only' (đang thi chính thức) | 'both_open' (mở cả hai) | 'closed' (tạm khóa)
+    defaultClassMode: 'practice_only',
+    classAccessControl: {
+      '8/19': 'practice_only',
+      '8/20': 'practice_only',
+      '8/21': 'practice_only',
+      '8/22': 'practice_only',
+      '8/23': 'practice_only',
+      '9/20': 'practice_only',
+      '9/21': 'practice_only',
+      '9/22': 'practice_only',
+      '9/23': 'practice_only',
+      '9/24': 'practice_only',
+      '9/25': 'practice_only',
+      '9/26': 'practice_only',
+      '10/14': 'practice_only',
+      '10/15': 'practice_only',
+      '10/16': 'practice_only'
+    }
   };
 
   class StorageService {
@@ -79,6 +100,16 @@
       const merged = { ...this.getConfig(), ...newConfig };
       localStorage.setItem(CONFIG_KEY, JSON.stringify(merged));
       this.notify(this.configListeners, merged);
+
+      if (typeof window !== 'undefined' && window.firebaseDb) {
+        try {
+          if (typeof window.firebaseDb.collection === 'function') {
+            window.firebaseDb.collection('exam_config').doc('global_config').set(merged, { merge: true })
+              .catch(e => console.warn('Firestore config save err', e));
+          }
+        } catch (e) { /* local fallback */ }
+      }
+
       return merged;
     }
 
@@ -87,6 +118,48 @@
       return () => {
         this.configListeners = this.configListeners.filter(f => f !== cb);
       };
+    }
+
+    // --- PHÂN QUYỀN TRUY CẬP THEO TỪNG LỚP HỌC (CLASS ACCESS CONTROL) ---
+
+    getClassAccessMode(studentClass) {
+      const cfg = this.getConfig();
+      if (cfg.classAccessControl && cfg.classAccessControl[studentClass]) {
+        return cfg.classAccessControl[studentClass];
+      }
+      return cfg.defaultClassMode || 'practice_only';
+    }
+
+    setClassAccessMode(studentClass, mode) {
+      const cfg = this.getConfig();
+      const currentMap = { ...(cfg.classAccessControl || DEFAULT_CONFIG.classAccessControl) };
+      currentMap[studentClass] = mode;
+      const res = this.saveConfig({ classAccessControl: currentMap });
+      this.logAudit('Đổi quyền truy cập lớp', `Lớp ${studentClass} chuyển sang trạng thái: ${mode}`);
+      return res;
+    }
+
+    setQuickExamClass(targetClass) {
+      const cfg = this.getConfig();
+      const currentMap = { ...(cfg.classAccessControl || DEFAULT_CONFIG.classAccessControl) };
+      Object.keys(currentMap).forEach(cls => {
+        currentMap[cls] = (cls === targetClass) ? 'exam_only' : 'practice_only';
+      });
+      currentMap[targetClass] = 'exam_only';
+      const res = this.saveConfig({ classAccessControl: currentMap });
+      this.logAudit('Kích hoạt ca thi nhanh', `Bật ca thi chính thức cho Lớp ${targetClass}`);
+      return res;
+    }
+
+    closeAllExamSessions() {
+      const cfg = this.getConfig();
+      const currentMap = { ...(cfg.classAccessControl || DEFAULT_CONFIG.classAccessControl) };
+      Object.keys(currentMap).forEach(cls => {
+        currentMap[cls] = 'practice_only';
+      });
+      const res = this.saveConfig({ classAccessControl: currentMap });
+      this.logAudit('Đóng tất cả ca thi', 'Chuyển toàn bộ các lớp về chế độ Ôn tập đề cương');
+      return res;
     }
 
     checkExamPassword(inputPassword) {

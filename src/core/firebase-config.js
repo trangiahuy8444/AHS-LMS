@@ -207,6 +207,25 @@
     } catch (e) {
       console.warn('[Firestore] Error attaching proctor_commands listener:', e);
     }
+
+    // 4. Đồng bộ Cấu hình Điều phối Lớp học & Phòng thi (exam_config)
+    try {
+      db.collection('exam_config').doc('global_config').onSnapshot(
+        (doc) => {
+          if (!doc || !doc.exists) return;
+          const cloudConfig = doc.data();
+          const currentConfig = storage.getConfig();
+          const merged = { ...currentConfig, ...cloudConfig };
+          localStorage.setItem('asian_school_exam_config_v1', JSON.stringify(merged));
+          storage.notify(storage.configListeners, merged);
+        },
+        (error) => {
+          console.warn('[Firestore] Lắng nghe exam_config thất bại:', error.message);
+        }
+      );
+    } catch (e) {
+      console.warn('[Firestore] Error attaching exam_config listener:', e);
+    }
   }
 
   // Tự động gắn kết khi DOM và AsianSchoolStorage sẵn sàng
