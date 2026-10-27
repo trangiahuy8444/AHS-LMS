@@ -119,14 +119,21 @@
 
     saveSubmission(subData) {
       const list = this.getSubmissions();
+      const rawScore = subData.finalScore !== undefined ? subData.finalScore : (subData.score !== undefined ? subData.score : subData.mcqPoints);
+      const penalty = subData.penaltyPoints !== undefined ? subData.penaltyPoints : (subData.violations >= 3 ? 5 : 0);
+      let calculatedFinal = typeof rawScore === 'number' ? Math.max(0, Math.round((rawScore - penalty) * 100) / 100) : rawScore;
+
       const newDoc = {
         id: 'sub-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
         ...subData,
+        durationSeconds: subData.durationSeconds || 0,
+        durationFormatted: subData.durationFormatted || (subData.durationTaken ? subData.durationTaken : '45 phút'),
+        penaltyPoints: penalty,
         submittedAt: new Date().toISOString(),
         isGraded: subData.isGraded || false,
         essayScores: subData.essayScores || {},
         essayTotal: subData.essayTotal || 0,
-        finalScore: subData.finalScore !== undefined ? subData.finalScore : (subData.score !== undefined ? subData.score : subData.mcqPoints),
+        finalScore: calculatedFinal,
         teacherFeedback: subData.teacherFeedback || ''
       };
       list.unshift(newDoc);
@@ -164,12 +171,15 @@
       });
       essayTotal = Math.round(essayTotal * 100) / 100;
 
-      // Tính tổng điểm
+      // Tính tổng điểm có tính đến điểm trừ vi phạm (nếu vi phạm 3 lần)
       let autoScore = sub.mcqPoints !== undefined ? parseFloat(sub.mcqPoints) : (parseFloat(sub.score) || 0);
-      let finalScore = Math.min(10, Math.round((autoScore + essayTotal) * 100) / 100);
+      let penalty = sub.penaltyPoints !== undefined ? sub.penaltyPoints : (sub.violations >= 3 ? 5 : 0);
+      let rawTotal = autoScore + essayTotal;
+      let finalScore = Math.max(0, Math.min(10, Math.round((rawTotal - penalty) * 100) / 100));
 
       sub.essayScores = essayScores;
       sub.essayTotal = essayTotal;
+      sub.penaltyPoints = penalty;
       sub.finalScore = finalScore;
       sub.teacherFeedback = (teacherFeedback || '').trim();
       sub.isGraded = true;
@@ -251,8 +261,10 @@
         'Khối',
         'Chế Độ',
         'Mã Đề',
+        'Thời Gian Làm Bài',
         'Điểm TN / Đ-S (Tự động)',
         'Điểm Tự Luận (Chấm)',
+        'Điểm Phạt Vi Phạm',
         'Tổng Điểm (Thang 10)',
         'Trạng Thái Chấm',
         'Lời Phê Của Giáo Viên',
@@ -265,6 +277,7 @@
         const essayScore = s.isGraded ? (s.essayTotal !== undefined ? s.essayTotal : 0) : 'Chưa chấm';
         const finalScore = s.finalScore !== undefined ? s.finalScore : (s.score !== undefined ? s.score : autoScore);
         const gradingStatus = s.isGraded ? 'Đã chấm xong' : (s.mode === 'exam' ? 'Chờ chấm tự luận' : 'Ôn tập');
+        const penaltyText = (s.penaltyPoints || (s.violations >= 3 ? 5 : 0)) ? `-${s.penaltyPoints || 5}đ` : '0đ';
 
         return [
           idx + 1,
@@ -274,8 +287,10 @@
           s.grade || '',
           s.mode === 'exam' ? 'Thi Giữa HK1' : 'Ôn Tập Đề Cương',
           `"${(s.examCode || '').replace(/"/g, '""')}"`,
+          `"${(s.durationFormatted || '45 phút').replace(/"/g, '""')}"`,
           autoScore,
           typeof essayScore === 'number' ? essayScore : `"${essayScore}"`,
+          `"${penaltyText}"`,
           finalScore,
           `"${gradingStatus}"`,
           `"${(s.teacherFeedback || '').replace(/"/g, '""')}"`,

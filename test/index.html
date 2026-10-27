@@ -99,6 +99,11 @@
       const [scoreResult, setScoreResult] = useState(null);
       const [isCapturing, setIsCapturing] = useState(false);
 
+      // Lock State & Time Tracking
+      const [isSessionLocked, setIsSessionLocked] = useState(false);
+      const [lockReason, setLockReason] = useState(null); // 'violation_3_times' | 'proctor_lock'
+      const [examStartTime, setExamStartTime] = useState(null);
+
       // Data references
       const gradeData = grade === 8 ? window.EXAM_DATA_G8 : (grade === 9 ? window.EXAM_DATA_G9 : window.EXAM_DATA_G10);
       const practiceQuestions = gradeData ? (gradeData.practiceQuestions || []) : [];
@@ -271,6 +276,9 @@
         const sid = 'sess-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
         setSessionId(sid);
         setActiveQuestionIdx(0);
+        setIsSessionLocked(false);
+        setLockReason(null);
+        setExamStartTime(Date.now());
 
         // Xác định mã đề
         const code = window.AsianSchoolStorage.determineExamCode(grade, studentClass);
@@ -281,20 +289,39 @@
           mode,
           onViolation: (v) => {
             setViolations(v.count);
-            setWarningMessage(v.message);
-            setShowWarningModal(true);
-
-            window.AsianSchoolStorage.updateLiveSession({
-              sessionId: sid,
-              fullName,
-              studentClass,
-              studentId,
-              grade,
-              mode,
-              examCode: mode === 'exam' ? code : 'Đề cương',
-              violations: v.count,
-              status: 'in_progress'
-            });
+            if (v.count >= 3) {
+              setIsSessionLocked(true);
+              setLockReason('violation_3_times');
+              window.AsianSchoolStorage.updateLiveSession({
+                sessionId: sid,
+                fullName,
+                studentClass,
+                studentId,
+                grade,
+                mode,
+                examCode: mode === 'exam' ? code : 'Đề cương',
+                violations: v.count,
+                status: 'locked',
+                isLocked: true,
+                lockReason: 'violation_3_times',
+                penaltyPoints: 5
+              });
+            } else {
+              setWarningMessage(`Cảnh báo vi phạm lần ${v.count}/3: Em vừa rời khỏi giao diện làm bài hoặc thoát toàn màn hình! Nếu vi phạm đến lần thứ 3, hệ thống sẽ KHÓA BÀI THI và TRỪ 5 ĐIỂM!`);
+              setShowWarningModal(true);
+              window.AsianSchoolStorage.updateLiveSession({
+                sessionId: sid,
+                fullName,
+                studentClass,
+                studentId,
+                grade,
+                mode,
+                examCode: mode === 'exam' ? code : 'Đề cương',
+                violations: v.count,
+                status: 'in_progress',
+                isLocked: false
+              });
+            }
           }
         });
 
@@ -392,6 +419,11 @@
           score = totalMcq > 0 ? ((correctMcq / totalMcq) * 10).toFixed(2) : 0;
         }
 
+        const durationSec = examStartTime ? Math.round((Date.now() - examStartTime) / 1000) : 0;
+        const mins = Math.floor(durationSec / 60);
+        const secs = durationSec % 60;
+        const durationFormatted = `${mins} phút ${secs < 10 ? '0' : ''}${secs} giây`;
+
         const result = {
           mode: 'practice',
           correctCount: correctMcq,
@@ -401,6 +433,8 @@
           score: parseFloat(score),
           essayAnswered: Object.keys(practiceAnswers.essay).length,
           violations,
+          durationSeconds: durationSec,
+          durationFormatted,
           submittedAt: new Date().toISOString()
         };
         setScoreResult(result);
@@ -417,6 +451,8 @@
           correctCount: correctMcq,
           totalQuestions: totalMcq,
           violations,
+          durationSeconds: durationSec,
+          durationFormatted,
           answers: practiceAnswers
         });
 
@@ -471,14 +507,25 @@
           });
         }
 
+        const durationSec = examStartTime ? Math.round((Date.now() - examStartTime) / 1000) : 0;
+        const mins = Math.floor(durationSec / 60);
+        const secs = durationSec % 60;
+        const durationFormatted = `${mins} phút ${secs < 10 ? '0' : ''}${secs} giây`;
+        const penalty = violations >= 3 ? 5 : 0;
         const totalEarned = Math.min(grade === 10 ? 7.75 : 7.0, parseFloat(mcqPoints.toFixed(2)));
+        const finalNetPoints = Math.max(0, Math.round((totalEarned - penalty) * 100) / 100);
+
         const finalResult = {
           mode: 'exam',
           examCode: assignedCode,
           mcqPoints: totalEarned,
+          netPoints: finalNetPoints,
           maxMcqPoints: grade === 10 ? 7.75 : 7.0,
           essayAnswered: Object.keys(examAnswers.essay).length,
           violations,
+          penaltyPoints: penalty,
+          durationSeconds: durationSec,
+          durationFormatted,
           submittedAt: new Date().toISOString()
         };
         setScoreResult(finalResult);
@@ -495,6 +542,9 @@
           mcqPoints: totalEarned,
           maxMcqPoints: grade === 10 ? 7.75 : 7.0,
           violations,
+          penaltyPoints: penalty,
+          durationSeconds: durationSec,
+          durationFormatted,
           answers: examAnswers
         });
 
@@ -613,13 +663,23 @@
 
             ctx.fillStyle = '#475569';
             ctx.font = '16px sans-serif';
-            ctx.fillText(`Thời gian nộp bài: ${new Date(scoreResult?.submittedAt || Date.now()).toLocaleString('vi-VN')}`, 60, 520);
-            ctx.fillText(`Số lần vi phạm an toàn bài thi: ${scoreResult?.violations || 0} lần`, 60, 550);
-            ctx.fillText(`Mã phiên làm bài (Session): ${scoreResult?.sessionId || sessionId || 'N/A'}`, 60, 580);
+            ctx.fillText(`Thời gian nộp bài: ${new Date(scoreResult?.submittedAt || Date.now()).toLocaleString('vi-VN')}`, 60, 515);
+            ctx.fillText(`Thời gian làm bài thực tế: ${scoreResult?.durationFormatted || '45 phút'}`, 60, 545);
+            const violText = `Số lần vi phạm an toàn bài thi: ${scoreResult?.violations || 0} lần ${scoreResult?.violations >= 3 ? '— [BIÊN BẢN: TRỪ 5 ĐIỂM]' : ''}`;
+            if (scoreResult?.violations >= 3) {
+              ctx.fillStyle = '#dc2626';
+              ctx.font = 'bold 16px sans-serif';
+              ctx.fillText(violText, 60, 575);
+            } else {
+              ctx.fillText(violText, 60, 575);
+            }
+            ctx.fillStyle = '#475569';
+            ctx.font = '16px sans-serif';
+            ctx.fillText(`Mã phiên làm bài (Session): ${scoreResult?.sessionId || sessionId || 'N/A'}`, 60, 605);
 
             ctx.fillStyle = '#2563eb';
             ctx.font = 'bold 16px sans-serif';
-            ctx.fillText('ĐÃ ĐƯỢC HỆ THỐNG XÁC THỰC — DÙNG ẢNH NÀY NỘP LÊN LMS', 60, 625);
+            ctx.fillText('ĐÃ ĐƯỢC HỆ THỐNG XÁC THỰC — DÙNG ẢNH NÀY NỘP LÊN LMS', 60, 640);
 
             dataUrl = fallbackCanvas.toDataURL('image/png');
           }
@@ -665,12 +725,19 @@
                 message: cmd.payload?.message || 'Các em chú ý thời gian làm bài!'
               });
             } else if (cmd.command === 'unlock_session') {
-              setViolations(0);
+              setIsSessionLocked(false);
+              setLockReason(null);
+              if (window.AsianSchoolAntiCheat) {
+                window.AsianSchoolAntiCheat.requestFullscreen();
+              }
               setBroadcastNotice({
-                type: 'info',
-                title: 'Mở Khóa Phiên Thi 🔓',
-                message: 'Thầy đã mở khóa phiên thi và thiết lập lại an toàn phòng thi cho em.'
+                type: 'success',
+                title: 'Giáo Viên Đã Xác Nhận Mở Khóa Bài Thi 🔓',
+                message: 'Thầy Trần Gia Huy đã xác nhận mở khóa bài thi của em. Em hãy tập trung làm bài nghiêm túc!'
               });
+            } else if (cmd.command === 'lock_session') {
+              setIsSessionLocked(true);
+              setLockReason('proctor_lock');
             }
             window.AsianSchoolStorage.consumeProctorCommand(cmd.cmdId, sessionId);
           });
@@ -692,8 +759,51 @@
       return (
         <div className="min-h-screen bg-slate-100 text-slate-900">
           
+          {/* MÀN HÌNH PHONG TỎA KHÓA BÀI THI KHI VI PHẠM 3 LẦN HOẶC GIÁM THỊ KHÓA */}
+          {isSessionLocked && (
+            <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4">
+              <div className="max-w-lg w-full bg-slate-900 border-4 border-red-600 rounded-3xl p-6 sm:p-8 text-center shadow-2xl space-y-5">
+                <div className="w-20 h-20 mx-auto rounded-full bg-red-600/20 border-2 border-red-500 flex items-center justify-center text-4xl shadow-lg shadow-red-500/20">
+                  🚨
+                </div>
+                <div className="space-y-2">
+                  <span className="px-3 py-1 rounded-full bg-red-600 text-white font-black text-xs uppercase tracking-wider">
+                    {lockReason === 'violation_3_times' ? 'Biên Bản Vi Phạm 3 Lần' : 'Lệnh Khóa Phòng Thi'}
+                  </span>
+                  <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">
+                    BÀI THI BỊ TẠM THỜI KHÓA
+                  </h2>
+                </div>
+                <div className="p-4 bg-red-950/80 border border-red-800 rounded-2xl text-left space-y-2.5 text-xs text-red-200 leading-relaxed">
+                  {lockReason === 'violation_3_times' ? (
+                    <>
+                      <p className="font-bold text-red-100 flex items-center space-x-1">
+                        <span>⚠️</span>
+                        <span>Học sinh đã vi phạm quy chế an toàn bài thi 3 lần (chuyển tab / rời toàn màn hình).</span>
+                      </p>
+                      <p className="text-amber-300 font-extrabold text-sm border-t border-b border-red-800/80 py-2">
+                        ⚖️ HỆ THỐNG GHI NHẬN: BỊ TRỪ 5 ĐIỂM VÀO KẾT QUẢ THI
+                      </p>
+                      <p>
+                        Bài làm của em hiện đang bị KHÓA. Em vui lòng <strong>giữ nguyên màn hình này</strong> và <strong>báo trực tiếp với Giám thị (Thầy Trần Gia Huy)</strong> để được kiểm tra và xác nhận mở khóa bài thi.
+                      </p>
+                    </>
+                  ) : (
+                    <p>
+                      Giám thị (Thầy Trần Gia Huy) đã tạm dừng và khóa bài thi của em. Vui lòng báo Giám thị tại phòng thi để được mở khóa.
+                    </p>
+                  )}
+                </div>
+                <div className="text-xs text-amber-300 font-semibold italic flex items-center justify-center space-x-2 pt-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
+                  <span>Đang đợi Giám thị xác nhận mở khóa từ xa...</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* MODAL CẢNH BÁO VI PHẠM (CHỐNG GIAN LẬN TOÀN MÀN HÌNH) */}
-          {showWarningModal && (
+          {showWarningModal && !isSessionLocked && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
               <div className="bg-white text-slate-900 rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full text-center border-4 border-red-500 animate-bounce">
                 <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full mx-auto flex items-center justify-center mb-4">
@@ -854,18 +964,6 @@
                   )}
                 </div>
               )}
-
-              {examState === 'entry' && (
-                <div className="flex items-center space-x-3">
-                  <a href="../index.html" className="text-xs text-slate-600 hover:text-blue-800 font-bold transition flex items-center space-x-1 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl border border-slate-200">
-                    <span>Trang Chủ</span>
-                    <span>🏠</span>
-                  </a>
-                  <a href="../admin/index.html" className="text-xs bg-blue-50 text-blue-800 hover:bg-blue-100 px-3 py-1.5 rounded-xl font-bold border border-blue-200 transition">
-                    Giáo Viên 👨‍🏫
-                  </a>
-                </div>
-              )}
             </div>
           </header>
 
@@ -1003,8 +1101,7 @@
                     {mode === 'exam' && (
                       <div className="pt-2">
                         <label className="block text-xs font-bold text-red-700 uppercase tracking-wider mb-1 flex items-center justify-between">
-                          <span>🔒 Mật Khẩu Phòng Thi (Giám thị cấp) <span className="text-red-500">*</span></span>
-                          <span className="text-[11px] text-slate-500 font-normal lowercase">Mặc định: asian2026</span>
+                          <span>🔒 Mật Khẩu Phòng Thi (Do Giám thị cấp) <span className="text-red-500">*</span></span>
                         </label>
                         <div className="relative">
                           <input
@@ -1608,15 +1705,22 @@
                       {mode === 'practice' ? 'ĐIỂM ĐẠT ĐƯỢC' : 'ĐIỂM TRẮC NGHIỆM CHÍNH THỨC'}
                     </p>
                     <div className="text-5xl font-black text-red-600 my-2">
-                      {mode === 'practice' ? scoreResult.score : scoreResult.mcqPoints}
+                      {mode === 'practice' ? scoreResult.score : (scoreResult.netPoints !== undefined ? scoreResult.netPoints : scoreResult.mcqPoints)}
                       <span className="text-xl text-slate-600 font-bold"> / {mode === 'practice' ? 10 : scoreResult.maxMcqPoints}</span>
                     </div>
-                    <p className="text-xs text-slate-700 font-bold">
-                      {mode === 'practice'
-                        ? `Làm đúng ${scoreResult.correctCount} / ${scoreResult.totalQuestions} câu trắc nghiệm ${grade === 10 ? `+ ${scoreResult.correctTfSub}/${scoreResult.totalTfSub} ý Đúng/Sai` : ''}`
-                        : `Thời gian nộp: ${new Date(scoreResult.submittedAt).toLocaleTimeString('vi-VN')} • Số lần vi phạm: ${scoreResult.violations} lần`
-                      }
-                    </p>
+                    <div className="space-y-1">
+                      <p className="text-xs text-slate-700 font-bold">
+                        {mode === 'practice'
+                          ? `Làm đúng ${scoreResult.correctCount} / ${scoreResult.totalQuestions} câu trắc nghiệm • Thời gian làm: ${scoreResult.durationFormatted || 'N/A'}`
+                          : `Thời gian làm bài: ${scoreResult.durationFormatted || '45 phút'} • Nộp lúc: ${new Date(scoreResult.submittedAt).toLocaleTimeString('vi-VN')} • Số lần vi phạm: ${scoreResult.violations} lần`
+                        }
+                      </p>
+                      {scoreResult.violations >= 3 && (
+                        <div className="mt-2 inline-block px-3 py-1 bg-red-100 border-2 border-red-500 rounded-xl text-red-800 text-xs font-black shadow-sm">
+                          🚨 Biên bản vi phạm: Đã trừ 5 điểm vào kết quả thi (Vi phạm 3 lần)
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Footer Thẻ */}
@@ -1647,12 +1751,13 @@
                       Làm Lại Bài Ôn Tập 🔄
                     </button>
                   ) : (
-                    <a
-                      href="../index.html"
+                    <button
+                      type="button"
+                      onClick={() => window.location.reload()}
                       className="px-6 py-3.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-sm rounded-2xl transition shadow-md"
                     >
-                      Về Trang Chủ 🏠
-                    </a>
+                      Hoàn Tất Bài Thi 🔒
+                    </button>
                   )}
                 </div>
 

@@ -189,6 +189,19 @@ test('Kiểm tra Lệnh Giám Thị Thời Gian Thực (Proctor Commands)', (t) 
   const pendingForAny = storage.getPendingProctorCommands('any-student-sess');
   assert.strictEqual(pendingForAny.length, 1);
   assert.strictEqual(pendingForAny[0].payload.message, 'Còn 5 phút nữa hết giờ');
+
+  // 5. Lệnh khóa bài và mở khóa bài thi của Admin
+  const cmdLock = storage.sendProctorCommand(sessionId, 'lock_session', { reason: 'Giáo viên khóa bài' });
+  assert.strictEqual(cmdLock.command, 'lock_session');
+  const pendingLock = storage.getPendingProctorCommands(sessionId);
+  assert.strictEqual(pendingLock.some(c => c.command === 'lock_session'), true);
+  storage.consumeProctorCommand(cmdLock.cmdId, sessionId);
+
+  const cmdUnlock = storage.sendProctorCommand(sessionId, 'unlock_session', {});
+  assert.strictEqual(cmdUnlock.command, 'unlock_session');
+  const pendingUnlock = storage.getPendingProctorCommands(sessionId);
+  assert.strictEqual(pendingUnlock.some(c => c.command === 'unlock_session'), true);
+  storage.consumeProctorCommand(cmdUnlock.cmdId, sessionId);
 });
 
 test('Kiểm tra Quản lý Mật khẩu Admin & Nhật ký Hoạt động (Audit Log)', (t) => {
@@ -202,16 +215,33 @@ test('Kiểm tra Quản lý Mật khẩu Admin & Nhật ký Hoạt động (Audi
 });
 
 test('Kiểm tra Xuất CSV Bảng Điểm Đầy Đủ Cột Tự Luận & Lời Phê', (t) => {
+  // Thêm 1 bài nộp có vi phạm 3 lần để test trừ 5 điểm
+  storage.saveSubmission({
+    fullName: 'Trần Vi Phạm',
+    studentCode: 'LMS9999',
+    grade: 8,
+    studentClass: '8/20',
+    mode: 'exam',
+    examCode: '102',
+    mcqPoints: 7.0,
+    violations: 3,
+    penaltyPoints: 5,
+    durationFormatted: '34 phút 20 giây'
+  });
+
   const csv = storage.exportSubmissionsCSV();
   assert.ok(csv.includes('Mã LMS'));
   assert.ok(csv.includes('Họ và Tên'));
+  assert.ok(csv.includes('Thời Gian Làm Bài'));
+  assert.ok(csv.includes('Điểm Phạt Vi Phạm'));
   assert.ok(csv.includes('Điểm Tự Luận (Chấm)'));
   assert.ok(csv.includes('Tổng Điểm (Thang 10)'));
   assert.ok(csv.includes('Trạng Thái Chấm'));
   assert.ok(csv.includes('Lời Phê Của Giáo Viên'));
   assert.ok(csv.includes('LMS8888'));
   assert.ok(csv.includes('Lê Văn An'));
-  assert.ok(csv.includes('9.75'));
+  assert.ok(csv.includes('34 phút 20 giây'));
+  assert.ok(csv.includes('-5đ'));
 });
 
 test('Kiểm tra Timer & AntiCheat cơ bản & Gia Hạn Thời Gian', (t) => {
