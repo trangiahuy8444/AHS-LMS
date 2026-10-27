@@ -215,6 +215,19 @@
       const [confirmAdminPassword, setConfirmAdminPassword] = useState('');
       const [configSavedNotice, setConfigSavedNotice] = useState('');
 
+      // Google Drive & Retention States
+      const [googleDriveUrl, setGoogleDriveUrl] = useState(config.googleDriveWebhookUrl || '');
+      const [isSyncingDrive, setIsSyncingDrive] = useState(false);
+      const [driveSyncNotice, setDriveSyncNotice] = useState('');
+      const [showAppsScriptGuide, setShowAppsScriptGuide] = useState(false);
+      const [hasDownloadedBackup, setHasDownloadedBackup] = useState(false);
+      const retentionSummary = useMemo(() => {
+        if (typeof window !== 'undefined' && window.AsianSchoolStorage && window.AsianSchoolStorage.getExamRetentionSummary) {
+          return window.AsianSchoolStorage.getExamRetentionSummary();
+        }
+        return { totalCount: 0, daysActive: 0, retentionDays: 21, isNearExpiry: false, isExpired: false };
+      }, [submissions, config]);
+
       const fileInputRef = useRef(null);
 
       // Auth Check
@@ -379,6 +392,7 @@
         link.download = `BangDiem_TinHoc_AsianSchool_${new Date().toISOString().slice(0, 10)}.csv`;
         link.click();
         URL.revokeObjectURL(url);
+        setHasDownloadedBackup(true);
       };
 
       const handleExportJSON = () => {
@@ -390,6 +404,7 @@
         link.download = `AsianSchool_Submissions_Backup_${new Date().toISOString().slice(0, 10)}.json`;
         link.click();
         URL.revokeObjectURL(url);
+        setHasDownloadedBackup(true);
       };
 
       const handleImportJSON = (e) => {
@@ -437,6 +452,48 @@
         setConfirmAdminPassword('');
         setConfigSavedNotice('Đã đổi mật khẩu quản trị Admin thành công!');
         setTimeout(() => setConfigSavedNotice(''), 3000);
+      };
+
+      // --- GOOGLE DRIVE & VÒNG ĐỜI KỲ THI HANDLERS ---
+
+      const handleSaveGoogleDriveUrl = (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        window.AsianSchoolStorage.saveConfig({ googleDriveWebhookUrl: googleDriveUrl.trim() });
+        setConfig(window.AsianSchoolStorage.getConfig());
+        setConfigSavedNotice('Đã lưu cấu hình Google Drive Webhook thành công!');
+        setTimeout(() => setConfigSavedNotice(''), 3000);
+      };
+
+      const handleSyncAllGoogleDrive = async () => {
+        if (!googleDriveUrl.trim()) {
+          alert('Vui lòng nhập URL Webhook Google Drive trước khi thực hiện đồng bộ!');
+          return;
+        }
+        setIsSyncingDrive(true);
+        setDriveSyncNotice('Đang kết nối và sao lưu toàn bộ dữ liệu kỳ thi lên Google Drive...');
+        const res = await window.AsianSchoolStorage.syncAllToGoogleDrive();
+        setIsSyncingDrive(false);
+        if (res.success) {
+          setDriveSyncNotice(`✅ ĐÃ SAO LƯU THÀNH CÔNG ${res.count} BÀI THI LÊN GOOGLE DRIVE!`);
+          setHasDownloadedBackup(true);
+        } else {
+          setDriveSyncNotice(`⚠️ Lỗi đồng bộ: ${res.error}`);
+        }
+        setTimeout(() => setDriveSyncNotice(''), 6000);
+      };
+
+      const handlePurgeExamData = () => {
+        if (!hasDownloadedBackup) {
+          if (!confirm('CHÚ Ý: Thầy chưa tải bản sao lưu (CSV/JSON) hoặc đồng bộ lên Google Drive trong phiên này!\n\nThầy có chắc chắn muốn xóa không? Khuyến nghị Thầy nên bấm nút "1. Tải Về Trọn Bộ Hồ Sơ Điểm" trước khi xóa.')) {
+            return;
+          }
+        }
+        const confirmText = prompt('XÁC NHẬN DỌN DẸP KỲ THI CŨ:\n\nNhập chữ "XOA" vào ô bên dưới để xác nhận dọn dẹp các bài thi cũ sau 2-3 tuần:');
+        if (confirmText === 'XOA' || confirmText === 'xoa') {
+          const res = window.AsianSchoolStorage.purgeOldExamSubmissions({ purgeAll: true });
+          setSubmissions(window.AsianSchoolStorage.getSubmissions());
+          alert(`✅ ĐÃ DỌN DẸP KỲ THI THÀNH CÔNG!\n\nĐã xóa ${res.deletedCount} bài thi cũ.\nHệ thống đã sẵn sàng cho đợt thi mới.`);
+        }
       };
 
       // Filtered submissions
@@ -1748,7 +1805,183 @@
                   </form>
                 </div>
 
-                {/* 3. NHẬT KÝ HOẠT ĐỘNG (AUDIT LOG) */}
+                {/* 3. KẾT NỐI GOOGLE DRIVE & GOOGLE SHEETS */}
+                <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800 shadow-xl space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h3 className="font-black text-sm text-emerald-400 uppercase tracking-wider flex items-center space-x-2">
+                      <span>☁️</span>
+                      <span>KẾT NỐI GOOGLE DRIVE & GOOGLE SHEETS (LƯU TRỮ VĨNH VIỄN)</span>
+                    </h3>
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      100% Miễn Phí
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    Tự động đồng bộ từng dòng điểm vào Google Sheets và lưu trữ tệp sao lưu kỳ thi lên Google Drive cá nhân của Thầy mà không lo mất dữ liệu.
+                  </p>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">
+                        URL Webhook Google Apps Script (Triển khai từ Google Drive):
+                      </label>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <input
+                          type="url"
+                          value={googleDriveUrl}
+                          onChange={e => setGoogleDriveUrl(e.target.value)}
+                          placeholder="https://script.google.com/macros/s/AKfycb.../exec"
+                          className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-emerald-300 font-mono-code focus:outline-none focus:border-emerald-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleSaveGoogleDriveUrl}
+                          className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition shrink-0"
+                        >
+                          Lưu URL
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3 pt-1">
+                      <button
+                        type="button"
+                        onClick={handleSyncAllGoogleDrive}
+                        disabled={isSyncingDrive}
+                        className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow transition flex items-center space-x-1.5"
+                      >
+                        <span>🚀</span>
+                        <span>{isSyncingDrive ? 'Đang Sao Lưu Lên Drive...' : 'Đồng Bộ Toàn Bộ Dữ Liệu Lên Google Drive Ngay'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowAppsScriptGuide(!showAppsScriptGuide)}
+                        className="px-3.5 py-2 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-xl border border-slate-700/80 transition"
+                      >
+                        {showAppsScriptGuide ? 'Ẩn Hướng Dẫn Google Script ✕' : 'Xem Hướng Dẫn & Mã Script Google Drive 📖'}
+                      </button>
+                    </div>
+
+                    {driveSyncNotice && (
+                      <div className="p-3 bg-emerald-950/80 border border-emerald-600 text-emerald-200 text-xs font-bold rounded-xl animate-fade-in">
+                        {driveSyncNotice}
+                      </div>
+                    )}
+
+                    {showAppsScriptGuide && (
+                      <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-3 text-xs text-slate-300">
+                        <h4 className="font-bold text-amber-400">Cách tạo Webhook Google Drive trong 1 phút:</h4>
+                        <ol className="list-decimal list-inside space-y-1.5 text-slate-400">
+                          <li>Mở Google Drive của Thầy, tạo 1 file Google Sheets mới (ví dụ đặt tên: <strong className="text-white">AHS_BangDiem_2026</strong>).</li>
+                          <li>Chọn menu <strong>Tiện ích mở rộng (Extensions)</strong> &rarr; <strong>Apps Script</strong>.</li>
+                          <li>Xóa hết mã cũ và dán toàn bộ đoạn mã bên dưới vào.</li>
+                          <li>Bấm <strong>Triển khai (Deploy)</strong> &rarr; <strong>Quản lý bản triển khai mới</strong> &rarr; Chọn loại: <strong>Ứng dụng web (Web app)</strong>.</li>
+                          <li>Đặt quyền truy cập: <strong>Ai cũng có quyền (Anyone)</strong> &rarr; Bấm <strong>Triển khai</strong> rồi sao chép đường link dán vào ô trên.</li>
+                        </ol>
+                        <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 font-mono-code text-[11px] text-slate-300 overflow-x-auto select-all">
+                          {`function doPost(e) {
+  try {
+    var data = JSON.parse(e.postData.contents);
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    if (data.action === 'sync_row' && data.submission) {
+      if (sheet.getLastRow() === 0) {
+        sheet.appendRow(["Mã LMS", "Họ và Tên", "Khối", "Lớp", "Mã Đề", "Điểm TN", "Điểm TL", "Tổng Điểm", "Vi Phạm", "Thời Gian Làm", "Thời Điểm Nộp"]);
+      }
+      var s = data.submission;
+      sheet.appendRow([s.studentId, s.fullName, s.grade, s.studentClass, s.examCode, s.mcqPoints, s.essayTotal || 0, s.finalScore || s.score, s.violations || 0, s.durationFormatted, s.submittedAt]);
+      return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (data.action === 'backup_file') {
+      var folder = DriveApp.createFolder("AHS-LMS-Archive-" + new Date().getFullYear());
+      folder.createFile("Backup_" + Utilities.formatDate(new Date(), "GMT+7", "yyyy_MM_dd_HHmm") + ".json", data.jsonContent, MimeType.PLAIN_TEXT);
+      return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
+    }
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.toString() })).setMimeType(ContentService.MimeType.JSON);
+  }
+}`}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 4. QUẢN LÝ VÒNG ĐỜI KỲ THI & DỌN DẸP DỮ LIỆU AN TOÀN (2–3 TUẦN) */}
+                <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800 shadow-xl space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h3 className="font-black text-sm text-purple-400 uppercase tracking-wider flex items-center space-x-2">
+                      <span>🗄️</span>
+                      <span>QUẢN LÝ VÒNG ĐỜI KỲ THI & DỌN DẸP DỮ LIỆU (2-3 TUẦN)</span>
+                    </h3>
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                      retentionSummary.isExpired
+                        ? 'bg-red-500/20 text-red-300 border-red-500/30'
+                        : (retentionSummary.isNearExpiry
+                            ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                            : 'bg-blue-500/20 text-blue-300 border-blue-500/30')
+                    }`}>
+                      {retentionSummary.daysActive} ngày lưu trữ
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-400">
+                    Theo quy chuẩn lưu trữ của bộ môn: Dữ liệu bài thi chính thức được lưu trữ an toàn trong 2–3 tuần (tối đa 21 ngày) để phục vụ chấm tự luận và vào điểm. Sau đó có thể dọn dẹp để chuẩn bị cho đợt thi mới.
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-950 p-4 rounded-2xl border border-slate-800 text-xs">
+                    <div>
+                      <span className="text-slate-400">Tổng bài thi chính thức:</span>
+                      <p className="text-lg font-black text-white mt-0.5">{retentionSummary.totalCount} bài</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Thời gian đã lưu:</span>
+                      <p className="text-lg font-black text-amber-300 mt-0.5">{retentionSummary.daysActive} / {retentionSummary.retentionDays || 21} ngày</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Trạng thái vòng đời:</span>
+                      <p className={`text-xs font-black mt-1.5 ${retentionSummary.isExpired ? 'text-red-400' : (retentionSummary.isNearExpiry ? 'text-amber-400' : 'text-emerald-400')}`}>
+                        {retentionSummary.isExpired ? '⚠️ Đã quá 3 tuần (Nên dọn dẹp)' : (retentionSummary.isNearExpiry ? '🟡 Sắp hết hạn 3 tuần' : '🟢 Đang trong hạn lưu trữ')}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Quy trình an toàn 2 bước */}
+                  <div className="p-4 bg-slate-950/70 rounded-2xl border border-slate-800 space-y-3">
+                    <span className="text-xs font-bold text-slate-300 uppercase tracking-wide block">
+                      QUY TRÌNH DỌN DẸP AN TOÀN 2 BƯỚC:
+                    </span>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleExportCSV();
+                          handleExportJSON();
+                          setHasDownloadedBackup(true);
+                          alert('✅ ĐÃ TẢI XUỐNG BẢN SAO LƯU THÀNH CÔNG!\n\nTệp Excel CSV và tệp sao lưu JSON đã được lưu vào máy tính của Thầy.\nBây giờ Thầy có thể an tâm thực hiện Bước 2 nếu muốn dọn dẹp kỳ thi.');
+                        }}
+                        className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow transition flex items-center space-x-1.5"
+                      >
+                        <span>📥</span>
+                        <span>1. Tải Bản Sao Lưu Về Máy (CSV + JSON)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handlePurgeExamData}
+                        className="px-4 py-2.5 bg-rose-700 hover:bg-rose-600 text-white font-bold text-xs rounded-xl shadow transition flex items-center space-x-1.5"
+                      >
+                        <span>🗑️</span>
+                        <span>2. Dọn Dẹp Kỳ Thi Cũ (Xóa Dữ Liệu Sau 2-3 Tuần)</span>
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-slate-500 italic">
+                      * Lưu ý: Khi dọn dẹp, toàn bộ bài thi cũ sẽ được làm sạch trên Firestore và web. Bản sao lưu trên Google Drive hoặc tệp tải về máy sẽ giữ trọn vẹn dữ liệu vĩnh viễn.
+                    </p>
+                  </div>
+                </div>
+
+                {/* 5. NHẬT KÝ HOẠT ĐỘNG (AUDIT LOG) */}
                 <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800 shadow-xl space-y-4">
                   <h3 className="font-black text-sm text-slate-300 uppercase tracking-wider border-b border-slate-800 pb-3 flex items-center space-x-2">
                     <span>📝</span>

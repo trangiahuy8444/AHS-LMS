@@ -365,14 +365,15 @@
           }
         });
 
-        // Nếu là chế độ Thi: Kích hoạt đồng hồ đếm ngược 45 phút
+        // Nếu là chế độ Thi: Kích hoạt đồng hồ đếm ngược 45 phút và nhịp tim 60s
         if (mode === 'exam') {
           window.AsianSchoolTimer.start({
             durationMinutes: 45,
             onTick: (sec, fmt) => {
               setSecondsLeft(sec);
               setTimeLeftStr(fmt);
-              if (sec % 15 === 0) {
+              // Nhịp tim định kỳ 60 giây (tối ưu hóa hạn mức Firebase cho 26 học sinh)
+              if (sec % 60 === 0) {
                 window.AsianSchoolStorage.updateLiveSession({
                   sessionId: sid,
                   fullName,
@@ -395,20 +396,21 @@
               handleSubmitExam(true);
             }
           });
-        }
 
-        window.AsianSchoolStorage.updateLiveSession({
-          sessionId: sid,
-          fullName,
-          studentClass,
-          studentId,
-          grade,
-          mode,
-          examCode: mode === 'exam' ? code : 'Đề cương',
-          violations: 0,
-          status: 'in_progress',
-          timeLeft: mode === 'exam' ? '45:00' : 'Tự do'
-        });
+          // Chỉ gửi phiên trực tiếp lên bảng giám sát khi là bài thi chính thức
+          window.AsianSchoolStorage.updateLiveSession({
+            sessionId: sid,
+            fullName,
+            studentClass,
+            studentId,
+            grade,
+            mode: 'exam',
+            examCode: code,
+            violations: 0,
+            status: 'in_progress',
+            timeLeft: '45:00'
+          });
+        }
 
         setExamState('in_progress');
       };
@@ -477,10 +479,9 @@
           durationFormatted,
           submittedAt: new Date().toISOString()
         };
-        setScoreResult(result);
-        setExamState('submitted');
 
-        window.AsianSchoolStorage.saveSubmission({
+        // Lưu vào phiên tạm theo Mã LMS (không lưu vĩnh viễn vào CSDL)
+        const savedPracticeDoc = window.AsianSchoolStorage.saveSubmission({
           sessionId,
           fullName,
           studentClass,
@@ -496,17 +497,9 @@
           answers: practiceAnswers
         });
 
-        window.AsianSchoolStorage.updateLiveSession({
-          sessionId,
-          fullName,
-          studentClass,
-          studentId,
-          grade,
-          mode: 'practice',
-          violations,
-          status: 'submitted',
-          score: parseFloat(score)
-        });
+        result.attemptNumber = savedPracticeDoc?.attemptNumber || 1;
+        setScoreResult(result);
+        setExamState('submitted');
       };
 
       // Nộp bài thi chính thức
@@ -1800,6 +1793,12 @@
                           : `Thời gian làm bài: ${scoreResult.durationFormatted || '45 phút'} • Nộp lúc: ${new Date(scoreResult.submittedAt).toLocaleTimeString('vi-VN')} • Số lần vi phạm: ${scoreResult.violations} lần`
                         }
                       </p>
+                      {mode === 'practice' && (
+                        <div className="mt-2 inline-flex items-center space-x-1.5 px-3 py-1 bg-amber-100 border border-amber-300 rounded-full text-amber-900 text-xs font-black shadow-sm">
+                          <span>🎯</span>
+                          <span>Lần rèn luyện thứ {scoreResult.attemptNumber || 1} trong phiên này</span>
+                        </div>
+                      )}
                       {scoreResult.violations >= 3 && (
                         <div className="mt-2 inline-block px-3 py-1 bg-red-100 border-2 border-red-500 rounded-xl text-red-800 text-xs font-black shadow-sm">
                           🚨 Biên bản vi phạm: Đã trừ 5 điểm vào kết quả thi (Vi phạm 3 lần)

@@ -30,6 +30,10 @@
     examPassword: 'asian2026', // Mật khẩu phòng thi chính thức
     adminPasswordHash: '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918', // 'admin' sha256
     
+    // Cấu hình Google Drive Webhook & Vòng đời lưu trữ (Retention)
+    googleDriveWebhookUrl: '', // URL Web App Google Apps Script kết nối Google Drive / Sheets
+    retentionDays: 21, // Số ngày lưu trữ tối đa đề xuất trên web (2-3 tuần) trước khi dọn dẹp
+
     // Ma trận phân quyền truy cập theo từng lớp học:
     // 'practice_only' (chỉ được ôn tập) | 'exam_only' (đang thi chính thức) | 'both_open' (mở cả hai) | 'closed' (tạm khóa)
     defaultClassMode: 'practice_only',
@@ -58,6 +62,7 @@
       this.liveListeners = [];
       this.configListeners = [];
       this.cmdListeners = [];
+      this.practiceSessionMap = new Map(); // Bộ nhớ phiên ôn tập tạm theo mã LMS (fallback khi không có sessionStorage)
 
       if (typeof window !== 'undefined') {
         window.addEventListener('storage', (e) => {
@@ -182,6 +187,36 @@
 
     // --- QUẢN LÝ BÀI NỘP & CHẤM ĐIỂM TỰ LUẬN ---
 
+    // --- QUẢN LÝ PHIÊN ÔN TẬP THEO MÃ LMS (SESSION SCOPE - KHÔNG LƯU VĨNH VIỄN) ---
+
+    getPracticeAttempts(studentId) {
+      const key = (studentId || 'anon').trim().toUpperCase();
+      if (typeof sessionStorage !== 'undefined') {
+        const val = sessionStorage.getItem('ahs_practice_attempts_' + key);
+        return val ? parseInt(val, 10) : 0;
+      }
+      return this.practiceSessionMap.get(key) || 0;
+    }
+
+    incrementPracticeAttempt(studentId) {
+      const key = (studentId || 'anon').trim().toUpperCase();
+      const current = this.getPracticeAttempts(key);
+      const next = current + 1;
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem('ahs_practice_attempts_' + key, next.toString());
+      }
+      this.practiceSessionMap.set(key, next);
+      return next;
+    }
+
+    resetPracticeSession(studentId) {
+      const key = (studentId || 'anon').trim().toUpperCase();
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem('ahs_practice_attempts_' + key);
+      }
+      this.practiceSessionMap.delete(key);
+    }
+
     getSubmissions() {
       try {
         return JSON.parse(localStorage.getItem(SUBMISSIONS_KEY) || '[]');
@@ -191,11 +226,32 @@
     }
 
     saveSubmission(subData) {
-      const list = this.getSubmissions();
       const rawScore = subData.finalScore !== undefined ? subData.finalScore : (subData.score !== undefined ? subData.score : subData.mcqPoints);
       const penalty = subData.penaltyPoints !== undefined ? subData.penaltyPoints : (subData.violations >= 3 ? 5 : 0);
       let calculatedFinal = typeof rawScore === 'number' ? Math.max(0, Math.round((rawScore - penalty) * 100) / 100) : rawScore;
 
+      // 1. NẾU LÀ ÔN TẬP ĐỀ CƯƠNG: Chỉ lưu trong phiên theo Mã LMS, KHÔNG lưu vào CSDL vĩnh viễn
+      if (subData.mode === 'practice') {
+        const studentKey = subData.studentId || subData.studentCode || 'HS_ON_TAP';
+        const attemptNum = this.incrementPracticeAttempt(studentKey);
+        const transientDoc = {
+          id: 'practice-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+          ...subData,
+          attemptNumber: attemptNum,
+          durationSeconds: subData.durationSeconds || 0,
+          durationFormatted: subData.durationFormatted || (subData.durationTaken ? subData.durationTaken : '30 phút'),
+          penaltyPoints: 0,
+          submittedAt: new Date().toISOString(),
+          isGraded: true,
+          finalScore: calculatedFinal,
+          isPracticeOnly: true
+        };
+        // Trả về bản ghi tạm để học sinh xem kết quả và tải ảnh minh chứng, không đẩy vào danh sách bài thi
+        return transientDoc;
+      }
+
+      // 2. NẾU LÀ BÀI THI CHÍNH THỨC: Lưu trữ phục vụ giáo viên chấm và vào điểm
+      const list = this.getSubmissions();
       const newDoc = {
         id: 'sub-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
         ...subData,
@@ -225,6 +281,9 @@
           }
         } catch (e) { /* fallback local only */ }
       }
+
+      // Tự động đồng bộ lên Google Sheets qua Webhook (nếu Thầy đã cấu hình)
+      this.syncRowToGoogleDrive(newDoc);
 
       return newDoc;
     }
@@ -374,6 +433,148 @@
 
       const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
       return csvContent;
+    }
+
+    // --- QUẢN LÝ VÒNG ĐỜI DỮ LIỆU BÀI THI & DỌN DẸP AN TOÀN (2-3 TUẦN) ---
+
+    getExamRetentionSummary() {
+      const all = this.getSubmissions();
+      const examSubs = all.filter(s => s.mode === 'exam');
+      if (examSubs.length === 0) {
+        return {
+          totalCount: 0,
+          oldestDate: null,
+          newestDate: null,
+          daysActive: 0,
+          retentionDays: (this.getConfig().retentionDays || 21),
+          isNearExpiry: false,
+          isExpired: false
+        };
+      }
+      const timestamps = examSubs.map(s => new Date(s.submittedAt || Date.now()).getTime());
+      const minTs = Math.min(...timestamps);
+      const maxTs = Math.max(...timestamps);
+      const daysActive = Math.max(0, Math.floor((Date.now() - minTs) / (1000 * 60 * 60 * 24)));
+      const cfg = this.getConfig();
+      const retentionDays = cfg.retentionDays || 21;
+
+      return {
+        totalCount: examSubs.length,
+        oldestDate: new Date(minTs).toISOString(),
+        newestDate: new Date(maxTs).toISOString(),
+        daysActive,
+        retentionDays,
+        isNearExpiry: daysActive >= 14,
+        isExpired: daysActive >= retentionDays
+      };
+    }
+
+    purgeOldExamSubmissions(options = {}) {
+      const { purgeAll = true, olderThanDays = 0 } = options;
+      const all = this.getSubmissions();
+      const now = Date.now();
+      const msThreshold = olderThanDays * 24 * 60 * 60 * 1000;
+
+      const toKeep = [];
+      const toDelete = [];
+
+      all.forEach(sub => {
+        if (sub.mode !== 'exam') {
+          toKeep.push(sub);
+          return;
+        }
+        if (purgeAll) {
+          toDelete.push(sub);
+        } else if (olderThanDays > 0) {
+          const subTs = new Date(sub.submittedAt || now).getTime();
+          if ((now - subTs) > msThreshold) {
+            toDelete.push(sub);
+          } else {
+            toKeep.push(sub);
+          }
+        } else {
+          toKeep.push(sub);
+        }
+      });
+
+      localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(toKeep));
+      this.notify(this.submissionListeners, toKeep);
+
+      // Xóa đồng bộ trên Firestore nếu có kết nối
+      if (typeof window !== 'undefined' && window.firebaseDb && toDelete.length > 0) {
+        try {
+          if (typeof window.firebaseDb.collection === 'function') {
+            toDelete.forEach(sub => {
+              if (sub.id) {
+                window.firebaseDb.collection('submissions').doc(sub.id).delete()
+                  .catch(e => console.warn('Firestore purge delete error:', e));
+              }
+            });
+          }
+        } catch (e) { /* ignore */ }
+      }
+
+      this.logAudit('Dọn dẹp kỳ thi', `Đã dọn dẹp ${toDelete.length} bài thi cũ. Còn lại: ${toKeep.length} bài.`);
+      return { success: true, deletedCount: toDelete.length, remainingCount: toKeep.length };
+    }
+
+    // --- KẾT NỐI GOOGLE DRIVE (WEBHOOK & APPS SCRIPT) ---
+
+    async syncRowToGoogleDrive(subDoc) {
+      const cfg = this.getConfig();
+      const url = (cfg.googleDriveWebhookUrl || '').trim();
+      if (!url || !url.startsWith('http')) return { success: false, reason: 'no_webhook' };
+
+      try {
+        const payload = {
+          action: 'sync_row',
+          submission: subDoc,
+          syncedAt: new Date().toISOString()
+        };
+        await fetch(url, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        return { success: true };
+      } catch (err) {
+        console.warn('Google Drive row sync warning:', err);
+        return { success: false, error: err.message };
+      }
+    }
+
+    async syncAllToGoogleDrive() {
+      const cfg = this.getConfig();
+      const url = (cfg.googleDriveWebhookUrl || '').trim();
+      if (!url || !url.startsWith('http')) {
+        return { success: false, error: 'Chưa cấu hình URL Webhook của Google Drive / Apps Script!' };
+      }
+
+      const all = this.getSubmissions();
+      const examSubs = all.filter(s => s.mode === 'exam');
+
+      try {
+        const payload = {
+          action: 'backup_file',
+          examCount: examSubs.length,
+          jsonContent: JSON.stringify(all, null, 2),
+          csvContent: this.exportSubmissionsCSV(),
+          timestamp: new Date().toISOString()
+        };
+
+        await fetch(url, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        this.logAudit('Đồng bộ Google Drive', `Đã phát lệnh sao lưu ${examSubs.length} bài thi lên Google Drive`);
+        return { success: true, count: examSubs.length };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
     }
 
     // --- QUẢN LÝ PHIÊN TRỰC TIẾP (LIVE SESSIONS) ---

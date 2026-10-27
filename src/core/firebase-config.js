@@ -96,88 +96,98 @@
     if (!db || typeof window === 'undefined' || !window.AsianSchoolStorage) return;
 
     const storage = window.AsianSchoolStorage;
+    const pathname = (window.location && window.location.pathname) || '';
+    const isStudentPortal = pathname.includes('/test');
 
-    // 1. Đồng bộ Submissions từ Firestore
-    try {
-      db.collection('submissions').onSnapshot(
-        (snapshot) => {
-          if (!snapshot || snapshot.empty) return;
-          const cloudList = [];
-          snapshot.forEach((doc) => {
-            cloudList.push({ id: doc.id, ...doc.data() });
-          });
+    // 1. Đồng bộ Submissions từ Firestore (CHỈ DÀNH CHO ADMIN)
+    // Học sinh TUYỆT ĐỐI KHÔNG lắng nghe để bảo mật dữ liệu bài thi và tránh quá tải đọc quota Firestore
+    if (!isStudentPortal) {
+      try {
+        db.collection('submissions').onSnapshot(
+          (snapshot) => {
+            if (!snapshot || snapshot.empty) return;
+            const cloudList = [];
+            snapshot.forEach((doc) => {
+              cloudList.push({ id: doc.id, ...doc.data() });
+            });
 
-          // Hợp nhất vào LocalStorage của AsianSchoolStorage
-          const currentLocal = storage.getSubmissions();
-          const localMap = new Map();
-          currentLocal.forEach((sub) => { if (sub.id) localMap.set(sub.id, sub); });
+            // Hợp nhất vào LocalStorage của AsianSchoolStorage
+            const currentLocal = storage.getSubmissions();
+            const localMap = new Map();
+            currentLocal.forEach((sub) => { if (sub.id) localMap.set(sub.id, sub); });
 
-          let hasNewOrUpdated = false;
-          cloudList.forEach((cloudItem) => {
-            const local = localMap.get(cloudItem.id);
-            if (!local) {
-              localMap.set(cloudItem.id, cloudItem);
-              hasNewOrUpdated = true;
-            } else {
-              // Cập nhật nếu cloud có trạng thái chấm mới hơn
-              if (cloudItem.isGraded && !local.isGraded) {
-                localMap.set(cloudItem.id, { ...local, ...cloudItem });
+            let hasNewOrUpdated = false;
+            cloudList.forEach((cloudItem) => {
+              const local = localMap.get(cloudItem.id);
+              if (!local) {
+                localMap.set(cloudItem.id, cloudItem);
                 hasNewOrUpdated = true;
-              } else if (cloudItem.gradedAt && local.gradedAt && cloudItem.gradedAt > local.gradedAt) {
-                localMap.set(cloudItem.id, { ...local, ...cloudItem });
-                hasNewOrUpdated = true;
+              } else {
+                // Cập nhật nếu cloud có trạng thái chấm mới hơn
+                if (cloudItem.isGraded && !local.isGraded) {
+                  localMap.set(cloudItem.id, { ...local, ...cloudItem });
+                  hasNewOrUpdated = true;
+                } else if (cloudItem.gradedAt && local.gradedAt && cloudItem.gradedAt > local.gradedAt) {
+                  localMap.set(cloudItem.id, { ...local, ...cloudItem });
+                  hasNewOrUpdated = true;
+                }
               }
+            });
+
+            if (hasNewOrUpdated) {
+              const merged = Array.from(localMap.values()).sort(
+                (a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0)
+              );
+              localStorage.setItem('asian_school_submissions_v1', JSON.stringify(merged));
+              storage.notify(storage.submissionListeners, merged);
             }
-          });
 
-          if (hasNewOrUpdated) {
-            const merged = Array.from(localMap.values()).sort(
-              (a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0)
-            );
-            localStorage.setItem('asian_school_submissions_v1', JSON.stringify(merged));
-            storage.notify(storage.submissionListeners, merged);
+            updateStatus({ lastSyncAt: new Date().toISOString() });
+          },
+          (error) => {
+            console.warn('[Firestore] Lắng nghe Submissions thất bại:', error.message);
+            updateStatus({ lastError: error.message });
           }
-
-          updateStatus({ lastSyncAt: new Date().toISOString() });
-        },
-        (error) => {
-          console.warn('[Firestore] Lắng nghe Submissions thất bại:', error.message);
-          updateStatus({ lastError: error.message });
-        }
-      );
-    } catch (e) {
-      console.warn('[Firestore] Error attaching submissions listener:', e);
+        );
+      } catch (e) {
+        console.warn('[Firestore] Error attaching submissions listener:', e);
+      }
     }
 
-    // 2. Đồng bộ Live Sessions từ Firestore (giám sát phòng thi thời gian thực)
-    try {
-      db.collection('live_sessions').onSnapshot(
-        (snapshot) => {
-          if (!snapshot) return;
-          const cloudSessions = [];
-          const now = Date.now();
-          snapshot.forEach((doc) => {
-            const data = doc.data();
-            // Lọc các phiên còn ping trong vòng 90 phút
-            if ((now - (data.lastPing || 0)) < 90 * 60 * 1000) {
-              cloudSessions.push({ sessionId: doc.id, ...data });
-            }
-          });
+    // 2. Đồng bộ Live Sessions từ Firestore (CHỈ DÀNH CHO ADMIN)
+    // Học sinh không cần xem phiên của bạn khác -> Tiết kiệm 99.9% lưu lượng và lượt đọc
+    if (!isStudentPortal) {
+      try {
+        db.collection('live_sessions').onSnapshot(
+          (snapshot) => {
+            if (!snapshot) return;
+            const cloudSessions = [];
+            const now = Date.now();
+            snapshot.forEach((doc) => {
+              const data = doc.data();
+              // Lọc các phiên còn ping trong vòng 90 phút
+              if ((now - (data.lastPing || 0)) < 90 * 60 * 1000) {
+                cloudSessions.push({ sessionId: doc.id, ...data });
+              }
+            });
 
-          const currentSessions = storage.getLiveSessions();
-          const sMap = new Map();
-          currentSessions.forEach((s) => { if (s.sessionId) sMap.set(s.sessionId, s); });
-          cloudSessions.forEach((s) => { sMap.set(s.sessionId, s); });
+            const currentSessions = storage.getLiveSessions();
+            const sMap = new Map();
+            currentSessions.forEach((s) => { if (s.sessionId) sMap.set(s.sessionId, s); });
+            cloudSessions.forEach((s) => { sMap.set(s.sessionId, s); });
 
-          const mergedSessions = Array.from(sMap.values());
-          localStorage.setItem('asian_school_live_sessions_v1', JSON.stringify(mergedSessions));
-          storage.notify(storage.liveListeners, mergedSessions);
-        },
-        (error) => {
-          console.warn('[Firestore] Lắng nghe Live Sessions thất bại:', error.message);
-        }
-      );
-    } catch (e) {
+            const mergedSessions = Array.from(sMap.values());
+            localStorage.setItem('asian_school_live_sessions_v1', JSON.stringify(mergedSessions));
+            storage.notify(storage.liveListeners, mergedSessions);
+          },
+          (error) => {
+            console.warn('[Firestore] Lắng nghe Live Sessions thất bại:', error.message);
+          }
+        );
+      } catch (e) {
+        console.warn('[Firestore] Error attaching live_sessions listener:', e);
+      }
+    }
       console.warn('[Firestore] Error attaching live_sessions listener:', e);
     }
 

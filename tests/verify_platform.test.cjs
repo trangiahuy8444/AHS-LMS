@@ -290,3 +290,86 @@ test('Kiểm tra Phân quyền Ca thi Độc lập theo Từng Lớp Học (Clas
   assert.strictEqual(storage.getClassAccessMode('10/14'), 'practice_only');
 });
 
+test('Kiểm tra Phiên Ôn Tập Đề Cương Theo Mã LMS (Session Scope & Không Lưu CSDL Vĩnh Viễn)', (t) => {
+  const studentLms = 'LMS_TEST_2026';
+  storage.resetPracticeSession(studentLms);
+  assert.strictEqual(storage.getPracticeAttempts(studentLms), 0);
+
+  const a1 = storage.incrementPracticeAttempt(studentLms);
+  assert.strictEqual(a1, 1);
+  const a2 = storage.incrementPracticeAttempt(studentLms);
+  assert.strictEqual(a2, 2);
+
+  const initialSubmissionsCount = storage.getSubmissions().length;
+
+  // Học sinh nộp bài ôn tập
+  const practiceResult = storage.saveSubmission({
+    fullName: 'Nguyễn Rèn Luyện',
+    studentCode: studentLms,
+    studentId: studentLms,
+    grade: 8,
+    studentClass: '8/19',
+    mode: 'practice',
+    score: 9.5,
+    mcqPoints: 9.5
+  });
+
+  assert.strictEqual(practiceResult.isPracticeOnly, true);
+  assert.strictEqual(practiceResult.attemptNumber, 3, 'Lần làm bài phải được tự động tăng lên 3');
+
+  // Khẳng định CSDL submissions không bị ô nhiễm bởi bài ôn tập
+  const afterSubmissionsCount = storage.getSubmissions().length;
+  assert.strictEqual(afterSubmissionsCount, initialSubmissionsCount, 'Bài làm ôn tập tuyệt đối KHÔNG được lưu vào CSDL vĩnh viễn');
+
+  // Reset phiên khi hết phiên đăng nhập
+  storage.resetPracticeSession(studentLms);
+  assert.strictEqual(storage.getPracticeAttempts(studentLms), 0);
+});
+
+test('Kiểm tra Vòng Đời Dữ Liệu Bài Thi (Retention Summary) & Dọn Dẹp An Toàn (2-3 Tuần)', (t) => {
+  // Thêm 2 bài thi chính thức
+  storage.saveSubmission({
+    fullName: 'Thí Sinh Khóa 1',
+    studentCode: 'LMS_EXAM_01',
+    grade: 8,
+    studentClass: '8/19',
+    mode: 'exam',
+    examCode: '101',
+    mcqPoints: 8.0
+  });
+
+  storage.saveSubmission({
+    fullName: 'Thí Sinh Khóa 2',
+    studentCode: 'LMS_EXAM_02',
+    grade: 9,
+    studentClass: '9/20',
+    mode: 'exam',
+    examCode: '102',
+    mcqPoints: 7.5
+  });
+
+  const summary = storage.getExamRetentionSummary();
+  assert.ok(summary.totalCount >= 2, 'Tổng số bài thi chính thức phải >= 2');
+  assert.strictEqual(summary.retentionDays, 21, 'Hạn lưu trữ mặc định phải là 21 ngày (3 tuần)');
+
+  // Dọn dẹp kỳ thi cũ
+  const purgeRes = storage.purgeOldExamSubmissions({ purgeAll: true });
+  assert.strictEqual(purgeRes.success, true);
+  assert.ok(purgeRes.deletedCount >= 2);
+
+  const remainingExams = storage.getSubmissions().filter(s => s.mode === 'exam');
+  assert.strictEqual(remainingExams.length, 0, 'Toàn bộ bài thi chính thức phải được dọn dẹp sạch');
+});
+
+test('Kiểm tra Cấu hình Kết Nối Google Drive Webhook & Payload Sao Lưu', (t) => {
+  storage.saveConfig({
+    googleDriveWebhookUrl: 'https://script.google.com/macros/s/AKfycb_sample_test/exec',
+    retentionDays: 21
+  });
+
+  const cfg = storage.getConfig();
+  assert.strictEqual(cfg.googleDriveWebhookUrl, 'https://script.google.com/macros/s/AKfycb_sample_test/exec');
+  assert.strictEqual(cfg.retentionDays, 21);
+});
+
+
