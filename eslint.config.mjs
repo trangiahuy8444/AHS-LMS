@@ -12,7 +12,7 @@ export default [
       ecmaVersion: 'latest',
       sourceType: 'module',
       parserOptions: { ecmaFeatures: { jsx: true } },
-      globals: { ...globals.browser, firebase: 'readonly', html2canvas: 'readonly', module: 'readonly', require: 'readonly', define: 'readonly' }
+      globals: { ...globals.browser, firebase: 'readonly', module: 'readonly', require: 'readonly', define: 'readonly' }
     },
     plugins: { react, 'react-hooks': reactHooks },
     settings: { react: { version: '18.3' } },

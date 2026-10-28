@@ -20,6 +20,8 @@ export function createCaptureActions(s) {
     try {
       let dataUrl = null;
 
+      // Tải html2canvas khi cần (không làm nặng lúc mở trang); lỗi tải thì dùng bộ vẽ Canvas 2D bên dưới
+      const html2canvas = await import('html2canvas').then(m => m.default).catch(() => undefined);
       if (typeof html2canvas !== 'undefined') {
         try {
           const canvas = await html2canvas(card, {
