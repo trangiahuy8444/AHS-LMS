@@ -59,7 +59,7 @@ export default function EssayGradingModal() {
             {(() => {
               const auto = gradingSubmission.mcqPoints !== undefined ? parseFloat(gradingSubmission.mcqPoints) : (parseFloat(gradingSubmission.score) || 0);
               const essay = Object.values(tempEssayScores).reduce((a, b) => a + (parseFloat(b) || 0), 0);
-              const pen = gradingSubmission.penaltyPoints || (gradingSubmission.violations >= 3 ? 5 : 0);
+              const pen = 0; // Không tự trừ điểm vi phạm (giáo viên ghi nhận riêng)
               const calc = Math.max(0, Math.min(10, Math.round((auto + essay - pen) * 100) / 100));
               return (
                 <p className="text-xl font-black text-emerald-600 mt-1">

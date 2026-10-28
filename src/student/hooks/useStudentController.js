@@ -377,7 +377,7 @@ export function useStudentController() {
   const { handleCaptureScreenshot } = s;
 
   useBlockDevtools();
-  useProctorCommands(s);
+  Object.assign(s, useProctorCommands(s));
 
   return {
     ...s

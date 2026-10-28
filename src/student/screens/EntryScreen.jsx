@@ -240,8 +240,8 @@ export default function EntryScreen() {
               <p className="font-extrabold text-red-900 uppercase">🎴 KỶ LUẬT & NỘI QUY PHÒNG THI</p>
               <ul className="space-y-1 pl-2">
                 <li>• <strong className="text-red-700">❌ Không sử dụng tài liệu:</strong> Vi phạm sẽ nhận <strong className="text-red-700">0 điểm</strong>.</li>
-                <li>• <strong className="text-red-700">🚫 Không chuyển TAB/Trình duyệt:</strong> Vi phạm sẽ bị <strong className="text-red-700">trừ 5 điểm</strong>.</li>
-                <li>• <strong className="text-amber-800">⚠️ Nhắc nhở nội quy:</strong> Bị nhắc nhở từ <strong>3 lần</strong> sẽ bị <strong className="text-red-700">trừ 5 điểm</strong>.</li>
+                <li>• <strong className="text-red-700">🚫 Không chuyển TAB/Trình duyệt:</strong> Mỗi lần rời bài đều bị <strong className="text-red-700">ghi nhận vi phạm</strong>.</li>
+                <li>• <strong className="text-amber-800">⚠️ Nhắc nhở nội quy:</strong> Bị nhắc nhở <strong>3 lần</strong> thì bài bị <strong className="text-red-700">khóa, chờ giám thị xử lý</strong>.</li>
               </ul>
               <div className="p-2.5 bg-amber-50 border border-amber-300 rounded-xl text-[11px] text-amber-900 mt-2 font-semibold">
                 <strong>🔌 LƯU Ý AN TOÀN THIẾT BỊ:</strong> Không chạm vào thùng máy (CPU), dây nguồn hoặc dây mạng. Mọi sự cố cần giơ tay báo ngay cho Giám thị.

@@ -85,7 +85,7 @@ export default function ResultCard() {
           )}
           {scoreResult.violations >= 3 && (
             <div className="mt-2 inline-block px-4 py-1.5 bg-red-100 border-2 border-red-500 rounded-xl text-red-800 text-xs font-black shadow-sm">
-              🚨 Biên bản vi phạm: Trừ 5 điểm vào kết quả thi (Vi phạm 3 lần)
+              🚨 Vi phạm 3 lần: bài đã bị khóa, giám thị ghi nhận và xử lý theo quy chế
             </div>
           )}
 

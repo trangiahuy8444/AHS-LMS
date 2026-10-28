@@ -106,10 +106,10 @@ export function createStartActions(s) {
             status: 'locked',
             isLocked: true,
             lockReason: 'violation_3_times',
-            penaltyPoints: mode === 'exam' ? 5 : 0
+            penaltyPoints: 0
           });
         } else {
-          setWarningMessage(`Cảnh báo vi phạm lần ${v.count}/3: Em vừa rời khỏi giao diện làm bài hoặc thoát toàn màn hình! Nếu vi phạm đến lần thứ 3, hệ thống sẽ KHÓA BÀI THI và TRỪ 5 ĐIỂM!`);
+          setWarningMessage(`Cảnh báo vi phạm lần ${v.count}/3: Em vừa rời khỏi giao diện làm bài hoặc thoát toàn màn hình! Nếu vi phạm đến lần thứ 3, hệ thống sẽ KHÓA BÀI THI và giám thị ghi nhận vi phạm!`);
           setShowWarningModal(true);
           window.AsianSchoolStorage.updateLiveSession({
             sessionId: sid,

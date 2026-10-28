@@ -150,7 +150,7 @@ export default function LiveSessionList() {
                         <div className="p-2.5 rounded-xl bg-red-100 border border-red-300 text-xs text-red-900 space-y-1">
                           <div className="font-black flex items-center justify-between">
                             <span>⚠️ BỊ KHÓA TOÀN MÀN HÌNH</span>
-                            {session.violations >= 3 && <span className="text-red-700 font-extrabold bg-red-200 px-1 rounded">-5đ</span>}
+                            {session.violations >= 3 && <span className="text-red-700 font-extrabold bg-red-200 px-1 rounded">KHÓA</span>}
                           </div>
                           <button
                             type="button"
@@ -176,7 +176,7 @@ export default function LiveSessionList() {
 
                       <div className="flex items-center justify-between text-xs pt-0.5">
                         <span className={session.violations > 0 ? 'text-red-600 font-bold' : 'text-slate-500'}>
-                          Vi phạm: <strong className="text-xs">{session.violations || 0}</strong> lần {session.violations >= 3 && <span className="text-red-600 font-extrabold">(-5đ)</span>}
+                          Vi phạm: <strong className="text-xs">{session.violations || 0}</strong> lần {session.violations >= 3 && <span className="text-red-600 font-extrabold">(bị khóa)</span>}
                         </span>
                         {session.status === 'submitted' && (
                           <span className="text-emerald-700 font-black text-xs">

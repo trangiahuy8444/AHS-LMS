@@ -12,6 +12,10 @@
   const PROCTOR_CMD_KEY = 'asian_school_proctor_commands_v1';
   const AUDIT_LOG_KEY = 'asian_school_audit_log_v1';
 
+  // Vi phạm 3 lần: hệ thống khóa bài chờ giám thị mở, KHÔNG tự trừ điểm; giáo viên tự ghi nhận vào sổ (quyết định 29/10/2026).
+  // Bài nộp vẫn lưu số lần vi phạm để giáo viên đối chiếu.
+  const VIOLATION_PENALTY_POINTS = 0;
+
   // Trường cấu hình chỉ giáo viên được xem: không bao giờ đẩy lên exam_config (học sinh đọc được)
   const PRIVATE_CONFIG_KEYS = ['examPassword', 'adminPasswordHash', 'googleDriveWebhookUrl', 'googleDriveWebhookToken'];
 
@@ -417,7 +421,7 @@
 
     saveSubmission(subData) {
       const rawScore = subData.finalScore !== undefined ? subData.finalScore : (subData.score !== undefined ? subData.score : subData.mcqPoints);
-      const penalty = subData.penaltyPoints !== undefined ? subData.penaltyPoints : (subData.violations >= 3 ? 5 : 0);
+      const penalty = VIOLATION_PENALTY_POINTS;
       let calculatedFinal = typeof rawScore === 'number' ? Math.max(0, Math.round((rawScore - penalty) * 100) / 100) : rawScore;
 
       // 1. NẾU LÀ ÔN TẬP ĐỀ CƯƠNG: Lưu trong kho ôn tập riêng (phục vụ in bảng điểm đề cương), tự động gửi Webhook Google Drive
@@ -504,7 +508,7 @@
 
       // Tính tổng điểm có tính đến điểm trừ vi phạm (nếu vi phạm 3 lần)
       let autoScore = sub.mcqPoints !== undefined ? parseFloat(sub.mcqPoints) : (parseFloat(sub.score) || 0);
-      let penalty = sub.penaltyPoints !== undefined ? sub.penaltyPoints : (sub.violations >= 3 ? 5 : 0);
+      let penalty = VIOLATION_PENALTY_POINTS;
       let rawTotal = autoScore + essayTotal;
       let finalScore = Math.max(0, Math.min(10, Math.round((rawTotal - penalty) * 100) / 100));
 
@@ -555,7 +559,7 @@
         const exam = ((examsByGrade || {})[sub.grade] || {})[sub.examCode];
         if (!exam) return;
         const r = pkg.gradeExam(exam, sub.answers, { tfScoringPolicy: cfg.tfScoringPolicy });
-        const penalty = sub.violations >= 3 ? 5 : 0;
+        const penalty = VIOLATION_PENALTY_POINTS;
         const essayTotal = sub.isGraded ? (parseFloat(sub.essayTotal) || 0) : 0;
         const startMs = toMillis(sub.startedAt);
         const endMs = toMillis(sub.serverSubmittedAt);
@@ -646,7 +650,7 @@
         'Thời Gian Làm Bài',
         'Điểm TN / Đ-S (Tự động)',
         'Điểm Tự Luận (Chấm)',
-        'Điểm Phạt Vi Phạm',
+        'Ghi Chú Vi Phạm',
         'Tổng Điểm (Thang 10)',
         'Trạng Thái Chấm',
         'Lời Phê Của Giáo Viên',
@@ -659,7 +663,7 @@
         const essayScore = s.isGraded ? (s.essayTotal !== undefined ? s.essayTotal : 0) : 'Chưa chấm';
         const finalScore = s.finalScore !== undefined ? s.finalScore : (s.score !== undefined ? s.score : autoScore);
         const gradingStatus = s.isGraded ? 'Đã chấm xong' : (s.mode === 'exam' ? 'Chờ chấm tự luận' : 'Ôn tập');
-        const penaltyText = (s.penaltyPoints || (s.violations >= 3 ? 5 : 0)) ? `-${s.penaltyPoints || 5}đ` : '0đ';
+        const penaltyText = s.violations >= 3 ? 'Bị khóa do vi phạm 3 lần (GV ghi nhận)' : '';
 
         return [
           idx + 1,

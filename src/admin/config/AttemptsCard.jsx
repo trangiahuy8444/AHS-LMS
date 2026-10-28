@@ -13,7 +13,7 @@ export default function AttemptsCard() {
         <span>LƯỢT LÀM BÀI THI CHÍNH THỨC THEO MÃ LMS</span>
       </h3>
       <p className="text-xs text-slate-500 font-medium">
-        Máy chủ đếm lượt theo mã LMS, nên đổi máy hay xóa trình duyệt cũng không được thêm lượt. Vi phạm 3 lần: bài bị khóa chờ giám thị mở khóa, khi nộp trừ 5 điểm.
+        Máy chủ đếm lượt theo mã LMS, nên đổi máy hay xóa trình duyệt cũng không được thêm lượt. Vi phạm 3 lần: bài bị khóa chờ giám thị mở khóa. Hệ thống không tự trừ điểm; số lần vi phạm hiện ở bài nộp để thầy ghi nhận.
       </p>
       <div className="flex flex-wrap items-end gap-2">
         <div>

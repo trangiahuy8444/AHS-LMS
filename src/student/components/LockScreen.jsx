@@ -29,7 +29,7 @@ export default function LockScreen() {
                 <span>Học sinh đã vi phạm quy chế an toàn bài thi 3 lần (chuyển tab / rời toàn màn hình).</span>
               </p>
               <p className="text-amber-300 font-extrabold text-sm border-t border-b border-red-800/80 py-2">
-                ⚖️ HỆ THỐNG GHI NHẬN: BỊ TRỪ 5 ĐIỂM VÀO KẾT QUẢ THI
+                ⚖️ HỆ THỐNG ĐÃ GHI NHẬN VI PHẠM, GIÁM THỊ SẼ XỬ LÝ THEO QUY CHẾ
               </p>
               <p>
                 Bài làm của em hiện đang bị KHÓA. Em vui lòng <strong>giữ nguyên màn hình này</strong> và <strong>báo trực tiếp với Giám thị (Thầy Trần Gia Huy)</strong> để được kiểm tra và xác nhận mở khóa bài thi.

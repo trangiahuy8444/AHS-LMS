@@ -135,7 +135,7 @@ export default function PrintTab() {
                         <td className="py-2 px-3 border-r border-slate-300 text-center font-black text-sm text-red-600">{finalScore}</td>
                         <td className="py-2 px-3 border-r border-slate-300 text-center font-semibold">{ranking}</td>
                         <td className="py-2 px-3 text-slate-700 italic">
-                          {(sub.penaltyPoints > 0 || sub.violations >= 3) ? `[Vi phạm 3 lần: -5đ] ${sub.teacherFeedback || ''}` : (sub.teacherFeedback || '')}
+                          {(sub.penaltyPoints > 0 || sub.violations >= 3) ? `[Vi phạm ${sub.violations} lần] ${sub.teacherFeedback || ''}` : (sub.teacherFeedback || '')}
                         </td>
                       </tr>
                     );

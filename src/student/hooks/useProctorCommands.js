@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 
-// Lắng nghe lệnh giám thị thời gian thực: gia hạn giờ, thu bài, khóa/mở khóa, thông báo
+// Lắng nghe lệnh giám thị thời gian thực: gia hạn giờ, thu bài, khóa/mở khóa, thông báo.
+// Trả về hàm cho nút "VÀO LẠI TOÀN MÀN HÌNH" (sau khi giám thị mở khóa) và "Làm lại bài ôn tập".
 export function useProctorCommands(s) {
   const { grade, mode, examState, setExamState, fullName, studentClass, studentId, sessionId,
     assignedCode, setActiveQuestionIdx, setPracticeAnswers, violations, setViolations,
@@ -92,4 +93,6 @@ export function useProctorCommands(s) {
     setActiveQuestionIdx(0);
     setExamState('entry');
   };
+
+  return { handleStudentResumeFromLock, handleRestartPractice };
 }

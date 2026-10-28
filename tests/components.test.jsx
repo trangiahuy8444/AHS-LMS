@@ -62,7 +62,7 @@ describe('TrueFalseQuestion', () => {
 
 describe('ResultScreen — bài thi chính thức (chờ giáo viên chấm)', () => {
   const examResult = {
-    mode: 'exam', pendingGrading: true, examCode: '102', violations: 3, penaltyPoints: 5,
+    mode: 'exam', pendingGrading: true, examCode: '102', violations: 3, penaltyPoints: 0,
     durationFormatted: '40 phút 05 giây', submittedAt: '2026-10-28T09:00:00.000Z'
   };
   const extra = {
@@ -72,11 +72,12 @@ describe('ResultScreen — bài thi chính thức (chờ giáo viên chấm)', (
     practiceQuestions: [], practiceTfQuestions: [], practiceEssayQuestions: [], currentOfficialExam: null
   };
 
-  it('báo đã nộp, không hiện điểm, có mã đề và biên bản vi phạm', () => {
+  it('báo đã nộp, không hiện điểm, có mã đề và ghi nhận vi phạm (không trừ điểm)', () => {
     render(<WithStudent extra={extra}><ResultScreen /></WithStudent>);
     expect(screen.getByText(/ĐÃ NỘP BÀI THÀNH CÔNG/)).toBeTruthy();
     expect(screen.getByText(/Mã đề 102/)).toBeTruthy();
-    expect(screen.getByText(/Trừ 5 điểm/)).toBeTruthy();
+    expect(screen.getByText(/Vi phạm 3 lần: bài đã bị khóa/)).toBeTruthy();
+    expect(screen.queryByText(/[Tt]rừ 5 điểm/)).toBeNull();
     expect(screen.queryByText(/ĐIỂM ĐẠT ĐƯỢC/)).toBeNull();
     expect(screen.queryByText(/\/ 10/)).toBeNull();
   });

@@ -251,7 +251,7 @@ test('Kiểm tra Đăng nhập Quản trị qua Firebase Auth & Nhật ký Hoạ
 });
 
 test('Kiểm tra Xuất CSV Bảng Điểm Đầy Đủ Cột Tự Luận & Lời Phê', (t) => {
-  // Thêm 1 bài nộp có vi phạm 3 lần để test trừ 5 điểm
+  // Bài nộp vi phạm 3 lần: không tự trừ điểm, CSV ghi chú để giáo viên ghi nhận
   storage.saveSubmission({
     fullName: 'Trần Vi Phạm',
     studentCode: 'LMS9999',
@@ -269,7 +269,7 @@ test('Kiểm tra Xuất CSV Bảng Điểm Đầy Đủ Cột Tự Luận & Lờ
   assert.ok(csv.includes('Mã LMS'));
   assert.ok(csv.includes('Họ và Tên'));
   assert.ok(csv.includes('Thời Gian Làm Bài'));
-  assert.ok(csv.includes('Điểm Phạt Vi Phạm'));
+  assert.ok(csv.includes('Ghi Chú Vi Phạm'));
   assert.ok(csv.includes('Điểm Tự Luận (Chấm)'));
   assert.ok(csv.includes('Tổng Điểm (Thang 10)'));
   assert.ok(csv.includes('Trạng Thái Chấm'));
@@ -277,7 +277,10 @@ test('Kiểm tra Xuất CSV Bảng Điểm Đầy Đủ Cột Tự Luận & Lờ
   assert.ok(csv.includes('LMS8888'));
   assert.ok(csv.includes('Lê Văn An'));
   assert.ok(csv.includes('34 phút 20 giây'));
-  assert.ok(csv.includes('-5đ'));
+  assert.ok(csv.includes('Bị khóa do vi phạm 3 lần (GV ghi nhận)'));
+  assert.ok(!csv.includes('-5đ'), 'Không còn trừ 5 điểm tự động');
+  const sub = storage.getSubmissions().find(s => s.studentCode === 'LMS9999');
+  assert.strictEqual(sub.finalScore, 7, 'Vi phạm 3 lần không làm giảm điểm trên hệ thống');
 });
 
 test('Kiểm tra Timer & AntiCheat cơ bản & Gia Hạn Thời Gian', (t) => {

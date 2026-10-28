@@ -42,7 +42,7 @@ export default function ExamScreen() {
               <span className="font-mono-code text-xs text-red-700 font-black bg-red-100 px-2.5 py-0.5 rounded-lg">⏱ Thời gian còn: {timeLeftStr}</span>
             </div>
             <p className="text-xs text-slate-700 font-medium">
-              🚫 <strong>Cấm gian lận:</strong> Không chuyển tab/rời toàn màn hình. Vi phạm từ 3 lần sẽ bị trừ 5 điểm hoặc nhận 0 điểm theo quy chế LMS.
+              🚫 <strong>Cấm gian lận:</strong> Không chuyển tab/rời toàn màn hình. Vi phạm đến lần thứ 3 bài sẽ bị khóa, giám thị ghi nhận và xử lý theo quy chế.
             </p>
           </div>
         )}

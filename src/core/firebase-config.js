@@ -548,7 +548,7 @@
       submissionId: subId,
       examCode: a.examCode,
       violations,
-      penaltyPoints: violations >= 3 ? 5 : 0,
+      penaltyPoints: 0,
       essayAnswered: Object.keys(answers.essay || {}).length,
       durationSeconds,
       durationFormatted: formatDuration(durationSeconds),

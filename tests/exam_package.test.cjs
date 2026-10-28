@@ -133,8 +133,9 @@ test('Trang quản trị tự chấm bài thi chính thức học sinh gửi lê
   assert.strictEqual(s1.durationSeconds, 46 * 60);
   assert.strictEqual(s1.overtimeSeconds, 60, 'Quá 45 phút cấu hình 1 phút');
   const s2 = subs.find(s => s.id === 'g10_A2_1');
-  assert.strictEqual(s2.penaltyPoints, 5);
-  assert.strictEqual(s2.finalScore, 0, 'Trừ 5 điểm khi vi phạm 3 lần, không âm');
+  assert.strictEqual(s2.penaltyPoints, 0, 'Không tự trừ điểm vi phạm (giáo viên ghi nhận riêng)');
+  assert.strictEqual(s2.finalScore, 0.25, 'Điểm giữ nguyên dù vi phạm 3 lần');
+  assert.strictEqual(s2.violations, 3, 'Vẫn lưu số lần vi phạm');
   assert.strictEqual(subs.find(s => s.id === 'g10_A3_1').autoGradedAt, undefined);
   assert.strictEqual(storage.autoGradeExamSubmissions({ 10: { '102': tfExam } }), 0, 'Không chấm lại bài đã chấm');
 });

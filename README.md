@@ -109,7 +109,7 @@ Repo này công khai, nên **mã đề chính thức kèm đáp án không bao g
 Luồng thi:
 1. Học sinh đăng nhập ẩn danh rồi tạo lượt thi. Rules kiểm tra mật khẩu phòng thi, lớp đang mở ca thi, mã đề theo phân công và số lượt còn lại của mã LMS (mặc định 1 lượt).
 2. Học sinh đọc đề đã bỏ đáp án. Khi nộp, chỉ bài làm được gửi đi.
-3. Trang quản trị (giáo viên đăng nhập Google) tự chấm trắc nghiệm, Đúng/Sai theo hệ số 0,1/0,25/0,5/1, và trừ 5 điểm nếu vi phạm 3 lần. Phần tự luận giáo viên chấm.
+3. Trang quản trị (giáo viên đăng nhập Google) tự chấm trắc nghiệm, Đúng/Sai theo hệ số 0,1/0,25/0,5/1, vi phạm 3 lần thì khóa bài chờ giám thị mở (không tự trừ điểm, giáo viên ghi nhận riêng). Phần tự luận giáo viên chấm.
 
 Giáo viên được nhận diện bằng email Google trong `isTeacher()` của `firestore.rules`. Danh sách này phải giống `TEACHER_EMAILS` trong `src/core/firebase-config.js`.
 

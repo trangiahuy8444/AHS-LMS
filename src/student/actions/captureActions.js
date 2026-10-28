@@ -135,7 +135,7 @@ export function createCaptureActions(s) {
         ctx.font = '16px sans-serif';
         ctx.fillText(`Thời gian nộp bài: ${new Date(scoreResult?.submittedAt || Date.now()).toLocaleString('vi-VN')}`, 60, 540);
         ctx.fillText(`Thời gian làm bài thực tế: ${scoreResult?.durationFormatted || '45 phút'}`, 60, 570);
-        const violText = `Số lần vi phạm an toàn bài thi: ${scoreResult?.violations || 0} lần ${scoreResult?.violations >= 3 ? '— [BIÊN BẢN: TRỪ 5 ĐIỂM]' : ''}`;
+        const violText = `Số lần vi phạm an toàn bài thi: ${scoreResult?.violations || 0} lần ${scoreResult?.violations >= 3 ? '— [ĐÃ BỊ KHÓA, GIÁM THỊ GHI NHẬN]' : ''}`;
         if (scoreResult?.violations >= 3) {
           ctx.fillStyle = '#dc2626';
           ctx.font = 'bold 16px sans-serif';

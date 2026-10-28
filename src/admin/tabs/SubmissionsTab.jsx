@@ -158,7 +158,7 @@ export default function SubmissionsTab() {
                 filteredSubmissions.map((sub, idx) => {
                   const autoScore = sub.mcqPoints !== undefined ? sub.mcqPoints : (sub.score !== undefined ? sub.score : 0);
                   const finalScore = sub.finalScore !== undefined ? sub.finalScore : autoScore;
-                  const hasPenalty = sub.penaltyPoints > 0 || sub.violations >= 3;
+                  const hasPenalty = sub.violations >= 3;
                   return (
                     <tr key={sub.id || idx} className="hover:bg-slate-50 transition">
                       <td className="py-3 px-4 font-mono-code text-slate-400">{idx + 1}</td>
@@ -203,7 +203,7 @@ export default function SubmissionsTab() {
                         <span className="text-[11px] text-slate-400"> / 10đ</span>
                         {hasPenalty && (
                           <div className="text-[10px] text-red-600 font-extrabold">
-                            -5đ vi phạm
+                            ⚠️ Vi phạm {sub.violations} lần
                           </div>
                         )}
                       </td>
