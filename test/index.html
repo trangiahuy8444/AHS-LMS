@@ -131,16 +131,33 @@
 
       // Data references
       const gradeData = grade === 8 ? window.EXAM_DATA_G8 : (grade === 9 ? window.EXAM_DATA_G9 : window.EXAM_DATA_G10);
-      const practiceQuestions = gradeData ? (gradeData.practiceQuestions || []) : [];
-      const practiceTfQuestions = gradeData ? (gradeData.practiceTfQuestions || []) : [];
-      const practiceEssayQuestions = gradeData ? (gradeData.practiceEssayQuestions || []) : [];
+      
+      // Bộ đề ngẫu nhiên cho Practice Mode:
+      // THCS: 28 câu trắc nghiệm (ngẫu nhiên từ 35 câu) + 3 câu tự luận
+      // THPT: 19 câu trắc nghiệm (ngẫu nhiên từ 25 câu) + 3 câu đúng/sai (ngẫu nhiên từ 6 câu) + 3 câu tự luận
+      const [practiceSet, setPracticeSet] = useState(() => {
+        const initialGradeData = grade === 8 ? window.EXAM_DATA_G8 : (grade === 9 ? window.EXAM_DATA_G9 : window.EXAM_DATA_G10);
+        if (typeof window !== 'undefined' && window.AsianSchoolStorage && window.AsianSchoolStorage.generatePracticeSet) {
+          return window.AsianSchoolStorage.generatePracticeSet(grade, initialGradeData, config);
+        }
+        return { mcqQuestions: [], tfQuestions: [], essayQuestions: [] };
+      });
+
+      const practiceQuestions = practiceSet.mcqQuestions || [];
+      const practiceTfQuestions = practiceSet.tfQuestions || [];
+      const practiceEssayQuestions = practiceSet.essayQuestions || [];
       const currentOfficialExam = gradeData && gradeData.officialExams ? gradeData.officialExams[assignedCode] : null;
 
-      // Cập nhật lớp khi đổi khối
+      // Cập nhật lớp & đề cương khi đổi khối
       useEffect(() => {
         if (CLASS_LISTS[grade] && !CLASS_LISTS[grade].includes(studentClass)) {
           setStudentClass(CLASS_LISTS[grade][0]);
         }
+        const currentData = grade === 8 ? window.EXAM_DATA_G8 : (grade === 9 ? window.EXAM_DATA_G9 : window.EXAM_DATA_G10);
+        if (typeof window !== 'undefined' && window.AsianSchoolStorage && window.AsianSchoolStorage.generatePracticeSet) {
+          setPracticeSet(window.AsianSchoolStorage.generatePracticeSet(grade, currentData, config));
+        }
+        setPracticeAnswers({ mcq: {}, tf: {}, essay: {} });
       }, [grade]);
 
       // Danh sách câu hỏi thống nhất cho Practice Mode (1 câu mỗi lần)
@@ -285,6 +302,15 @@
           return;
         }
 
+        // 1. KÍCH HOẠT CHẾ ĐỘ TOÀN MÀN HÌNH TỨC THÌ (INSTANT FULLSCREEN) TỪ CỬ CHỈ BẤM NÚT
+        try {
+          if (window.AsianSchoolAntiCheat && window.AsianSchoolAntiCheat.requestFullscreen) {
+            await window.AsianSchoolAntiCheat.requestFullscreen();
+          }
+        } catch (e) {
+          console.warn('Fullscreen request rejected', e);
+        }
+
         // Kiểm tra quyền truy cập ca thi của lớp
         const currentClassAccess = window.AsianSchoolStorage.getClassAccessMode(studentClass);
         if (mode === 'exam' && currentClassAccess === 'practice_only') {
@@ -311,6 +337,15 @@
             alert('❌ MẬT KHẨU PHÒNG THI KHÔNG CHÍNH XÁC!\n\nVui lòng kiểm tra lại chữ hoa/thường hoặc hỏi Thầy/Cô giám thị.');
             return;
           }
+        }
+
+        // Nếu là ôn tập: Luôn bốc ngẫu nhiên một bộ đề mới (28 câu THCS hoặc 19 câu + 3 câu Đ/S THPT)
+        if (mode === 'practice') {
+          const currentData = grade === 8 ? window.EXAM_DATA_G8 : (grade === 9 ? window.EXAM_DATA_G9 : window.EXAM_DATA_G10);
+          if (typeof window !== 'undefined' && window.AsianSchoolStorage && window.AsianSchoolStorage.generatePracticeSet) {
+            setPracticeSet(window.AsianSchoolStorage.generatePracticeSet(grade, currentData, config));
+          }
+          setPracticeAnswers({ mcq: {}, tf: {}, essay: {} });
         }
 
         const sid = 'sess-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
@@ -365,10 +400,14 @@
           }
         });
 
-        // Nếu là chế độ Thi: Kích hoạt đồng hồ đếm ngược 45 phút và nhịp tim 60s
+        // Cấu hình thời gian làm bài từ Admin
+        const examDur = config.examDurationMinutes || 45;
+        const practiceDur = config.practiceDurationMinutes || 0;
+
+        // Nếu là chế độ Thi: Kích hoạt đồng hồ đếm ngược theo thời gian do Admin thiết lập
         if (mode === 'exam') {
           window.AsianSchoolTimer.start({
-            durationMinutes: 45,
+            durationMinutes: examDur,
             onTick: (sec, fmt) => {
               setSecondsLeft(sec);
               setTimeLeftStr(fmt);
@@ -392,7 +431,7 @@
               alert('⚠️ Chú ý: Thời gian làm bài chỉ còn dưới 5 phút!');
             },
             onTimeout: () => {
-              alert('⏰ Đã hết thời gian 45 phút! Hệ thống đang tự động thu bài của bạn.');
+              alert(`⏰ Đã hết thời gian làm bài ${examDur} phút! Hệ thống đang tự động thu bài của bạn.`);
               handleSubmitExam(true);
             }
           });
@@ -408,7 +447,23 @@
             examCode: code,
             violations: 0,
             status: 'in_progress',
-            timeLeft: '45:00'
+            timeLeft: `${examDur}:00`
+          });
+        } else if (practiceDur > 0) {
+          // Nếu chế độ ôn tập có đặt thời gian giới hạn
+          window.AsianSchoolTimer.start({
+            durationMinutes: practiceDur,
+            onTick: (sec, fmt) => {
+              setSecondsLeft(sec);
+              setTimeLeftStr(fmt);
+            },
+            onWarning: () => {
+              alert('⚠️ Chú ý: Thời gian ôn tập chỉ còn dưới 5 phút!');
+            },
+            onTimeout: () => {
+              alert(`⏰ Đã hết thời gian ôn tập ${practiceDur} phút! Hệ thống đang tự động nộp bài ôn tập của bạn.`);
+              handleSubmitPractice();
+            }
           });
         }
 
@@ -439,26 +494,38 @@
 
         let correctTfSub = 0;
         let totalTfSub = 0;
+        let tfPoints = 0;
         if (grade === 10) {
           practiceTfQuestions.forEach(tf => {
             const userSub = practiceAnswers.tf[tf.num] || {};
+            let subCorrect = 0;
             tf.subQuestions.forEach(sub => {
               totalTfSub++;
               if (userSub[sub.letter] === sub.correctAnswer) {
                 correctTfSub++;
+                subCorrect++;
               }
             });
+            // Điểm Đúng/Sai theo chuẩn Bộ GD: 1 ý = 0.1đ, 2 ý = 0.25đ, 3 ý = 0.5đ, 4 ý = 1.0đ
+            if (subCorrect === 1) tfPoints += 0.1;
+            else if (subCorrect === 2) tfPoints += 0.25;
+            else if (subCorrect === 3) tfPoints += 0.5;
+            else if (subCorrect === 4) tfPoints += 1.0;
           });
         }
 
         const totalMcq = practiceQuestions.length;
         let score = 0;
+        let mcqPoints = Math.round(correctMcq * 0.25 * 100) / 100;
+        tfPoints = Math.round(tfPoints * 100) / 100;
+
         if (grade === 10) {
-          const totalItems = totalMcq + totalTfSub;
-          const totalCorrect = correctMcq + correctTfSub;
-          score = totalItems > 0 ? ((totalCorrect / totalItems) * 10).toFixed(2) : 0;
+          // THPT: 19 câu MCQ (4.75đ) + 3 câu Đúng/Sai (3.0đ) = 7.75 điểm tự động tối đa
+          const autoTotal = Math.round((mcqPoints + tfPoints) * 100) / 100;
+          score = (autoTotal > 0) ? Math.min(10, Math.round(((autoTotal / 7.75) * 10) * 100) / 100).toFixed(2) : '0.00';
         } else {
-          score = totalMcq > 0 ? ((correctMcq / totalMcq) * 10).toFixed(2) : 0;
+          // THCS: 28 câu MCQ (7.0đ), quy đổi sang thang 10
+          score = totalMcq > 0 ? ((correctMcq / totalMcq) * 10).toFixed(2) : '0.00';
         }
 
         const durationSec = examStartTime ? Math.round((Date.now() - examStartTime) / 1000) : 0;
@@ -472,6 +539,8 @@
           totalQuestions: totalMcq,
           correctTfSub,
           totalTfSub,
+          tfPoints,
+          mcqPoints,
           score: parseFloat(score),
           essayAnswered: Object.keys(practiceAnswers.essay).length,
           violations,
@@ -782,6 +851,11 @@
       }, [examState, sessionId]);
 
       const handleRestartPractice = () => {
+        // Sinh một bộ câu hỏi ngẫu nhiên mới cho lần ôn tập kế tiếp
+        const currentData = grade === 8 ? window.EXAM_DATA_G8 : (grade === 9 ? window.EXAM_DATA_G9 : window.EXAM_DATA_G10);
+        if (typeof window !== 'undefined' && window.AsianSchoolStorage && window.AsianSchoolStorage.generatePracticeSet) {
+          setPracticeSet(window.AsianSchoolStorage.generatePracticeSet(grade, currentData, config));
+        }
         setPracticeAnswers({ mcq: {}, tf: {}, essay: {} });
         setScoreResult(null);
         setViolations(0);
@@ -1058,7 +1132,10 @@
                           <span className="font-bold text-sm text-blue-950">ÔN TẬP ĐỀ CƯƠNG</span>
                         </div>
                         <p className="text-xs text-slate-600 mt-1 font-medium leading-relaxed">
-                          Luyện tập ngân hàng câu hỏi đề cương, được xem SGK, đánh giá kết quả và xem hướng dẫn tự luận.
+                          {grade === 10
+                            ? 'Bộ đề ngẫu nhiên: 19 câu Trắc nghiệm + 3 câu Đúng/Sai + 3 câu Tự luận (chuẩn ma trận THPT 10 điểm).'
+                            : 'Bộ đề ngẫu nhiên: 28 câu Trắc nghiệm + 3 câu Tự luận (chuẩn ma trận THCS 10 điểm).'
+                          }
                         </p>
                         {classAccessMode === 'exam_only' && (
                           <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
@@ -1251,6 +1328,9 @@
                     <span>{mode === 'exam' ? 'BẮT ĐẦU VÀO PHÒNG THI' : 'BẮT ĐẦU ÔN TẬP ĐỀ CƯƠNG'}</span>
                     <span>→</span>
                   </button>
+                  <p className="text-[11px] text-slate-500 italic mt-2 text-center">
+                    🖥️ Hệ thống sẽ tự động chuyển sang chế độ <strong>Toàn Màn Hình</strong> ngay khi bấm bắt đầu làm bài.
+                  </p>
                 </div>
               </div>
             )}

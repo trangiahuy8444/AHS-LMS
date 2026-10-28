@@ -25,6 +25,9 @@
       '10/14': '101', '10/15': '102', '10/16': '103'
     },
     examDurationMinutes: 45,
+    practiceDurationMinutes: 0, // 0 = Không giới hạn thời gian (Tự do), hoặc 15, 30, 45 phút
+    shuffleQuestions: true, // Bật/Tắt trộn thứ tự câu hỏi
+    shuffleOptions: true, // Bật/Tắt xáo trộn vị trí 4 phương án A/B/C/D
     allowPracticeReview: true,
     allowExamReview: false, // Trong lúc thi không hiện đáp án ngay
     examPassword: 'asian2026', // Mật khẩu phòng thi chính thức
@@ -123,6 +126,100 @@
       return () => {
         this.configListeners = this.configListeners.filter(f => f !== cb);
       };
+    }
+
+    // --- THUẬT TOÁN XÁO TRỘN & NGẪU NHIÊN HÓA CÂU HỎI (RANDOM SAMPLING & SHUFFLE) ---
+
+    sampleArray(arr, k) {
+      if (!Array.isArray(arr) || arr.length === 0) return [];
+      const copy = [...arr];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy.slice(0, Math.min(k, copy.length));
+    }
+
+    shuffleArray(arr) {
+      if (!Array.isArray(arr)) return [];
+      const copy = [...arr];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    shuffleQuestionOptions(q) {
+      if (!q || !Array.isArray(q.options) || q.options.length < 2) return q;
+      const letters = ['A', 'B', 'C', 'D'];
+      const indexed = q.options.map((opt, idx) => ({ opt, isCorrect: idx === q.correctAnswer }));
+      const shuffled = this.shuffleArray(indexed);
+      const newOptions = shuffled.map(item => item.opt);
+      const newCorrectAnswer = shuffled.findIndex(item => item.isCorrect);
+      return {
+        ...q,
+        options: newOptions,
+        correctAnswer: newCorrectAnswer,
+        answerLetter: letters[newCorrectAnswer] || q.answerLetter
+      };
+    }
+
+    generatePracticeSet(grade, examData, customConfig = null) {
+      if (!examData) return { mcqQuestions: [], tfQuestions: [], essayQuestions: [] };
+      const cfg = customConfig || this.getConfig();
+      const doShuffleQuestions = cfg.shuffleQuestions !== false;
+      const doShuffleOptions = cfg.shuffleOptions !== false;
+
+      let rawMcq = examData.practiceQuestions || [];
+      let rawTf = examData.practiceTfQuestions || [];
+      let rawEssay = examData.practiceEssayQuestions || [];
+
+      let sampledMcq = [];
+      let sampledTf = [];
+      let sampledEssay = [];
+
+      if (parseInt(grade, 10) === 10) {
+        // Khối THPT: 19 câu trắc nghiệm (ngẫu nhiên từ 25 câu) + 3 câu đúng sai (ngẫu nhiên từ 6 câu) + 3 câu tự luận (ngẫu nhiên từ 3 câu)
+        sampledMcq = this.sampleArray(rawMcq, 19);
+        sampledTf = this.sampleArray(rawTf, 3);
+        sampledEssay = this.sampleArray(rawEssay, 3);
+      } else {
+        // Khối THCS (Khối 8, 9): 28 câu trắc nghiệm (ngẫu nhiên từ 35 câu) + 3 câu tự luận (ngẫu nhiên từ 3 câu)
+        sampledMcq = this.sampleArray(rawMcq, 28);
+        sampledTf = [];
+        sampledEssay = this.sampleArray(rawEssay, 3);
+      }
+
+      // Xáo trộn phương án A/B/C/D nếu cấu hình bật
+      if (doShuffleOptions) {
+        sampledMcq = sampledMcq.map(q => this.shuffleQuestionOptions(q));
+      }
+
+      // Xáo trộn thứ tự các câu hỏi nếu cấu hình bật
+      if (doShuffleQuestions) {
+        sampledMcq = this.shuffleArray(sampledMcq);
+        if (sampledTf.length > 0) sampledTf = this.shuffleArray(sampledTf);
+        if (sampledEssay.length > 0) sampledEssay = this.shuffleArray(sampledEssay);
+      }
+
+      // Chuẩn hóa lại số thứ tự hiển thị tuần tự (1..N) cho học sinh dễ theo dõi
+      const mcqQuestions = sampledMcq.map((q, idx) => ({
+        ...q,
+        displayNum: idx + 1
+      }));
+
+      const tfQuestions = sampledTf.map((tf, idx) => ({
+        ...tf,
+        displayNum: idx + 1
+      }));
+
+      const essayQuestions = sampledEssay.map((es, idx) => ({
+        ...es,
+        displayNum: idx + 1
+      }));
+
+      return { mcqQuestions, tfQuestions, essayQuestions };
     }
 
     // --- PHÂN QUYỀN TRUY CẬP THEO TỪNG LỚP HỌC (CLASS ACCESS CONTROL) ---

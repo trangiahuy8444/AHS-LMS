@@ -372,4 +372,54 @@ test('Kiểm tra Cấu hình Kết Nối Google Drive Webhook & Payload Sao Lưu
   assert.strictEqual(cfg.retentionDays, 21);
 });
 
+test('Kiểm tra Thuật toán Ngẫu Nhiên Hóa Đề Cương (THCS 28 TN + 3 TL; THPT 19 TN + 3 Đ/S + 3 TL)', (t) => {
+  const g8Data = require('../data/questions_grade8.js');
+  const g9Data = require('../data/questions_grade9.js');
+  const g10Data = require('../data/questions_grade10.js');
+
+  // Khối 8: Rút 28 câu trắc nghiệm + 3 câu tự luận
+  const set8 = storage.generatePracticeSet(8, g8Data);
+  assert.strictEqual(set8.mcqQuestions.length, 28, 'Khối 8 đề cương phải có đúng 28 câu trắc nghiệm');
+  assert.strictEqual(set8.essayQuestions.length, 3, 'Khối 8 đề cương phải có đúng 3 câu tự luận');
+  assert.strictEqual(set8.tfQuestions.length, 0, 'Khối 8 không có câu Đúng/Sai');
+
+  // Khối 9: Rút 28 câu trắc nghiệm + 3 câu tự luận
+  const set9 = storage.generatePracticeSet(9, g9Data);
+  assert.strictEqual(set9.mcqQuestions.length, 28, 'Khối 9 đề cương phải có đúng 28 câu trắc nghiệm');
+  assert.strictEqual(set9.essayQuestions.length, 3, 'Khối 9 đề cương phải có đúng 3 câu tự luận');
+  assert.strictEqual(set9.tfQuestions.length, 0, 'Khối 9 không có câu Đúng/Sai');
+
+  // Khối 10: Rút 19 câu trắc nghiệm + 3 câu đúng/sai + 3 câu tự luận
+  const set10 = storage.generatePracticeSet(10, g10Data);
+  assert.strictEqual(set10.mcqQuestions.length, 19, 'Khối 10 đề cương phải có đúng 19 câu trắc nghiệm');
+  assert.strictEqual(set10.tfQuestions.length, 3, 'Khối 10 đề cương phải có đúng 3 câu Đúng/Sai');
+  assert.strictEqual(set10.essayQuestions.length, 3, 'Khối 10 đề cương phải có đúng 3 câu tự luận');
+
+  // Kiểm tra xáo trộn phương án bảo toàn tính chính xác của đáp án đúng
+  const sampleQ = {
+    id: 999,
+    question: 'Hệ nhị phân dùng mấy chữ số?',
+    options: ['Một chữ số', 'Hai chữ số 0 và 1', 'Mười chữ số', 'Tám chữ số'],
+    correctAnswer: 1,
+    answerLetter: 'B'
+  };
+  const shuffledQ = storage.shuffleQuestionOptions(sampleQ);
+  assert.strictEqual(shuffledQ.options[shuffledQ.correctAnswer], 'Hai chữ số 0 và 1', 'Đáp án đúng phải luôn bảo toàn nội dung sau khi xáo trộn phương án');
+});
+
+test('Kiểm tra Cấu hình Admin: Thời Gian Làm Bài & Chế Độ Trộn Đề', (t) => {
+  storage.saveConfig({
+    examDurationMinutes: 30,
+    practiceDurationMinutes: 15,
+    shuffleQuestions: true,
+    shuffleOptions: true
+  });
+
+  const cfg = storage.getConfig();
+  assert.strictEqual(cfg.examDurationMinutes, 30);
+  assert.strictEqual(cfg.practiceDurationMinutes, 15);
+  assert.strictEqual(cfg.shuffleQuestions, true);
+  assert.strictEqual(cfg.shuffleOptions, true);
+});
+
 
