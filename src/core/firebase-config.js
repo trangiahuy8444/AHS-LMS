@@ -124,7 +124,7 @@
                 hasNewOrUpdated = true;
               } else {
                 // Cập nhật nếu cloud có trạng thái chấm mới hơn
-                if (cloudItem.isGraded && !local.isGraded) {
+                if ((cloudItem.isGraded && !local.isGraded) || (cloudItem.autoGradedAt && !local.autoGradedAt)) {
                   localMap.set(cloudItem.id, { ...local, ...cloudItem });
                   hasNewOrUpdated = true;
                 } else if (cloudItem.gradedAt && local.gradedAt && cloudItem.gradedAt > local.gradedAt) {
@@ -236,17 +236,337 @@
     }
   }
 
-  // Tự động gắn kết khi DOM và AsianSchoolStorage sẵn sàng
+  // 5. Kho mã đề kèm đáp án & mật khẩu phòng thi (CHỈ GIÁO VIÊN, xem firestore.rules)
+  // Nạp vào window.EXAM_DATA_G{8,9,10}.officialExams trong bộ nhớ để các tab Đáp án / Chấm tự luận dùng như cũ
+  let latestExamBank = null;
+
+  function attachTeacherListeners() {
+    const storage = window.AsianSchoolStorage;
+    // Bài thi mới nộp: trang quản trị chấm trắc nghiệm ngay khi có đủ exam_bank
+    if (storage) {
+      storage.onSubmissionsChange(() => {
+        if (latestExamBank) storage.autoGradeExamSubmissions(latestExamBank);
+      });
+    }
+    db.collection('exam_bank').onSnapshot(
+      (snapshot) => {
+        const byGrade = { 8: {}, 9: {}, 10: {} };
+        snapshot.forEach((doc) => {
+          const d = doc.data();
+          if (byGrade[d.grade] && d.exam) byGrade[d.grade][d.code] = { ...d.exam, active: d.active !== false };
+        });
+        [8, 9, 10].forEach((g) => {
+          const key = 'EXAM_DATA_G' + g;
+          if (window[key]) window[key].officialExams = byGrade[g];
+        });
+        latestExamBank = byGrade;
+        // Danh sách mã đề đang bật (công khai) để rules kiểm tra mã đề học sinh nhận
+        const activeCodes = {};
+        [8, 9, 10].forEach((g) => {
+          activeCodes[String(g)] = Object.keys(byGrade[g]).filter((c) => byGrade[g][c].active).sort();
+        });
+        if (storage && JSON.stringify(storage.getConfig().activeCodes || {}) !== JSON.stringify(activeCodes)) {
+          storage.saveConfig({ activeCodes });
+        }
+        if (storage) storage.autoGradeExamSubmissions(latestExamBank);
+        window.dispatchEvent(new CustomEvent('asian-school-exam-bank', { detail: byGrade }));
+      },
+      (error) => console.warn('[Firestore] Lắng nghe exam_bank thất bại:', error.message)
+    );
+    db.collection('exam_secrets').doc('room').onSnapshot(
+      (doc) => {
+        if (!doc || !doc.exists || !storage) return;
+        const merged = { ...storage.getConfig(), examPassword: doc.data().examPassword || '' };
+        localStorage.setItem('asian_school_exam_config_v1', JSON.stringify(merged));
+        storage.notify(storage.configListeners, merged);
+      },
+      (error) => console.warn('[Firestore] Lắng nghe exam_secrets thất bại:', error.message)
+    );
+  }
+
+  // Xác thực: học sinh đăng nhập ẩn danh; giáo viên đăng nhập Google.
+  // Danh sách này phải khớp hàm isTeacher() trong firestore.rules (rules mới là nơi chặn thật).
+  const TEACHER_EMAILS = ['trangiahuy8444@gmail.com'];
+  const auth = (app && typeof firebase.auth === 'function') ? firebase.auth() : null;
+  const authListeners = [];
+  let authState = { user: null, isTeacher: false, ready: false };
+
+  function setAuthState(next) {
+    authState = next;
+    authListeners.forEach((cb) => { try { cb(authState); } catch (e) { /* bỏ qua */ } });
+  }
+
+  // --- PHÒNG THI CHÍNH THỨC (gói Spark: không có Cloud Functions, firestore.rules kiểm tra mọi bước) ---
+
+  function lmsKey(studentId) {
+    return String(studentId || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 30);
+  }
+
+  function waitForUser() {
+    if (!auth || !db) return Promise.reject(new Error('Chưa kết nối được Firebase. Em kiểm tra mạng rồi tải lại trang.'));
+    if (auth.currentUser) return Promise.resolve(auth.currentUser);
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        unsub();
+        reject(new Error('Chưa đăng nhập được phiên làm bài. Em kiểm tra mạng rồi tải lại trang.'));
+      }, 15000);
+      const unsub = auth.onAuthStateChanged((user) => {
+        if (!user) return;
+        clearTimeout(timer);
+        unsub();
+        resolve(user);
+      });
+    });
+  }
+
+  // Firestore giữ lệnh ghi khi mất mạng và tự gửi lại; ở đây chỉ báo cho học sinh nếu chờ quá lâu
+  function withTimeout(promise, ms, message) {
+    return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error(message)), ms))]);
+  }
+
+  // Phải khớp hàm codeAllowed trong firestore.rules
+  function pickExamCode(cfg, grade, studentClass) {
+    const active = (cfg.activeCodes || {})[String(grade)] || [];
+    const mode = cfg.codeAllocationMode || 'class_assigned';
+    if (mode === 'random') return active[Math.floor(Math.random() * active.length)] || null;
+    const code = mode === 'fixed' ? cfg.fixedCode : (cfg.classMapping || {})[studentClass];
+    return active.includes(code) ? code : null;
+  }
+
+  function toMillis(t) {
+    if (!t) return null;
+    if (typeof t.toMillis === 'function') return t.toMillis();
+    return typeof t.seconds === 'number' ? t.seconds * 1000 : null;
+  }
+
+  function formatDuration(totalSec) {
+    const mins = Math.floor(totalSec / 60);
+    const secs = totalSec % 60;
+    return `${mins} phút ${secs < 10 ? '0' : ''}${secs} giây`;
+  }
+
+  async function startExam(data) {
+    const user = await waitForUser();
+    const uid = user.uid;
+    const grade = Number(data.grade);
+    const key = lmsKey(data.studentId);
+    if (![8, 9, 10].includes(grade) || !key) throw new Error('Khối hoặc mã LMS chưa hợp lệ.');
+    const FieldValue = firebase.firestore.FieldValue;
+
+    const cfgSnap = await db.collection('exam_config').doc('global_config').get();
+    const cfg = cfgSnap.exists ? cfgSnap.data() : {};
+    const classMode = (cfg.classAccessControl || {})[data.studentClass] || cfg.defaultClassMode || 'practice_only';
+    if (!['exam_only', 'both_open'].includes(classMode)) {
+      throw new Error(`Lớp ${data.studentClass} chưa được mở ca thi chính thức.`);
+    }
+
+    const attemptId = `g${grade}_${key}`;
+    const attemptRef = db.collection('exam_attempts').doc(attemptId);
+    // Mật khẩu em nhập chỉ để rules đối chiếu với mật khẩu phòng thi; không ai đọc lại được
+    await db.collection('exam_keys').doc(uid).set({
+      password: String(data.password || '').trim().toLowerCase(),
+      at: FieldValue.serverTimestamp()
+    });
+
+    const readOwnAttempt = () => attemptRef.get({ source: 'server' })
+      .then((snap) => (snap.exists ? snap.data() : null))
+      .catch(() => null);
+    const denied = new Error('Không vào được phòng thi: mật khẩu chưa đúng, lớp chưa mở ca thi hoặc mã đề chưa được bật. Em báo Thầy/Cô giám thị.');
+
+    let attempt = await readOwnAttempt();
+    if (!attempt) {
+      const code = pickExamCode(cfg, grade, data.studentClass);
+      if (!code) throw new Error(`Chưa có mã đề đang bật cho Lớp ${data.studentClass}. Em báo Thầy/Cô giám thị.`);
+      try {
+        await attemptRef.set({
+          grade,
+          studentId: key,
+          studentClass: data.studentClass,
+          fullName: String(data.fullName || '').trim().slice(0, 80),
+          uid,
+          examCode: code,
+          attemptsUsed: 1,
+          submitted: false,
+          startedAt: FieldValue.serverTimestamp(),
+          deviceChanges: 0
+        });
+      } catch (createErr) {
+        // Mã LMS này đã có lượt thi từ máy khác: nhận lại lượt bằng mật khẩu phòng thi
+        try {
+          await attemptRef.update({ uid, deviceChanges: FieldValue.increment(1) });
+        } catch (takeoverErr) {
+          throw denied;
+        }
+      }
+      attempt = await readOwnAttempt();
+      if (!attempt) throw denied;
+    }
+
+    if (attempt.submitted) {
+      const allowed = Number.isInteger(attempt.allowedAttempts) ? attempt.allowedAttempts : (cfg.maxExamAttempts || 1);
+      if (attempt.attemptsUsed >= allowed) {
+        throw new Error(`Mã LMS ${key} đã dùng hết ${allowed} lượt làm bài thi chính thức. Nếu cần thi lại, em báo Thầy/Cô.`);
+      }
+      const code = pickExamCode(cfg, grade, attempt.studentClass);
+      if (!code) throw new Error(`Chưa có mã đề đang bật cho Lớp ${attempt.studentClass}. Em báo Thầy/Cô giám thị.`);
+      try {
+        await attemptRef.update({
+          attemptsUsed: FieldValue.increment(1),
+          submitted: false,
+          startedAt: FieldValue.serverTimestamp(),
+          examCode: code,
+          submittedAt: FieldValue.delete()
+        });
+      } catch (e) {
+        throw denied;
+      }
+      attempt = await readOwnAttempt();
+      if (!attempt) throw denied;
+    }
+
+    const examDocId = `g${grade}_${attempt.examCode}`;
+    await db.collection('exam_sessions').doc(uid).set({ attemptId, examDocId });
+    const examSnap = await db.collection('exam_public').doc(examDocId).get({ source: 'server' });
+    if (!examSnap.exists) throw new Error(`Không tìm thấy mã đề ${attempt.examCode} Khối ${grade}. Em báo Thầy/Cô giám thị.`);
+    return {
+      examCode: attempt.examCode,
+      exam: examSnap.data().exam,
+      durationMinutes: cfg.examDurationMinutes || 45,
+      startedAtMs: toMillis(attempt.startedAt) || Date.now()
+    };
+  }
+
+  async function submitExam(data) {
+    const user = await waitForUser();
+    const grade = Number(data.grade);
+    const attemptId = `g${grade}_${lmsKey(data.studentId)}`;
+    const attemptRef = db.collection('exam_attempts').doc(attemptId);
+    let snap;
+    try {
+      snap = await attemptRef.get();
+    } catch (e) {
+      throw new Error('Lượt làm bài này đang mở trên thiết bị khác. Em báo giám thị.');
+    }
+    if (!snap.exists) throw new Error('Không tìm thấy lượt làm bài. Em báo giám thị.');
+    const a = snap.data();
+    const subId = `${attemptId}_${a.attemptsUsed}`;
+    // Bỏ giá trị undefined (Firestore không nhận) và tách khỏi state React
+    const answers = JSON.parse(JSON.stringify(data.answers || { mcq: {}, tf: {}, essay: {} }));
+    const violations = Math.max(0, Math.min(99, parseInt(data.violations, 10) || 0));
+    const submittedAt = new Date().toISOString();
+
+    if (!a.submitted) {
+      const FieldValue = firebase.firestore.FieldValue;
+      const batch = db.batch();
+      batch.update(attemptRef, { submitted: true, submittedAt: FieldValue.serverTimestamp() });
+      batch.set(db.collection('submissions').doc(subId), {
+        id: subId,
+        uid: user.uid,
+        attemptId,
+        sessionId: String(data.sessionId || ''),
+        fullName: a.fullName,
+        studentClass: a.studentClass,
+        studentId: a.studentId,
+        grade,
+        mode: 'exam',
+        examCode: a.examCode,
+        attemptNumber: a.attemptsUsed,
+        deviceChanges: a.deviceChanges || 0,
+        answers,
+        violations,
+        startedAt: a.startedAt,
+        submittedAt,
+        serverSubmittedAt: FieldValue.serverTimestamp(),
+        isGraded: false,
+        essayScores: {},
+        essayTotal: 0,
+        teacherFeedback: ''
+      });
+      await withTimeout(batch.commit(), 20000,
+        'Mạng chậm, bài chưa gửi xong. Em giữ nguyên trang này, kiểm tra mạng rồi bấm nộp lại.');
+    }
+
+    const startMs = toMillis(a.startedAt);
+    const durationSeconds = startMs ? Math.max(0, Math.round((Date.now() - startMs) / 1000)) : 0;
+    return {
+      mode: 'exam',
+      pendingGrading: true,
+      submissionId: subId,
+      examCode: a.examCode,
+      violations,
+      penaltyPoints: violations >= 3 ? 5 : 0,
+      essayAnswered: Object.keys(answers.essay || {}).length,
+      durationSeconds,
+      durationFormatted: formatDuration(durationSeconds),
+      submittedAt
+    };
+  }
+
   if (typeof window !== 'undefined') {
     window.firebaseApp = app;
     window.firebaseDb = db;
     window.firebaseAnalytics = analytics;
     window.AsianSchoolCloudSyncStatus = syncStatus;
 
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', attachCloudListeners);
+    window.AsianSchoolAuth = {
+      getState: () => authState,
+      onChange(cb) {
+        authListeners.push(cb);
+        if (authState.ready) cb(authState);
+        return () => { const i = authListeners.indexOf(cb); if (i >= 0) authListeners.splice(i, 1); };
+      },
+      signInTeacher() {
+        if (!auth) return Promise.reject(new Error('Chưa nạp Firebase Auth.'));
+        const provider = new firebase.auth.GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+        return auth.signInWithPopup(provider);
+      },
+      signOut() {
+        return auth ? auth.signOut() : Promise.resolve();
+      },
+      uid() {
+        return auth && auth.currentUser ? auth.currentUser.uid : null;
+      }
+    };
+
+    window.AsianSchoolCloud = { startExam, submitExam };
+
+    const pathname = (window.location && window.location.pathname) || '';
+    const isStudentPortal = pathname.includes('/test');
+    let listenersAttached = false;
+    let teacherListenersAttached = false;
+
+    const onReady = (fn) => {
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn);
+      else setTimeout(fn, 0);
+    };
+
+    if (auth) {
+      auth.onAuthStateChanged(async (user) => {
+        if (!user && isStudentPortal) {
+          auth.signInAnonymously().catch((err) => {
+            console.warn('[Firebase Auth] Đăng nhập ẩn danh thất bại:', err.message);
+            updateStatus({ lastError: err.message });
+          });
+          return;
+        }
+        let isTeacher = false;
+        if (user && !user.isAnonymous) {
+          isTeacher = user.emailVerified && TEACHER_EMAILS.includes(String(user.email || '').toLowerCase());
+        }
+        setAuthState({ user, isTeacher, ready: true });
+        // Trang học sinh: gắn listener khi đã có phiên ẩn danh. Trang quản trị: chỉ khi là giáo viên.
+        if (user && !listenersAttached && (isStudentPortal || isTeacher)) {
+          listenersAttached = true;
+          onReady(attachCloudListeners);
+        }
+        if (isTeacher && !teacherListenersAttached && !isStudentPortal) {
+          teacherListenersAttached = true;
+          onReady(attachTeacherListeners);
+        }
+      });
     } else {
-      setTimeout(attachCloudListeners, 500);
+      setAuthState({ user: null, isTeacher: false, ready: true });
     }
   }
 })();

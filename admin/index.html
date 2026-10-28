@@ -57,7 +57,9 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-analytics-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="../src/core/firebase-config.js"></script>
+  <script src="../src/core/exam-package.js"></script>
 
   <!-- Core Scripts & Data -->
   <script src="../assets/logo-base64.js"></script>
@@ -72,96 +74,11 @@
   <script type="text/babel">
     const { useState, useEffect, useMemo, useRef } = React;
 
-    function sha256Sync(ascii) {
-      function rightRotate(value, amount) {
-        return (value >>> amount) | (value << (32 - amount));
-      }
-      var mathPow = Math.pow;
-      var maxWord = mathPow(2, 32);
-      var lengthProperty = 'length';
-      var i, j;
-      var result = '';
-      var words = [];
-      var asciiBitLength = ascii[lengthProperty] * 8;
-      var hash = [];
-      var k = [];
-      var primeCounter = 0;
-      var isComposite = {};
-      for (var candidate = 2; primeCounter < 64; candidate++) {
-        if (!isComposite[candidate]) {
-          for (i = candidate * candidate; i < 312; i += candidate) {
-            isComposite[i] = true;
-          }
-          if (primeCounter < 8) {
-            hash[primeCounter] = (mathPow(candidate, 0.5) * maxWord) | 0;
-          }
-          k[primeCounter] = (mathPow(candidate, 1 / 3) * maxWord) | 0;
-          primeCounter++;
-        }
-      }
-      ascii += '\x80';
-      while ((ascii[lengthProperty] % 64) - 56) ascii += '\x00';
-      for (i = 0; i < ascii[lengthProperty]; i++) {
-        j = ascii.charCodeAt(i);
-        if (j >> 8) return;
-        words[i >> 2] |= j << (((3 - i) % 4) * 8);
-      }
-      words[words[lengthProperty]] = (asciiBitLength / maxWord) | 0;
-      words[words[lengthProperty]] = asciiBitLength;
-      for (j = 0; j < words[lengthProperty]; ) {
-        var w = words.slice(j, (j += 16));
-        var oldHash = hash;
-        hash = hash.slice(0, 8);
-        for (i = 0; i < 64; i++) {
-          var w15 = w[i - 15], w2 = w[i - 2];
-          var s0 = rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3);
-          var s1 = rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10);
-          var ch = (hash[4] & hash[5]) ^ (~hash[4] & hash[6]);
-          var maj = (hash[0] & hash[1]) ^ (hash[0] & hash[2]) ^ (hash[1] & hash[2]);
-          var temp1 =
-            hash[7] +
-            (rightRotate(hash[4], 6) ^ rightRotate(hash[4], 11) ^ rightRotate(hash[4], 25)) +
-            ch +
-            k[i] +
-            (w[i] =
-              i < 16
-                ? w[i]
-                : (w[i - 16] + s0 + w[i - 7] + s1) | 0);
-          var temp2 =
-            (rightRotate(hash[0], 2) ^ rightRotate(hash[0], 13) ^ rightRotate(hash[0], 22)) +
-            maj;
-          hash = [(temp1 + temp2) | 0].concat(hash);
-          hash[4] = (hash[4] + temp1) | 0;
-        }
-        for (i = 0; i < 8; i++) {
-          hash[i] = (hash[i] + oldHash[i]) | 0;
-        }
-      }
-      for (i = 0; i < 8; i++) {
-        for (j = 3; j >= 0; j--) {
-          var b = (hash[i] >> (j * 8)) & 255;
-          result += (b < 16 ? '0' : '') + b.toString(16);
-        }
-      }
-      return result;
-    }
-
-    async function sha256(message) {
-      try {
-        if (typeof crypto !== 'undefined' && crypto.subtle && crypto.subtle.digest) {
-          const msgBuffer = new TextEncoder().encode(message);
-          const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-          const hashArray = Array.from(new Uint8Array(hashBuffer));
-          return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        }
-      } catch (e) { /* fallback to sync */ }
-      return sha256Sync(message);
-    }
-
     function AdminApp() {
       // Auth state
       const [isAuthenticated, setIsAuthenticated] = useState(false);
-      const [passwordInput, setPasswordInput] = useState('');
+      const [authReady, setAuthReady] = useState(false);
+      const [teacherEmail, setTeacherEmail] = useState('');
       const [loginError, setLoginError] = useState('');
 
       // Navigation: 6 Core Tabs
@@ -213,9 +130,13 @@
       const [cloudStatus, setCloudStatus] = useState(window.AsianSchoolCloudSyncStatus || { connected: false });
 
       // Config Tab States
-      const [newExamPassword, setNewExamPassword] = useState(config.examPassword || 'asian2026');
-      const [newAdminPassword, setNewAdminPassword] = useState('');
-      const [confirmAdminPassword, setConfirmAdminPassword] = useState('');
+      const [newExamPassword, setNewExamPassword] = useState(config.examPassword || '');
+      const [examBankStatus, setExamBankStatus] = useState('');
+      const [, setExamBankVersion] = useState(0);
+      const [maxExamAttempts, setMaxExamAttempts] = useState(config.maxExamAttempts || 1);
+      const [attemptGrade, setAttemptGrade] = useState('9');
+      const [attemptLms, setAttemptLms] = useState('');
+      const [attemptStatus, setAttemptStatus] = useState('');
       const [configSavedNotice, setConfigSavedNotice] = useState('');
 
       // Thời gian làm bài & Xáo trộn đề
@@ -262,12 +183,28 @@
 
       // Auth Check
       useEffect(() => {
-        const isAuth = sessionStorage.getItem('asian_school_admin_auth') === 'true';
-        if (isAuth) setIsAuthenticated(true);
+        // Chỉ tài khoản Firebase Auth có custom claim teacher mới vào được bảng điều khiển
+        const unsubAuth = window.AsianSchoolAuth
+          ? window.AsianSchoolAuth.onChange((state) => {
+              setAuthReady(true);
+              setIsAuthenticated(!!state.isTeacher);
+              setTeacherEmail(state.user && !state.user.isAnonymous ? (state.user.email || '') : '');
+              if (state.user && !state.user.isAnonymous && !state.isTeacher) {
+                setLoginError(`Tài khoản ${state.user.email || ''} không có quyền quản trị. Thầy đăng xuất và chọn đúng tài khoản Google giáo viên.`);
+              }
+            })
+          : (() => { setAuthReady(true); setLoginError('Chưa kết nối được Firebase Auth.'); return () => {}; })();
 
         const onCloudSync = (e) => setCloudStatus(e.detail || { connected: false });
+        // exam_bank thay đổi -> vẽ lại các tab Đáp án, Chấm tự luận, Kho mã đề
+        const onExamBank = () => setExamBankVersion(v => v + 1);
         window.addEventListener('asian-school-cloud-sync', onCloudSync);
-        return () => window.removeEventListener('asian-school-cloud-sync', onCloudSync);
+        window.addEventListener('asian-school-exam-bank', onExamBank);
+        return () => {
+          unsubAuth();
+          window.removeEventListener('asian-school-cloud-sync', onCloudSync);
+          window.removeEventListener('asian-school-exam-bank', onExamBank);
+        };
       }, []);
 
       // Realtime Data Sync
@@ -306,21 +243,17 @@
 
       const handleLogin = async (e) => {
         e.preventDefault();
-        const trimmed = (passwordInput || '').trim();
-        const hash = await sha256(trimmed);
-        const expectedHash = (config && config.adminPasswordHash) || '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918';
-        if (hash === expectedHash || trimmed === 'admin') {
-          setIsAuthenticated(true);
-          sessionStorage.setItem('asian_school_admin_auth', 'true');
-          setLoginError('');
-        } else {
-          setLoginError('Mật khẩu quản trị viên không chính xác!');
+        setLoginError('');
+        try {
+          await window.AsianSchoolAuth.signInTeacher();
+        } catch (err) {
+          setLoginError('Đăng nhập Google chưa thành công: ' + (err.message || err.code));
         }
       };
 
       const handleLogout = () => {
-        sessionStorage.removeItem('asian_school_admin_auth');
-        setIsAuthenticated(false);
+        // Tải lại trang để gỡ toàn bộ listener Firestore của phiên giáo viên
+        window.AsianSchoolAuth.signOut().finally(() => window.location.reload());
       };
 
       // --- CÁC HÀNH ĐỘNG GIÁM THỊ (PROCTOR ACTIONS) ---
@@ -565,24 +498,96 @@
         );
       };
 
-      // Đổi mật khẩu admin
-      const handleChangeAdminPassword = async (e) => {
-        e.preventDefault();
-        if (!newAdminPassword || newAdminPassword.length < 4) {
-          showDialog('Mật Khẩu Quá Ngắn', 'Mật khẩu quản trị mới phải có ít nhất 4 ký tự!', 'warning');
-          return;
+      // Tải mã đề chính thức (JSON kèm đáp án) lên exam_bank. Học sinh không đọc được collection này.
+      const handleUploadExamBank = async (e) => {
+        const file = e.target.files && e.target.files[0];
+        e.target.value = '';
+        if (!file) return;
+        try {
+          const pkg = JSON.parse(await file.text());
+          const grade = Number(pkg.grade);
+          const exams = pkg.officialExams || {};
+          if (![8, 9, 10].includes(grade)) throw new Error('Tệp phải có "grade" là 8, 9 hoặc 10.');
+          const codes = Object.keys(exams);
+          if (!codes.length) throw new Error('Tệp không có "officialExams".');
+          const problems = [];
+          codes.forEach(code => {
+            window.AsianSchoolExamPackage.validateExam(exams[code]).forEach(msg => problems.push(`Mã ${code}: ${msg}`));
+          });
+          if (problems.length) throw new Error(problems.slice(0, 6).join('\n'));
+          const batch = window.firebaseDb.batch();
+          codes.forEach(code => {
+            batch.set(window.firebaseDb.collection('exam_bank').doc(`g${grade}_${code}`), {
+              grade, code, active: true, exam: exams[code],
+              uploadedAt: new Date().toISOString(), uploadedBy: teacherEmail
+            });
+            // Bản đã bỏ đáp án cho học sinh (firestore.rules chỉ cho đọc đúng mã đề của lượt đang làm)
+            batch.set(window.firebaseDb.collection('exam_public').doc(`g${grade}_${code}`), {
+              grade, code, active: true, exam: window.AsianSchoolExamPackage.stripAnswers(exams[code])
+            });
+          });
+          await batch.commit();
+          window.AsianSchoolStorage.logAudit('Tải mã đề lên exam_bank', `Khối ${grade}: ${codes.join(', ')}`);
+          setExamBankStatus(`✅ Đã tải ${codes.length} mã đề Khối ${grade}: ${codes.join(', ')}`);
+        } catch (err) {
+          setExamBankStatus('❌ ' + err.message);
         }
-        if (newAdminPassword !== confirmAdminPassword) {
-          showDialog('Xác Nhận Không Khớp', 'Mật khẩu xác nhận không khớp với mật khẩu mới!', 'error');
-          return;
+      };
+
+      // Lượt thi chính thức theo mã LMS (exam_attempts/g<khối>_<MÃ LMS>, học sinh tạo khi vào phòng thi, firestore.rules kiểm tra)
+      const attemptDocRef = () => {
+        const key = String(attemptLms || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+        return key ? window.firebaseDb.collection('exam_attempts').doc(`g${attemptGrade}_${key}`) : null;
+      };
+
+      const describeAttempt = (d) => {
+        const allowed = Number.isInteger(d.allowedAttempts) ? d.allowedAttempts : (config.maxExamAttempts || 1);
+        const cur = d.current || {};
+        const state = cur.submitted ? 'đã nộp' : 'đang làm dở';
+        return `${d.fullName || ''} (${d.studentClass || ''}) - mã LMS ${d.studentId}: đã dùng ${d.attemptsUsed || 0}/${allowed} lượt; lượt gần nhất mã đề ${cur.examCode || '?'}, ${state}${cur.deviceChanges ? `, đổi thiết bị ${cur.deviceChanges} lần` : ''}.`;
+      };
+
+      const handleLookupAttempt = async () => {
+        const ref = attemptDocRef();
+        if (!ref) return setAttemptStatus('Nhập mã LMS.');
+        const snap = await ref.get();
+        setAttemptStatus(snap.exists ? describeAttempt(snap.data()) : 'Mã LMS này chưa vào phòng thi lần nào.');
+      };
+
+      const handleGrantAttempt = async () => {
+        const ref = attemptDocRef();
+        if (!ref) return setAttemptStatus('Nhập mã LMS.');
+        try {
+          const updated = await window.firebaseDb.runTransaction(async (tx) => {
+            const snap = await tx.get(ref);
+            if (!snap.exists) throw new Error('Mã LMS này chưa vào phòng thi lần nào, chưa cần cấp thêm lượt.');
+            const d = snap.data();
+            const allowed = Number.isInteger(d.allowedAttempts) ? d.allowedAttempts : (config.maxExamAttempts || 1);
+            if (d.current && !d.current.submitted) throw new Error('Học sinh đang làm dở lượt hiện tại; chờ nộp bài rồi mới cấp thêm lượt.');
+            tx.update(ref, { allowedAttempts: Math.max(allowed, d.attemptsUsed || 0) + 1 });
+            return { ...d, allowedAttempts: Math.max(allowed, d.attemptsUsed || 0) + 1 };
+          });
+          window.AsianSchoolStorage.logAudit('Cấp thêm lượt thi', `Khối ${attemptGrade} - Mã LMS ${updated.studentId}: ${updated.allowedAttempts} lượt`);
+          setAttemptStatus('✅ Đã cấp thêm 1 lượt. ' + describeAttempt(updated));
+        } catch (err) {
+          setAttemptStatus('❌ ' + err.message);
         }
-        const newHash = await sha256(newAdminPassword);
-        window.AsianSchoolStorage.setAdminPasswordHash(newHash);
-        setConfig(window.AsianSchoolStorage.getConfig());
-        setNewAdminPassword('');
-        setConfirmAdminPassword('');
-        setConfigSavedNotice('Đã đổi mật khẩu quản trị Admin thành công!');
-        setTimeout(() => setConfigSavedNotice(''), 3000);
+      };
+
+      const handleSaveMaxAttempts = () => {
+        const n = Math.max(1, Math.min(10, parseInt(maxExamAttempts, 10) || 1));
+        setMaxExamAttempts(n);
+        setConfig(window.AsianSchoolStorage.saveConfig({ maxExamAttempts: n }));
+        window.AsianSchoolStorage.logAudit('Đổi số lượt thi tối đa', `${n} lượt/mã LMS`);
+        setAttemptStatus(`✅ Mỗi mã LMS được làm bài thi chính thức tối đa ${n} lượt.`);
+      };
+
+      const handleToggleExamCode = async (grade, code, active) => {
+        const batch = window.firebaseDb.batch();
+        batch.set(window.firebaseDb.collection('exam_bank').doc(`g${grade}_${code}`), { active }, { merge: true });
+        batch.set(window.firebaseDb.collection('exam_public').doc(`g${grade}_${code}`), { active }, { merge: true });
+        await batch.commit();
+        window.AsianSchoolStorage.logAudit(active ? 'Bật mã đề' : 'Tắt mã đề', `Khối ${grade} - Mã ${code}`);
       };
 
       // --- CẤU HÌNH THỜI GIAN & TRỘN ĐỀ THI HANDLER ---
@@ -762,22 +767,9 @@
               </div>
 
               <form onSubmit={handleLogin} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-2">
-                    Mật Khẩu Quản Trị Viên (Admin PIN):
-                  </label>
-                  <input
-                    type="password"
-                    value={passwordInput}
-                    onChange={(e) => setPasswordInput(e.target.value)}
-                    placeholder="Nhập mật khẩu quản trị..."
-                    className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 font-mono-code focus:outline-none focus:border-blue-600"
-                    autoFocus
-                  />
-                  <p className="text-[11px] text-slate-500 mt-1.5 italic">
-                    Mật khẩu mặc định khởi tạo: <code className="text-blue-700 font-bold">admin</code>
-                  </p>
-                </div>
+                <p className="text-xs text-slate-600 text-center">
+                  Đăng nhập bằng tài khoản Google giáo viên đã được cấp quyền quản trị.
+                </p>
 
                 {loginError && (
                   <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl font-medium">
@@ -787,9 +779,10 @@
 
                 <button
                   type="submit"
-                  className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-2xl text-sm transition shadow-lg shadow-blue-600/30 uppercase tracking-wider"
+                  disabled={!authReady}
+                  className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-extrabold rounded-2xl text-sm transition shadow-lg shadow-blue-600/30 uppercase tracking-wider"
                 >
-                  Đăng Nhập Bảng Điều Khiển
+                  Đăng Nhập Bằng Google
                 </button>
               </form>
 
@@ -965,7 +958,7 @@
                       title="Xóa thí sinh đã nộp bài hoặc mất kết nối quá 15 phút"
                     >
                       <span>🧹</span>
-                      <span>Dọn Thí Sinh Hết Ca (> 15p)</span>
+                      <span>Dọn Thí Sinh Hết Ca (&gt; 15p)</span>
                     </button>
                     <button
                       type="button"
@@ -2368,44 +2361,111 @@
                   </div>
                 </div>
 
-                {/* 2. ĐỔI MẬT KHẨU QUẢN TRỊ ADMIN */}
+                {/* 2. TÀI KHOẢN GIÁO VIÊN & KHO MÃ ĐỀ CHÍNH THỨC */}
                 <div className="bg-white p-6 rounded-3xl border-2 border-slate-200/80 shadow-sm space-y-4">
                   <h3 className="font-black text-sm text-blue-950 uppercase tracking-wider border-b border-slate-100 pb-3 flex items-center space-x-2">
                     <span>🛡️</span>
-                    <span>ĐỔI MẬT KHẨU ĐĂNG NHẬP ADMIN (PIN)</span>
+                    <span>TÀI KHOẢN GIÁO VIÊN & KHO MÃ ĐỀ CHÍNH THỨC</span>
+                  </h3>
+                  <p className="text-xs text-slate-600">
+                    Đang đăng nhập: <strong>{teacherEmail}</strong>
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="px-5 py-2.5 bg-slate-600 hover:bg-slate-700 text-white font-bold text-xs rounded-xl shadow transition"
+                  >
+                    Đăng Xuất
+                  </button>
+
+                  <div className="border-t border-slate-100 pt-4 space-y-3">
+                    <p className="text-xs text-slate-500 font-medium">
+                      Mã đề kèm đáp án chỉ lưu trên Firestore (exam_bank), không nằm trong mã nguồn công khai.
+                      Chọn tệp JSON dạng {'{ "grade": 9, "officialExams": { "101": {...} } }'}, ví dụ tệp do scripts/tach_ma_de_chinh_thuc.cjs tạo ra.
+                    </p>
+                    <input
+                      type="file"
+                      accept="application/json,.json"
+                      onChange={handleUploadExamBank}
+                      className="block text-xs text-slate-700 file:mr-3 file:px-4 file:py-2 file:rounded-xl file:border-0 file:bg-amber-600 file:text-white file:font-bold"
+                    />
+                    {examBankStatus && (
+                      <pre className="text-xs whitespace-pre-wrap bg-slate-50 border border-slate-200 rounded-xl p-3">{examBankStatus}</pre>
+                    )}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      {[8, 9, 10].map(g => {
+                        const exams = (window['EXAM_DATA_G' + g] && window['EXAM_DATA_G' + g].officialExams) || {};
+                        return (
+                          <div key={g} className="border border-slate-200 rounded-xl p-3 text-xs space-y-1">
+                            <div className="font-bold text-blue-950">Khối {g}</div>
+                            {Object.keys(exams).length === 0 && <div className="text-slate-400 italic">Chưa có mã đề</div>}
+                            {Object.keys(exams).sort().map(code => (
+                              <label key={code} className="flex items-center space-x-2">
+                                <input
+                                  type="checkbox"
+                                  checked={exams[code].active !== false}
+                                  onChange={e => handleToggleExamCode(g, code, e.target.checked)}
+                                />
+                                <span>Mã {code} {exams[code].active === false ? '(đang tắt)' : ''}</span>
+                              </label>
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* LƯỢT THI CHÍNH THỨC THEO MÃ LMS */}
+                <div className="bg-white p-6 rounded-3xl border-2 border-slate-200/80 shadow-sm space-y-4">
+                  <h3 className="font-black text-sm text-blue-950 uppercase tracking-wider border-b border-slate-100 pb-3 flex items-center space-x-2">
+                    <span>🎫</span>
+                    <span>LƯỢT LÀM BÀI THI CHÍNH THỨC THEO MÃ LMS</span>
                   </h3>
                   <p className="text-xs text-slate-500 font-medium">
-                    Mật khẩu được mã hóa an toàn bằng thuật toán SHA-256 ngay trên trình duyệt của Thầy.
+                    Máy chủ đếm lượt theo mã LMS, nên đổi máy hay xóa trình duyệt cũng không được thêm lượt. Vi phạm 3 lần: bài bị khóa chờ giám thị mở khóa, khi nộp trừ 5 điểm.
                   </p>
-
-                  <form onSubmit={handleChangeAdminPassword} className="space-y-3 max-w-sm">
+                  <div className="flex flex-wrap items-end gap-2">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Mật khẩu mới:</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Số lượt tối đa mỗi mã LMS:</label>
                       <input
-                        type="password"
-                        value={newAdminPassword}
-                        onChange={e => setNewAdminPassword(e.target.value)}
-                        placeholder="Nhập mật khẩu mới..."
-                        className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-blue-600"
+                        type="number" min="1" max="10"
+                        value={maxExamAttempts}
+                        onChange={e => setMaxExamAttempts(e.target.value)}
+                        className="w-24 bg-slate-50 border-2 border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-blue-600"
                       />
                     </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Xác nhận mật khẩu mới:</label>
-                      <input
-                        type="password"
-                        value={confirmAdminPassword}
-                        onChange={e => setConfirmAdminPassword(e.target.value)}
-                        placeholder="Nhập lại mật khẩu mới..."
-                        className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-blue-600"
-                      />
-                    </div>
-                    <button
-                      type="submit"
-                      className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow transition"
-                    >
-                      Cập Nhật Mật Khẩu Admin
+                    <button type="button" onClick={handleSaveMaxAttempts} className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow transition">
+                      Lưu
                     </button>
-                  </form>
+                  </div>
+                  <div className="flex flex-wrap items-end gap-2 border-t border-slate-100 pt-4">
+                    <select
+                      value={attemptGrade}
+                      onChange={e => setAttemptGrade(e.target.value)}
+                      className="bg-slate-50 border-2 border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900"
+                    >
+                      <option value="8">Khối 8</option>
+                      <option value="9">Khối 9</option>
+                      <option value="10">Khối 10</option>
+                    </select>
+                    <input
+                      type="text"
+                      value={attemptLms}
+                      onChange={e => setAttemptLms(e.target.value)}
+                      placeholder="Mã LMS học sinh"
+                      className="w-44 bg-slate-50 border-2 border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-blue-600"
+                    />
+                    <button type="button" onClick={handleLookupAttempt} className="px-4 py-2.5 bg-slate-600 hover:bg-slate-700 text-white font-bold text-xs rounded-xl shadow transition">
+                      Tra cứu
+                    </button>
+                    <button type="button" onClick={handleGrantAttempt} className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow transition">
+                      Cấp thêm 1 lượt
+                    </button>
+                  </div>
+                  {attemptStatus && (
+                    <p className="text-xs bg-slate-50 border border-slate-200 rounded-xl p-3">{attemptStatus}</p>
+                  )}
                 </div>
 
                 {/* 3. KẾT NỐI GOOGLE DRIVE & GOOGLE SHEETS */}

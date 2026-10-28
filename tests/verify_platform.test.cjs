@@ -18,6 +18,12 @@ global.localStorage = {
 };
 
 const storage = require('../src/core/storage-service.js');
+
+// Mã đề chính thức kèm đáp án chỉ nằm ở private/ trên máy giáo viên (gitignore), không có trong data/ công khai
+function loadPrivateExams(grade) {
+  const file = path.join(__dirname, `../private/ma_de_chinh_thuc_khoi_${grade}.json`);
+  return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')).officialExams : null;
+}
 const timer = require('../src/core/exam-timer.js');
 const antiCheat = require('../src/core/anti-cheat.js');
 
@@ -32,9 +38,15 @@ test('Kiểm tra dữ liệu Khối 8 chuẩn hoá (Đề cương TN + Tự lu�
   });
 
   // Kiểm tra 4 mã đề chính thức
+  assert.strictEqual(g8.officialExams, undefined, 'data/questions_grade8.js công khai không được chứa mã đề chính thức');
+  const officialExams = loadPrivateExams(8);
+  if (!officialExams) {
+    t.skip('Không có private/ma_de_chinh_thuc_khoi_8.json trên máy này');
+    return;
+  }
   const codes = ['101', '102', '103', '104'];
   codes.forEach(code => {
-    const exam = g8.officialExams[code];
+    const exam = officialExams[code];
     assert.ok(exam, `Phải có mã đề ${code}`);
     assert.strictEqual(exam.mcqQuestions.length, 28, `Mã đề ${code} Khối 8 phải có đúng 28 câu trắc nghiệm`);
     assert.strictEqual(exam.essayQuestions.length, 3, `Mã đề ${code} Khối 8 phải có đúng 3 câu tự luận`);
@@ -53,9 +65,15 @@ test('Kiểm tra dữ liệu Khối 9 chuẩn hoá (Đề cương TN + Tự lu�
     assert.ok(q.modelAnswer && q.modelAnswer.length > 20, `Câu tự luận ${q.num} Khối 9 phải có gợi ý đáp án/rubric`);
   });
 
+  assert.strictEqual(g9.officialExams, undefined, 'data/questions_grade9.js công khai không được chứa mã đề chính thức');
+  const officialExams = loadPrivateExams(9);
+  if (!officialExams) {
+    t.skip('Không có private/ma_de_chinh_thuc_khoi_9.json trên máy này');
+    return;
+  }
   const codes = ['101', '102', '103', '104'];
   codes.forEach(code => {
-    const exam = g9.officialExams[code];
+    const exam = officialExams[code];
     assert.ok(exam, `Phải có mã đề ${code}`);
     assert.strictEqual(exam.mcqQuestions.length, 28, `Mã đề ${code} Khối 9 phải có đúng 28 câu trắc nghiệm`);
     assert.strictEqual(exam.essayQuestions.length, 3, `Mã đề ${code} Khối 9 phải có đúng 3 câu tự luận`);
@@ -82,9 +100,15 @@ test('Kiểm tra dữ liệu Khối 10 chuẩn hoá (Đề cương TN + Đúng/S
     });
   });
 
+  assert.strictEqual(g10.officialExams, undefined, 'data/questions_grade10.js công khai không được chứa mã đề chính thức');
+  const officialExams = loadPrivateExams(10);
+  if (!officialExams) {
+    t.skip('Không có private/ma_de_chinh_thuc_khoi_10.json trên máy này');
+    return;
+  }
   const codes = ['101', '102', '103', '104'];
   codes.forEach(code => {
-    const exam = g10.officialExams[code];
+    const exam = officialExams[code];
     assert.ok(exam, `Phải có mã đề ${code}`);
     assert.strictEqual(exam.part1_mcq.length, 19, `Khối 10 mã ${code} phải có 19 câu trắc nghiệm Phần I`);
     assert.strictEqual(exam.part2_tf.length, 3, `Khối 10 mã ${code} phải có 3 câu Đúng/Sai Phần II`);
@@ -125,6 +149,9 @@ test('Kiểm tra Storage Service, Danh sách lớp & Phân bổ mã đề Asian 
 });
 
 test('Kiểm tra Mật khẩu bài thi chính thức (Exam Password)', (t) => {
+  assert.strictEqual(storage.getConfig().examPassword, '', 'Mã nguồn không được chứa mật khẩu phòng thi mặc định');
+  assert.strictEqual(storage.checkExamPassword(''), false, 'Chưa đặt mật khẩu thì không ai vào được phòng thi');
+  storage.setExamPassword('asian2026');
   assert.strictEqual(storage.checkExamPassword('asian2026'), true);
   assert.strictEqual(storage.checkExamPassword('wrongPass'), false);
   assert.strictEqual(storage.checkExamPassword(' ASIAN2026 '), true);
@@ -204,14 +231,15 @@ test('Kiểm tra Lệnh Giám Thị Thời Gian Thực (Proctor Commands)', (t) 
   storage.consumeProctorCommand(cmdUnlock.cmdId, sessionId);
 });
 
-test('Kiểm tra Quản lý Mật khẩu Admin & Nhật ký Hoạt động (Audit Log)', (t) => {
-  storage.setAdminPasswordHash('new-hashed-password-12345');
-  const cfg = storage.getConfig();
-  assert.strictEqual(cfg.adminPasswordHash, 'new-hashed-password-12345');
+test('Kiểm tra Đăng nhập Quản trị qua Firebase Auth & Nhật ký Hoạt động (Audit Log)', (t) => {
+  assert.strictEqual(storage.getConfig().adminPasswordHash, undefined, 'Không còn mật khẩu admin trong cấu hình phía client');
+  const adminHtml = fs.readFileSync(path.join(__dirname, '../admin/index.html'), 'utf8');
+  assert.ok(adminHtml.includes('AsianSchoolAuth.signInTeacher'), 'Cổng quản trị phải đăng nhập bằng Firebase Auth');
+  assert.ok(!adminHtml.includes('8c6976e5b5410415'), 'Không còn hash mật khẩu admin mặc định');
 
   const logs = storage.getAuditLogs();
   assert.ok(logs.length > 0, 'Phải có nhật ký ghi nhận các thao tác');
-  assert.ok(logs.some(l => l.action.includes('Admin') || l.action.includes('quản trị')));
+  assert.ok(logs.some(l => l.action.includes('mật khẩu phòng thi')));
 });
 
 test('Kiểm tra Xuất CSV Bảng Điểm Đầy Đủ Cột Tự Luận & Lời Phê', (t) => {

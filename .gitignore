@@ -3,3 +3,10 @@ Thumbs.db
 *.log
 node_modules/
 build_updated_test_index.py
+
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+# Mã đề chính thức kèm đáp án: chỉ lưu trên máy giáo viên
+private/

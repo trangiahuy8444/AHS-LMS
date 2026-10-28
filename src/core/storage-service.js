@@ -32,8 +32,13 @@
     requireAllQuestionsAnswered: false, // Bật/Tắt bắt buộc làm hết tất cả câu hỏi (không được bỏ trống khi nộp)
     allowPracticeReview: true,
     allowExamReview: false, // Trong lúc thi không hiện đáp án ngay
-    examPassword: 'asian2026', // Mật khẩu phòng thi chính thức
-    adminPasswordHash: '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918', // 'admin' sha256
+    // Mật khẩu phòng thi lưu ở exam_secrets/room (chỉ giáo viên đọc), firestore.rules đối chiếu khi học sinh vào phòng thi.
+    // Đăng nhập quản trị dùng Firebase Auth, không còn mật khẩu admin trong mã nguồn.
+    examPassword: '',
+    // Cách chấm câu Đúng/Sai Khối 10: 'coefficient' (1 ý 0,1 - 2 ý 0,25 - 3 ý 0,5 - 4 ý 1,0) | 'per_statement' (0,25đ mỗi ý)
+    tfScoringPolicy: 'coefficient',
+    // Số lượt làm bài thi chính thức tối đa cho mỗi mã LMS (giáo viên cấp thêm lượt cho từng học sinh trong tab Bài nộp)
+    maxExamAttempts: 1,
     
     // Cấu hình Google Drive Webhook & Vòng đời lưu trữ (Retention)
     googleDriveWebhookUrl: '', // URL Web App Google Apps Script kết nối Google Drive / Sheets
@@ -117,8 +122,20 @@
       if (typeof window !== 'undefined' && window.firebaseDb) {
         try {
           if (typeof window.firebaseDb.collection === 'function') {
-            window.firebaseDb.collection('exam_config').doc('global_config').set(merged, { merge: true })
+            // Không đẩy mật khẩu lên exam_config (học sinh đọc được); mật khẩu phòng thi đi vào exam_secrets/room
+            const { examPassword, adminPasswordHash, ...publicConfig } = merged;
+            const fieldValue = typeof firebase !== 'undefined' && firebase.firestore && firebase.firestore.FieldValue;
+            if (fieldValue) {
+              // Xóa hẳn các trường mật khẩu cũ còn sót trên bản cấu hình công khai
+              publicConfig.examPassword = fieldValue.delete();
+              publicConfig.adminPasswordHash = fieldValue.delete();
+            }
+            window.firebaseDb.collection('exam_config').doc('global_config').set(publicConfig, { merge: true })
               .catch(e => console.warn('Firestore config save err', e));
+            if (newConfig && newConfig.examPassword !== undefined) {
+              window.firebaseDb.collection('exam_secrets').doc('room').set({ examPassword: newConfig.examPassword }, { merge: true })
+                .catch(e => console.warn('Firestore secret save err', e));
+            }
           }
         } catch (e) { /* local fallback */ }
       }
@@ -271,19 +288,13 @@
 
     checkExamPassword(inputPassword) {
       const cfg = this.getConfig();
-      const expected = (cfg.examPassword || 'asian2026').trim().toLowerCase();
-      return (inputPassword || '').trim().toLowerCase() === expected;
+      const expected = (cfg.examPassword || '').trim().toLowerCase();
+      return !!expected && (inputPassword || '').trim().toLowerCase() === expected;
     }
 
     setExamPassword(newPassword) {
-      const res = this.saveConfig({ examPassword: (newPassword || 'asian2026').trim() });
-      this.logAudit('Đổi mật khẩu phòng thi', `Mật khẩu mới: ${(newPassword || 'asian2026').trim()}`);
-      return res;
-    }
-
-    setAdminPasswordHash(newHash) {
-      const res = this.saveConfig({ adminPasswordHash: newHash });
-      this.logAudit('Đổi mật khẩu quản trị Admin', 'Đã băm SHA-256 mật khẩu quản trị viên mới');
+      const res = this.saveConfig({ examPassword: (newPassword || '').trim() });
+      this.logAudit('Đổi mật khẩu phòng thi', 'Đã cập nhật mật khẩu phòng thi');
       return res;
     }
 
@@ -515,6 +526,57 @@
       this.logAudit('Chấm tự luận học sinh', `${sub.fullName} (${sub.studentClass}): Tự luận ${essayTotal}đ -> Tổng ${finalScore}đ`);
 
       return { success: true, submission: sub };
+    }
+
+    // Chấm tự động phần trắc nghiệm (+ Đúng/Sai Khối 10) cho bài thi chính thức học sinh vừa nộp.
+    // Gói Spark không có máy chủ: học sinh chỉ gửi bài làm, trang quản trị (đã nạp exam_bank kèm đáp án) chấm.
+    // examsByGrade: { 8: { '101': exam, ... }, 9: {...}, 10: {...} }. Trả về số bài vừa chấm.
+    autoGradeExamSubmissions(examsByGrade) {
+      const pkg = (typeof window !== 'undefined' && window.AsianSchoolExamPackage) || require('./exam-package.js');
+      const toMillis = (t) => (t && typeof t.toMillis === 'function') ? t.toMillis() : (t && typeof t.seconds === 'number' ? t.seconds * 1000 : null);
+      const cfg = this.getConfig();
+      const list = this.getSubmissions();
+      const graded = [];
+
+      list.forEach((sub, idx) => {
+        if (sub.mode !== 'exam' || sub.autoGradedAt || !sub.answers) return;
+        const exam = ((examsByGrade || {})[sub.grade] || {})[sub.examCode];
+        if (!exam) return;
+        const r = pkg.gradeExam(exam, sub.answers, { tfScoringPolicy: cfg.tfScoringPolicy });
+        const penalty = sub.violations >= 3 ? 5 : 0;
+        const essayTotal = sub.isGraded ? (parseFloat(sub.essayTotal) || 0) : 0;
+        const startMs = toMillis(sub.startedAt);
+        const endMs = toMillis(sub.serverSubmittedAt);
+        const durationSeconds = startMs && endMs ? Math.max(0, Math.round((endMs - startMs) / 1000)) : (sub.durationSeconds || 0);
+        const mins = Math.floor(durationSeconds / 60);
+        const secs = durationSeconds % 60;
+        const update = {
+          mcqPoints: r.mcqPoints,
+          maxMcqPoints: r.maxMcqPoints,
+          correctMcq: r.correctMcq,
+          penaltyPoints: penalty,
+          finalScore: Math.max(0, Math.min(10, Math.round((r.mcqPoints + essayTotal - penalty) * 100) / 100)),
+          durationSeconds,
+          durationFormatted: `${mins} phút ${secs < 10 ? '0' : ''}${secs} giây`,
+          // Thời gian theo giờ máy chủ vượt thời lượng cấu hình (chưa tính phút giám thị cộng thêm)
+          overtimeSeconds: Math.max(0, durationSeconds - (cfg.examDurationMinutes || 45) * 60),
+          autoGradedAt: new Date().toISOString()
+        };
+        list[idx] = { ...sub, ...update };
+        graded.push({ id: sub.id, update });
+      });
+
+      if (!graded.length) return 0;
+      localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(list));
+      this.notify(this.submissionListeners, list);
+      if (typeof window !== 'undefined' && window.firebaseDb && typeof window.firebaseDb.collection === 'function') {
+        graded.forEach(({ id, update }) => {
+          window.firebaseDb.collection('submissions').doc(id).set(update, { merge: true })
+            .catch(e => console.warn('Firestore auto-grade err', e));
+        });
+      }
+      this.logAudit('Chấm tự động trắc nghiệm', `${graded.length} bài thi chính thức`);
+      return graded.length;
     }
 
     onSubmissionsChange(cb) {
@@ -838,6 +900,9 @@
         ...sessionData,
         lastPing: Date.now()
       };
+      // Gắn uid người tạo phiên (học sinh đăng nhập ẩn danh) để firestore.rules kiểm tra quyền sở hữu
+      const authUid = typeof window !== 'undefined' && window.AsianSchoolAuth ? window.AsianSchoolAuth.uid() : null;
+      if (!updated.uid && authUid) updated.uid = authUid;
       if (idx >= 0) {
         list[idx] = updated;
       } else {

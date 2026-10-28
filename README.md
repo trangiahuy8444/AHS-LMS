@@ -16,8 +16,8 @@
   👉 [https://trangiahuy8444.github.io/AHS-LMS/test/](https://trangiahuy8444.github.io/AHS-LMS/test/)
 - 🛡️ **Cổng Quản Trị Giáo Viên (Admin Dashboard & Chấm Tự Luận):**  
   👉 [https://trangiahuy8444.github.io/AHS-LMS/admin/](https://trangiahuy8444.github.io/AHS-LMS/admin/)
-  - *Mật khẩu Quản trị mặc định:* `admin` (có thể đổi trong tab Cấu hình).
-  - *Mật khẩu Phòng thi chính thức:* `asian2026` (học sinh cần nhập khi vào chế độ thi).
+  - Đăng nhập bằng tài khoản Google giáo viên (danh sách email trong `firestore.rules`).
+  - Mật khẩu phòng thi do giáo viên đặt trong tab Cấu hình, lưu ở `exam_secrets/room`. Không ghi mật khẩu vào mã nguồn hay README.
 
 ---
 
@@ -29,7 +29,7 @@
   - **Kiểm tra chính thức (45 phút):** Yêu cầu mật khẩu phòng thi, tự động phân bổ mã đề (101..104) theo lớp, chống gian lận đa tầng (toàn màn hình, phát hiện chuyển tab/mất focus, chặn F12/Copy), đồng hồ đếm ngược đồng bộ chống tua giờ.
 - **Giao diện bài thi tối ưu UX/UI:**
   - Hiển thị từng câu 1 (One-question-at-a-time) kèm thanh điều hướng nhanh.
-  - Tự động lưu bài làm chống mất mạng.
+  - Tự động lưu bài làm chống mất mạng; nộp lỗi thì giữ bài trên máy và cho nộp lại.
   - Nút **"📸 Chụp màn hình nộp kết quả LMS"** tự động tạo file ảnh PNG định dạng chuẩn: `[MãLMS]_[HọTên]_[Lớp]_KetQua.png` để học sinh nộp làm minh chứng trên Asian School LMS.
 
 ### 2.2. Cổng Quản Trị Dành Cho Giáo Viên (`/admin`)
@@ -63,12 +63,15 @@ AHS-LMS/
 │   ├── logo_asian_school.png    # Huy hiệu biểu trưng Trường Quốc Tế Á Châu
 │   └── logo-base64.js           # Chuỗi Base64 logo dùng chụp ảnh kết quả
 ├── data/
-│   ├── questions_grade8.js      # Ngân hàng đề cương & 4 mã đề thi Khối 8
-│   ├── questions_grade9.js      # Ngân hàng đề cương & 4 mã đề thi Khối 9
-│   └── questions_grade10.js     # Ngân hàng đề cương, Đúng/Sai & 4 mã đề thi Khối 10
+│   ├── questions_grade8.js      # Đề cương ôn tập Khối 8 (công khai)
+│   ├── questions_grade9.js      # Đề cương ôn tập Khối 9 (công khai)
+│   └── questions_grade10.js     # Đề cương ôn tập, Đúng/Sai Khối 10 (công khai)
+├── firestore.rules              # Quy tắc truy cập Firestore (thay máy chủ trên gói Spark)
+├── scripts/                     # Tách mã đề chính thức sang private/
 ├── src/
 │   └── core/
 │       ├── firebase-config.js   # Khởi tạo SDK Firebase & đồng bộ Cloud Firestore
+│       ├── exam-package.js      # Bỏ đáp án, chấm điểm, kiểm tra cấu trúc mã đề 
 │       ├── storage-service.js   # Module quản lý CSDL, chấm tự luận & xuất CSV
 │       ├── anti-cheat.js        # Module giám sát chống gian lận đa tầng
 │       └── exam-timer.js        # Bộ đếm ngược chống tua giờ
@@ -79,6 +82,43 @@ AHS-LMS/
 └── tests/
     └── verify_platform.test.cjs # Bộ kiểm thử tự động 11 bài test đảm bảo tính toàn vẹn
 ```
+
+---
+
+## 🔐 4. BẢO MẬT ĐỀ THI & TRIỂN KHAI (GÓI FIREBASE SPARK, MIỄN PHÍ)
+
+Repo này công khai, nên **mã đề chính thức kèm đáp án không bao giờ nằm trong `data/`**. Gói Spark không có Cloud Functions, nên `firestore.rules` làm thay phần máy chủ.
+
+| Thành phần | Nơi lưu | Ai đọc được |
+| :--- | :--- | :--- |
+| Đề cương ôn tập (kèm đáp án để tự chấm) | `data/questions_grade{8,9,10}.js` | Mọi người |
+| Mã đề kèm đáp án | Firestore `exam_bank/g{khối}_{mã}`; bản trên máy ở `private/` (gitignore) | Giáo viên |
+| Mã đề đã bỏ đáp án | Firestore `exam_public/g{khối}_{mã}` | Học sinh, chỉ đúng mã đề của lượt đang làm |
+| Mật khẩu phòng thi | Firestore `exam_secrets/room` | Giáo viên |
+| Lượt thi theo mã LMS | Firestore `exam_attempts/g{khối}_{MÃ LMS}` | Giáo viên, học sinh chủ lượt |
+| Bài nộp chính thức | Firestore `submissions` (học sinh chỉ gửi bài làm, không có điểm) | Giáo viên |
+
+Luồng thi:
+1. Học sinh đăng nhập ẩn danh rồi tạo lượt thi. Rules kiểm tra mật khẩu phòng thi, lớp đang mở ca thi, mã đề theo phân công và số lượt còn lại của mã LMS (mặc định 1 lượt).
+2. Học sinh đọc đề đã bỏ đáp án. Khi nộp, chỉ bài làm được gửi đi.
+3. Trang quản trị (giáo viên đăng nhập Google) tự chấm trắc nghiệm, Đúng/Sai theo hệ số 0,1/0,25/0,5/1, và trừ 5 điểm nếu vi phạm 3 lần. Phần tự luận giáo viên chấm.
+
+Giáo viên được nhận diện bằng email Google trong `isTeacher()` của `firestore.rules`. Danh sách này phải giống `TEACHER_EMAILS` trong `src/core/firebase-config.js`.
+
+### Cài đặt trên Firebase Console (không cần dòng lệnh)
+
+1. **Authentication > Sign-in method**: bật **Anonymous** và **Google**.
+2. **Authentication > Settings > Authorized domains**: thêm `trangiahuy8444.github.io`.
+3. **Firestore Database > Rules**: dán toàn bộ `firestore.rules`, bấm **Publish**.
+4. Vào `/admin`, chọn **Đăng nhập bằng Google**, rồi mở tab Cấu hình: đặt mật khẩu phòng thi và tải tệp mã đề JSON (`{ "grade": 9, "officialExams": {...} }`).
+
+### Kiểm thử trên máy
+
+```sh
+node --test tests/*.cjs
+```
+
+`scripts/tach_ma_de_chinh_thuc.cjs` tách mã đề từ `data/` sang `private/` (chạy thử mặc định, thêm `--apply` để ghi tệp).
 
 ---
 

@@ -41,6 +41,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-analytics-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="../src/core/firebase-config.js"></script>
 
   <!-- Core Scripts & Data -->
@@ -78,6 +79,10 @@
       const [studentId, setStudentId] = useState(''); // Mã LMS
       const [sessionId, setSessionId] = useState('');
       const [assignedCode, setAssignedCode] = useState('101');
+      // Đề chính thức đã bỏ đáp án, đọc từ exam_public khi vào phòng thi (AsianSchoolCloud.startExam); không nằm trong data/*.js
+      const [officialExam, setOfficialExam] = useState(null);
+      const [isContactingServer, setIsContactingServer] = useState(false);
+      const submittingExamRef = useRef(false);
       const [activeQuestionIdx, setActiveQuestionIdx] = useState(0);
 
       // Exam password state
@@ -220,7 +225,7 @@
       const practiceQuestions = practiceSet.mcqQuestions || [];
       const practiceTfQuestions = practiceSet.tfQuestions || [];
       const practiceEssayQuestions = practiceSet.essayQuestions || [];
-      const currentOfficialExam = gradeData && gradeData.officialExams ? gradeData.officialExams[assignedCode] : null;
+      const currentOfficialExam = officialExam;
 
       // Cập nhật lớp & đề cương khi đổi khối
       useEffect(() => {
@@ -400,17 +405,29 @@
           return;
         }
 
-        // Kiểm tra mật khẩu phòng thi nếu là bài thi chính thức
+        const sid = 'sess-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+
+        // Bài thi chính thức: firestore.rules kiểm tra mật khẩu phòng thi, lớp đang mở ca thi, lượt thi theo mã LMS;
+        // học sinh chỉ nhận đề không kèm đáp án
+        let serverStart = null;
         if (mode === 'exam') {
           if (!examPasswordInput.trim()) {
             showDialog('Yêu Cầu Mật Khẩu', '⚠️ VUI LÒNG NHẬP MẬT KHẨU PHÒNG THI!\n\nMật khẩu do Thầy/Cô giám thị cung cấp trước giờ làm bài.', 'warning');
             return;
           }
-          const isCorrect = window.AsianSchoolStorage.checkExamPassword(examPasswordInput);
-          if (!isCorrect) {
-            showDialog('Mật Khẩu Chưa Chính Xác', '❌ MẬT KHẨU PHÒNG THI KHÔNG CHÍNH XÁC!\n\nVui lòng kiểm tra lại chữ hoa/thường hoặc hỏi Thầy/Cô giám thị.', 'error');
+          setIsContactingServer(true);
+          try {
+            serverStart = await window.AsianSchoolCloud.startExam({
+              grade, studentClass, fullName, studentId, sessionId: sid, password: examPasswordInput
+            });
+          } catch (err) {
+            setIsContactingServer(false);
+            showDialog('Chưa Vào Được Phòng Thi', `❌ ${err.message || 'Không kết nối được máy chủ.'}\n\nNếu em chắc chắn đã nhập đúng mật khẩu, hãy báo Thầy/Cô giám thị.`, 'error');
             return;
           }
+          setIsContactingServer(false);
+          setOfficialExam(serverStart.exam);
+          submittingExamRef.current = false;
         }
 
         // Nếu là ôn tập: Luôn bốc ngẫu nhiên một bộ đề mới (28 câu THCS hoặc 19 câu + 3 câu Đ/S THPT)
@@ -422,17 +439,16 @@
           setPracticeAnswers({ mcq: {}, tf: {}, essay: {} });
         }
 
-        const sid = 'sess-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
         setSessionId(sid);
         setActiveQuestionIdx(0);
         setIsSessionLocked(false);
         setIsProctorUnlocked(false);
         setLockReason(null);
-        setExamStartTime(new Date());
+        setExamStartTime(serverStart ? new Date(serverStart.startedAtMs) : new Date());
         setElapsedSeconds(0);
 
         // Xác định mã đề
-        const code = window.AsianSchoolStorage.determineExamCode(grade, studentClass);
+        const code = serverStart ? serverStart.examCode : window.AsianSchoolStorage.determineExamCode(grade, studentClass);
         setAssignedCode(code);
 
         // Bật chống gian lận
@@ -478,13 +494,17 @@
         });
 
         // Cấu hình thời gian làm bài từ Admin
-        const examDur = config.examDurationMinutes || 45;
+        const examDur = serverStart ? serverStart.durationMinutes : (config.examDurationMinutes || 45);
+        // Tải lại trang giữa giờ: đồng hồ tính tiếp từ giờ bắt đầu máy chủ ghi nhận
+        const examRemainingMin = serverStart
+          ? Math.max(1 / 60, examDur - (Date.now() - serverStart.startedAtMs) / 60000)
+          : examDur;
         const practiceDur = config.practiceDurationMinutes || 0;
 
         // Nếu là chế độ Thi: Kích hoạt đồng hồ đếm ngược theo thời gian do Admin thiết lập
         if (mode === 'exam') {
           window.AsianSchoolTimer.start({
-            durationMinutes: examDur,
+            durationMinutes: examRemainingMin,
             onTick: (sec, fmt) => {
               setSecondsLeft(sec);
               setTimeLeftStr(fmt);
@@ -722,8 +742,10 @@
       };
 
       // Nộp bài thi chính thức
-      const handleSubmitExam = (isForced = false) => {
+      const handleSubmitExam = async (isForced = false) => {
         setShowSubmitModal(false);
+        // Hết giờ có thể gọi nộp bài 2 lần (hộp thoại + gọi trực tiếp): chỉ gửi 1 lần
+        if (submittingExamRef.current) return;
 
         if (!isForced && config.requireAllQuestionsAnswered) {
           const missing = [];
@@ -734,7 +756,7 @@
                 missing.push(`Câu ${q.num} (Trắc nghiệm)`);
               }
             });
-            const es = currentOfficialExam?.essayQuestions || [];
+            const es = currentOfficialExam?.essayQuestions || currentOfficialExam?.part3_essay || [];
             es.forEach(q => {
               const text = (examAnswers.essay[q.num] || '').trim();
               if (!text) {
@@ -756,7 +778,7 @@
                 missing.push(`Câu ${q.num} (Đúng/Sai: ý ${unans.map(s => s.letter).join(', ')})`);
               }
             });
-            const es = currentOfficialExam?.essayQuestions || [];
+            const es = currentOfficialExam?.essayQuestions || currentOfficialExam?.part3_essay || [];
             es.forEach(q => {
               const text = (examAnswers.essay[q.num] || '').trim();
               if (!text) {
@@ -775,81 +797,40 @@
           }
         }
 
+        submittingExamRef.current = true;
         window.AsianSchoolTimer.stop();
         window.AsianSchoolAntiCheat.setSubmitting(true);
         window.AsianSchoolAntiCheat.stop();
         window.AsianSchoolAntiCheat.exitFullscreen();
 
-        let mcqPoints = 0;
-        let correctMcq = 0;
+        // Bản sao bài làm trên máy, phòng khi mất mạng lúc nộp
+        try {
+          localStorage.setItem('asian_school_pending_exam_v1', JSON.stringify({
+            grade, sessionId, fullName, studentClass, studentId, examCode: assignedCode, violations, answers: examAnswers, savedAt: new Date().toISOString()
+          }));
+        } catch (e) { /* bộ nhớ đầy hoặc bị chặn */ }
 
-        if (grade === 8 || grade === 9) {
-          const qs = currentOfficialExam?.mcqQuestions || [];
-          qs.forEach(q => {
-            if (examAnswers.mcq[q.num] === q.correctAnswer) {
-              correctMcq++;
-              mcqPoints += (q.points || 0.25);
-            }
-          });
-        } else if (grade === 10) {
-          const p1 = currentOfficialExam?.part1_mcq || [];
-          p1.forEach(q => {
-            if (examAnswers.mcq[q.num] === q.correctAnswer) {
-              correctMcq++;
-              mcqPoints += (q.points || 0.25);
-            }
-          });
-          const p2 = currentOfficialExam?.part2_tf || [];
-          p2.forEach(q => {
-            const userSub = examAnswers.tf[q.num] || {};
-            q.subQuestions.forEach(sub => {
-              if (userSub[sub.letter] === sub.correctAnswer) {
-                mcqPoints += 0.25;
-              }
-            });
-          });
+        // Chỉ gửi bài làm; trang quản trị của giáo viên chấm trắc nghiệm (+ Đúng/Sai Khối 10) và tự luận
+        let finalResult;
+        setIsContactingServer(true);
+        try {
+          finalResult = await window.AsianSchoolCloud.submitExam({ grade, studentId, answers: examAnswers, violations });
+        } catch (err) {
+          setIsContactingServer(false);
+          submittingExamRef.current = false;
+          showDialog(
+            'Chưa Nộp Được Bài',
+            `⚠️ ${err.message || 'Mất kết nối tới máy chủ.'}\n\nBài làm của em vẫn được giữ trên máy. Em kiểm tra mạng rồi bấm "Đồng ý" để nộp lại, hoặc báo Thầy/Cô giám thị.`,
+            'error',
+            () => handleSubmitExam(true)
+          );
+          return;
         }
+        setIsContactingServer(false);
+        try { localStorage.removeItem('asian_school_pending_exam_v1'); } catch (e) { /* bỏ qua */ }
 
-        const durationSec = examStartTime ? Math.round((Date.now() - examStartTime) / 1000) : 0;
-        const mins = Math.floor(durationSec / 60);
-        const secs = durationSec % 60;
-        const durationFormatted = `${mins} phút ${secs < 10 ? '0' : ''}${secs} giây`;
-        const penalty = violations >= 3 ? 5 : 0;
-        const totalEarned = Math.min(grade === 10 ? 7.75 : 7.0, parseFloat(mcqPoints.toFixed(2)));
-        const finalNetPoints = Math.max(0, Math.round((totalEarned - penalty) * 100) / 100);
-
-        const finalResult = {
-          mode: 'exam',
-          examCode: assignedCode,
-          mcqPoints: totalEarned,
-          netPoints: finalNetPoints,
-          maxMcqPoints: grade === 10 ? 7.75 : 7.0,
-          essayAnswered: Object.keys(examAnswers.essay).length,
-          violations,
-          penaltyPoints: penalty,
-          durationSeconds: durationSec,
-          durationFormatted,
-          submittedAt: new Date().toISOString()
-        };
         setScoreResult(finalResult);
         setExamState('submitted');
-
-        window.AsianSchoolStorage.saveSubmission({
-          sessionId,
-          fullName,
-          studentClass,
-          studentId,
-          grade,
-          mode: 'exam',
-          examCode: assignedCode,
-          mcqPoints: totalEarned,
-          maxMcqPoints: grade === 10 ? 7.75 : 7.0,
-          violations,
-          penaltyPoints: penalty,
-          durationSeconds: durationSec,
-          durationFormatted,
-          answers: examAnswers
-        });
 
         window.AsianSchoolStorage.updateLiveSession({
           sessionId,
@@ -861,7 +842,7 @@
           examCode: assignedCode,
           violations,
           status: 'submitted',
-          mcqPoints: totalEarned
+          pendingGrading: true
         });
       };
 
@@ -953,12 +934,17 @@
             ctx.fillStyle = '#1e3a8a';
             ctx.font = 'bold 22px sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(mode === 'practice' ? 'ĐIỂM ĐẠT ĐƯỢC' : 'ĐIỂM TRẮC NGHIỆM', 930, 230);
+            ctx.fillText(mode === 'practice' ? 'ĐIỂM ĐẠT ĐƯỢC' : 'BÀI THI CHÍNH THỨC', 930, 230);
 
             ctx.font = 'black 84px sans-serif';
             ctx.fillStyle = '#dc2626';
-            const pts = mode === 'practice' ? (scoreResult?.score ?? 0) : (scoreResult?.mcqPoints ?? 0);
-            ctx.fillText(`${pts} / 10`, 930, 335);
+            if (mode === 'practice') {
+              ctx.fillText(`${scoreResult?.score ?? 0} / 10`, 930, 335);
+            } else {
+              ctx.font = 'bold 54px sans-serif';
+              ctx.fillStyle = '#047857';
+              ctx.fillText('ĐÃ NỘP BÀI', 930, 335);
+            }
 
             if (mode === 'practice') {
               ctx.font = 'bold 18px sans-serif';
@@ -1608,13 +1594,14 @@
                   <button
                     type="button"
                     onClick={handleStart}
-                    className={`w-full py-4 text-white font-black rounded-2xl shadow-lg transition duration-200 flex items-center justify-center space-x-2 text-sm sm:text-base uppercase tracking-wider ${
+                    disabled={isContactingServer}
+                    className={`w-full py-4 disabled:opacity-60 text-white font-black rounded-2xl shadow-lg transition duration-200 flex items-center justify-center space-x-2 text-sm sm:text-base uppercase tracking-wider ${
                       mode === 'exam'
                         ? 'bg-red-600 hover:bg-red-700 shadow-red-500/25'
                         : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/25'
                     }`}
                   >
-                    <span>{mode === 'exam' ? 'BẮT ĐẦU VÀO PHÒNG THI' : 'BẮT ĐẦU ÔN TẬP ĐỀ CƯƠNG'}</span>
+                    <span>{isContactingServer ? 'ĐANG KẾT NỐI MÁY CHỦ...' : (mode === 'exam' ? 'BẮT ĐẦU VÀO PHÒNG THI' : 'BẮT ĐẦU ÔN TẬP ĐỀ CƯƠNG')}</span>
                     <span>→</span>
                   </button>
                   <p className="text-[11px] text-slate-500 italic mt-2 text-center">
@@ -2180,12 +2167,16 @@
                   {/* Khối Điểm Số Nổi Bật (High Contrast, Padding Đáy Đầy Đủ Chống Che Chữ Khi Chụp) */}
                   <div className="text-center py-6 px-4 bg-blue-50/80 rounded-3xl border-2 border-blue-200 shadow-sm space-y-3 pb-8">
                     <p className="text-xs text-blue-900 font-black uppercase tracking-widest">
-                      {mode === 'practice' ? 'ĐIỂM ĐẠT ĐƯỢC' : 'ĐIỂM TRẮC NGHIỆM CHÍNH THỨC'}
+                      {mode === 'practice' ? 'ĐIỂM ĐẠT ĐƯỢC' : 'BÀI THI CHÍNH THỨC'}
                     </p>
-                    <div className="text-5xl sm:text-6xl font-black text-red-600 my-1">
-                      {mode === 'practice' ? scoreResult.score : (scoreResult.netPoints !== undefined ? scoreResult.netPoints : scoreResult.mcqPoints)}
-                      <span className="text-xl text-slate-600 font-bold"> / {mode === 'practice' ? 10 : scoreResult.maxMcqPoints}</span>
-                    </div>
+                    {mode === 'practice' ? (
+                      <div className="text-5xl sm:text-6xl font-black text-red-600 my-1">
+                        {scoreResult.score}
+                        <span className="text-xl text-slate-600 font-bold"> / 10</span>
+                      </div>
+                    ) : (
+                      <div className="text-3xl sm:text-4xl font-black text-emerald-700 my-1">✅ ĐÃ NỘP BÀI THÀNH CÔNG</div>
+                    )}
                     <div className="space-y-2">
                       <p className="text-xs text-slate-700 font-bold">
                         {mode === 'practice'
@@ -2202,7 +2193,7 @@
                       )}
                       {scoreResult.violations >= 3 && (
                         <div className="mt-2 inline-block px-4 py-1.5 bg-red-100 border-2 border-red-500 rounded-xl text-red-800 text-xs font-black shadow-sm">
-                          🚨 Biên bản vi phạm: Đã trừ 5 điểm vào kết quả thi (Vi phạm 3 lần)
+                          🚨 Biên bản vi phạm: Trừ 5 điểm vào kết quả thi (Vi phạm 3 lần)
                         </div>
                       )}
 
@@ -2210,10 +2201,10 @@
                         <div className="mt-3 p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl text-xs text-amber-900 font-semibold space-y-1 text-left">
                           <div className="flex items-center space-x-1.5 font-black text-amber-950 text-xs">
                             <span>📝</span>
-                            <span>PHẦN TỰ LUẬN (3,0 ĐIỂM): ĐANG CHỜ GIÁO VIÊN CHẤM BÀI</span>
+                            <span>BÀI LÀM ĐÃ ĐƯỢC GHI NHẬN, ĐANG CHỜ GIÁO VIÊN CHẤM</span>
                           </div>
                           <p className="text-[11px] text-amber-800 leading-relaxed font-medium">
-                            Điểm hiển thị phía trên là Điểm Trắc Nghiệm ({scoreResult.netPoints !== undefined ? scoreResult.netPoints : scoreResult.mcqPoints} / {scoreResult.maxMcqPoints} điểm). Điểm tổng kết 10 điểm chính thức sẽ được Thầy Trần Gia Huy cập nhật sau khi chấm xong bài tự luận của em.
+                            Mã đề {scoreResult.examCode}. Thầy Trần Gia Huy sẽ chấm phần trắc nghiệm và tự luận, sau đó công bố điểm 10 chính thức trên LMS.
                           </p>
                         </div>
                       )}
