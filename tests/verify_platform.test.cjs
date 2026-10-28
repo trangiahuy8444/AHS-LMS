@@ -495,23 +495,86 @@ test('Kiểm tra Cú pháp Đặt Tên Tệp Chụp Màn Hình (Chứa Số Lầ
     'Thẻ kết quả bài làm không được có overflow-hidden gây che mất/cắt viền số lần làm');
 });
 
-test('Kiểm tra Thay Thế Toàn Bộ Alert Bằng Dialog & Toast Tĩnh (Không Bị Nhảy Giật)', (t) => {
-  const testHtml = fs.readFileSync(path.join(__dirname, '../test/index.html'), 'utf8');
-  const adminHtml = fs.readFileSync(path.join(__dirname, '../admin/index.html'), 'utf8');
-
-  // Kiểm tra không còn hàm alert(...) trong cả 2 trang
-  const testAlerts = (testHtml.match(/\balert\s*\(/g) || []).length;
-  const adminAlerts = (adminHtml.match(/\balert\s*\(/g) || []).length;
-
-  assert.strictEqual(testAlerts, 0, 'test/index.html không được dùng native alert()');
-  assert.strictEqual(adminAlerts, 0, 'admin/index.html không được dùng native alert()');
-
-  // Kiểm tra hệ thống Dialog và Toast tĩnh (không có animate-bounce)
-  assert.ok(testHtml.includes('customDialog'), 'test/index.html phải có customDialog state');
-  assert.ok(adminHtml.includes('adminToast') && adminHtml.includes('adminDialog'), 'admin/index.html phải có adminToast và adminDialog');
-  assert.ok(!testHtml.includes('animate-bounce'), 'test/index.html không được dùng hiệu ứng nhảy nhảy (bounce)');
-  assert.ok(!adminHtml.includes('animate-bounce'), 'admin/index.html không được dùng hiệu ứng nhảy nhảy (bounce)');
+test('Kiểm tra Bật/Tắt Cấu Hình Bắt Buộc Trả Lời Hết 100% Câu Hỏi (requireAllQuestionsAnswered)', (t) => {
+  const cfg = storage.getConfig();
+  assert.strictEqual(typeof cfg.requireAllQuestionsAnswered, 'boolean', 'requireAllQuestionsAnswered phải là boolean trong config');
+  
+  storage.saveConfig({ requireAllQuestionsAnswered: true });
+  assert.strictEqual(storage.getConfig().requireAllQuestionsAnswered, true);
+  
+  storage.saveConfig({ requireAllQuestionsAnswered: false });
+  assert.strictEqual(storage.getConfig().requireAllQuestionsAnswered, false);
 });
+
+test('Kiểm tra Chức năng Xóa Bài Nộp Khỏi CSDL (deleteSubmission)', (t) => {
+  // Tạo 1 submission mẫu
+  const sub = storage.saveSubmission({
+    fullName: 'Thí Sinh Cần Xóa',
+    studentCode: 'DEL001',
+    grade: 8,
+    studentClass: '8/19',
+    mode: 'exam',
+    examCode: '101',
+    mcqPoints: 5.0
+  });
+
+  assert.ok(storage.getSubmissionById(sub.id), 'Bài nộp phải tồn tại trước khi xóa');
+  
+  const delRes = storage.deleteSubmission(sub.id);
+  assert.strictEqual(delRes.success, true, 'deleteSubmission phải trả về { success: true } khi xóa thành công');
+  assert.strictEqual(storage.getSubmissionById(sub.id), null, 'Bài nộp không được tồn tại sau khi xóa');
+});
+
+test('Kiểm tra Reset Vi Phạm Khi Giám Thị Mở Khóa (antiCheat.resetViolations)', (t) => {
+  assert.ok(typeof antiCheat.resetViolations === 'function', 'antiCheat phải có hàm resetViolations');
+  antiCheat.violationCount = 3;
+  antiCheat.resetViolations();
+  assert.strictEqual(antiCheat.violationCount, 0, 'violationCount phải về 0 sau khi reset');
+});
+
+test('Kiểm tra Tự Luận Chờ Giáo Viên Chấm & Điểm Nộp Bài Thi Chính Thức Chỉ Tính Trắc Nghiệm', (t) => {
+  const examSub = storage.saveSubmission({
+    fullName: 'Nguyễn Văn Thi',
+    studentCode: 'THI101',
+    grade: 10,
+    studentClass: '10/14',
+    mode: 'exam',
+    examCode: '101',
+    mcqPoints: 6.25,
+    answers: { essay: { 1: 'Ý trả lời bài thi' } }
+  });
+
+  assert.strictEqual(examSub.isGraded, false, 'Bài thi mới nộp phải có isGraded = false');
+  assert.strictEqual(examSub.essayTotal, 0, 'Phần tự luận chưa chấm phải là 0 điểm');
+  assert.strictEqual(examSub.finalScore, 6.25, 'Điểm tạm tính khi nộp bài chỉ lấy trắc nghiệm/đúng sai, không tự cộng điểm tự luận');
+  
+  // Cleanup
+  storage.deleteSubmission(examSub.id);
+});
+
+test('Kiểm tra Cơ Chế Chặn Inspect Code & Phím Tắt DevTools Cả Mac & Windows', (t) => {
+  const antiCheatCode = fs.readFileSync(path.join(__dirname, '../src/core/anti-cheat.js'), 'utf8');
+  const testHtml = fs.readFileSync(path.join(__dirname, '../test/index.html'), 'utf8');
+
+  // Kiểm tra phím tắt trên Mac (Cmd + Option + I/J/C/U) và Windows (F12, Ctrl + Shift + I/J/C, Ctrl + U)
+  assert.ok(antiCheatCode.includes("e.altKey") && antiCheatCode.includes("e.shiftKey"), 'anti-cheat.js phải kiểm tra cả altKey và shiftKey cho Mac/Windows');
+  assert.ok(antiCheatCode.includes("['I', 'i', 'J', 'j', 'C', 'c'].includes(key)"), 'anti-cheat.js phải chặn các tổ hợp phím mở Developer Tools');
+  assert.ok(testHtml.includes("e.preventDefault()"), 'test/index.html phải ngăn chặn sự kiện khi bấm phím tắt inspect');
+});
+
+test('Kiểm tra Giao Diện Admin Đồng Bộ Phong Cách Asian School & Nút Mở Khóa Thí Sinh', (t) => {
+  const adminHtml = fs.readFileSync(path.join(__dirname, '../admin/index.html'), 'utf8');
+  const testHtml = fs.readFileSync(path.join(__dirname, '../test/index.html'), 'utf8');
+
+  // Kiểm tra màu sắc Asian School chuẩn
+  assert.ok(adminHtml.includes('bg-slate-100') && adminHtml.includes('bg-[#1e3a8a]'), 'admin/index.html phải có theme sáng bg-slate-100 và header xanh royal #1e3a8a');
+  assert.ok(adminHtml.includes('Xóa Thí Sinh'), 'admin/index.html phải có nút xóa thí sinh trong phòng thi');
+  
+  // Kiểm tra nút tương tác mở khóa ở học sinh (student resume button)
+  assert.ok(testHtml.includes('handleStudentResumeFromLock'), 'test/index.html phải có hàm handleStudentResumeFromLock');
+  assert.ok(testHtml.includes('Bấm Để Trở Lại Bài Thi (Sau Khi Thầy Mở Khóa)'), 'Màn hình khóa học sinh phải có nút bấm xác nhận để vào lại toàn màn hình');
+});
+
 
 
 

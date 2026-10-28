@@ -28,6 +28,7 @@
     practiceDurationMinutes: 0, // 0 = Không giới hạn thời gian (Tự do), hoặc 15, 30, 45 phút
     shuffleQuestions: true, // Bật/Tắt trộn thứ tự câu hỏi
     shuffleOptions: true, // Bật/Tắt xáo trộn vị trí 4 phương án A/B/C/D
+    requireAllQuestionsAnswered: false, // Bật/Tắt bắt buộc làm hết tất cả câu hỏi (không được bỏ trống khi nộp)
     allowPracticeReview: true,
     allowExamReview: false, // Trong lúc thi không hiện đáp án ngay
     examPassword: 'asian2026', // Mật khẩu phòng thi chính thức
@@ -323,12 +324,33 @@
       }
     }
 
+    deleteSubmission(subId) {
+      const list = this.getSubmissions();
+      const filtered = list.filter(s => s.id !== subId && s.sessionId !== subId);
+      if (filtered.length === list.length) {
+        return { success: false, error: 'Không tìm thấy bài nộp cần xóa: ' + subId };
+      }
+      localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(filtered));
+      this.notify(this.submissionListeners, filtered);
+
+      if (typeof window !== 'undefined' && window.firebaseDb) {
+        try {
+          if (typeof window.firebaseDb.collection === 'function') {
+            window.firebaseDb.collection('submissions').doc(subId).delete().catch(e => console.warn('Firestore del err', e));
+          }
+        } catch (e) { /* ignore */ }
+      }
+
+      this.logAudit('Xóa bài nộp', `Đã xóa bài nộp ID: ${subId}`);
+      return { success: true, count: filtered.length };
+    }
+
     saveSubmission(subData) {
       const rawScore = subData.finalScore !== undefined ? subData.finalScore : (subData.score !== undefined ? subData.score : subData.mcqPoints);
       const penalty = subData.penaltyPoints !== undefined ? subData.penaltyPoints : (subData.violations >= 3 ? 5 : 0);
       let calculatedFinal = typeof rawScore === 'number' ? Math.max(0, Math.round((rawScore - penalty) * 100) / 100) : rawScore;
 
-      // 1. NẾU LÀ ÔN TẬP ĐỀ CƯƠNG: Chỉ lưu trong phiên theo Mã LMS, KHÔNG lưu vào CSDL vĩnh viễn
+      // 1. NẾU LÀ ÔN TẬP ĐỀ CƯƠNG: Lưu trong phiên theo Mã LMS, tự động gửi Webhook Google Drive
       if (subData.mode === 'practice') {
         const studentKey = subData.studentId || subData.studentCode || 'HS_ON_TAP';
         const attemptNum = this.incrementPracticeAttempt(studentKey);
@@ -344,12 +366,18 @@
           finalScore: calculatedFinal,
           isPracticeOnly: true
         };
+        // Tự động lưu điểm ôn tập lên Google Drive Webhook
+        this.syncRowToGoogleDrive(transientDoc);
         // Trả về bản ghi tạm để học sinh xem kết quả và tải ảnh minh chứng, không đẩy vào danh sách bài thi
         return transientDoc;
       }
 
       // 2. NẾU LÀ BÀI THI CHÍNH THỨC: Lưu trữ phục vụ giáo viên chấm và vào điểm
+      // LƯU Ý QUAN TRỌNG: Câu tự luận do GV chấm, nên khi học sinh nộp bài CHỈ ghi nhận Điểm Trắc Nghiệm (tối đa 7.0đ)
       const list = this.getSubmissions();
+      const mcqPoints = subData.mcqPoints !== undefined ? subData.mcqPoints : (subData.score || 0);
+      const mcqNet = Math.max(0, Math.round((mcqPoints - penalty) * 100) / 100);
+
       const newDoc = {
         id: 'sub-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
         ...subData,
@@ -357,11 +385,11 @@
         durationFormatted: subData.durationFormatted || (subData.durationTaken ? subData.durationTaken : '45 phút'),
         penaltyPoints: penalty,
         submittedAt: new Date().toISOString(),
-        isGraded: subData.isGraded || false,
-        essayScores: subData.essayScores || {},
-        essayTotal: subData.essayTotal || 0,
-        finalScore: calculatedFinal,
-        teacherFeedback: subData.teacherFeedback || ''
+        isGraded: false, // Bắt buộc false khi mới nộp, chờ GV chấm tự luận
+        essayScores: {},
+        essayTotal: 0,
+        finalScore: mcqNet, // Chỉ là điểm trắc nghiệm sau trừ phạt
+        teacherFeedback: ''
       };
       list.unshift(newDoc);
       localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(list));
@@ -671,10 +699,24 @@
       if (!url || !url.startsWith('http')) return { success: false, reason: 'no_webhook' };
 
       try {
+        const isPractice = subDoc.mode === 'practice';
+        const formattedSub = {
+          studentId: subDoc.studentId || subDoc.studentCode || '',
+          fullName: subDoc.fullName || 'Học sinh',
+          grade: subDoc.grade || '',
+          studentClass: subDoc.studentClass || '',
+          examCode: subDoc.examCode || (isPractice ? `ÔN TẬP — LẦN ${subDoc.attemptNumber || 1}` : '101'),
+          mcqPoints: subDoc.mcqPoints !== undefined ? subDoc.mcqPoints : (subDoc.score || 0),
+          essayTotal: subDoc.essayTotal || 0,
+          finalScore: subDoc.finalScore !== undefined ? subDoc.finalScore : (subDoc.score || 0),
+          violations: subDoc.violations || 0,
+          durationFormatted: subDoc.durationFormatted || '30 phút',
+          submittedAt: subDoc.submittedAt || new Date().toISOString()
+        };
         const payload = {
           action: 'sync_row',
           token: (cfg.googleDriveWebhookToken || '').trim(),
-          submission: subDoc,
+          submission: formattedSub,
           syncedAt: new Date().toISOString()
         };
         await fetch(url, {

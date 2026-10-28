@@ -131,6 +131,36 @@
         return () => unsub();
       }, []);
 
+      // Chặn toàn diện phím tắt mở Inspector / DevTools trên cả Windows và macOS (F12, Cmd+Opt+I/J/C, Ctrl+Shift+I/J/C)
+      useEffect(() => {
+        const handleInspectBlock = (e) => {
+          const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+          if (e.key === 'F12') {
+            e.preventDefault();
+            return false;
+          }
+          if (isCtrlOrCmd && (e.shiftKey || e.altKey) && ['i', 'j', 'c'].includes(e.key.toLowerCase())) {
+            e.preventDefault();
+            return false;
+          }
+          if (isCtrlOrCmd && ['u', 's', 'p'].includes(e.key.toLowerCase())) {
+            e.preventDefault();
+            return false;
+          }
+        };
+        const handleContextMenuBlock = (e) => {
+          e.preventDefault();
+          return false;
+        };
+
+        window.addEventListener('keydown', handleInspectBlock, true);
+        document.addEventListener('contextmenu', handleContextMenuBlock, true);
+        return () => {
+          window.removeEventListener('keydown', handleInspectBlock, true);
+          document.removeEventListener('contextmenu', handleContextMenuBlock, true);
+        };
+      }, []);
+
       // Cập nhật quyền truy cập khi đổi lớp hoặc cấu hình thay đổi thời gian thực từ Cloud
       useEffect(() => {
         if (!window.AsianSchoolStorage) return;
@@ -532,10 +562,35 @@
       // Nộp bài ôn tập
       const handleSubmitPractice = () => {
         setShowSubmitModal(false);
-        if (ENFORCE_NO_EMPTY) {
-          const missingMcq = practiceQuestions.filter(q => practiceAnswers.mcq[q.id] === undefined).map((q, idx) => idx + 1);
-          if (missingMcq.length > 0) {
-            showDialog('Chưa Hoàn Thành Bài', `⚠️ BẠN CHƯA HOÀN THÀNH TẤT CẢ CÁC CÂU TRẮC NGHIỆM!\n\nHiện còn ${missingMcq.length} câu chưa chọn đáp án: Câu ${missingMcq.join(', ')}.`, 'warning');
+        if (config.requireAllQuestionsAnswered) {
+          const missing = [];
+          practiceQuestions.forEach((q, idx) => {
+            if (practiceAnswers.mcq[q.id] === undefined) {
+              missing.push(`Câu ${idx + 1} (Trắc nghiệm)`);
+            }
+          });
+          if (grade === 10) {
+            practiceTfQuestions.forEach((tf, idx) => {
+              const userSub = practiceAnswers.tf[tf.num] || {};
+              const unans = (tf.subQuestions || []).filter(sub => userSub[sub.letter] === undefined);
+              if (unans.length > 0) {
+                missing.push(`Câu ${idx + 1} Đ/S (ý ${unans.map(s => s.letter).join(', ')})`);
+              }
+            });
+          }
+          practiceEssayQuestions.forEach((es, idx) => {
+            const text = (practiceAnswers.essay[es.num] || '').trim();
+            if (!text) {
+              missing.push(`Câu ${idx + 1} (Tự luận)`);
+            }
+          });
+
+          if (missing.length > 0) {
+            showDialog(
+              'Chưa Hoàn Thành Tất Cả Câu Hỏi',
+              `⚠️ Thầy Cô yêu cầu em phải làm hết 100% câu hỏi trước khi nộp bài!\n\nHiện em còn ${missing.length} phần chưa hoàn thành:\n• ${missing.slice(0, 8).join('\n• ')}${missing.length > 8 ? `\n... và còn ${missing.length - 8} câu nữa` : ''}\n\nEm vui lòng hoàn thành đầy đủ nhé!`,
+              'warning'
+            );
             return;
           }
         }
@@ -647,6 +702,57 @@
       // Nộp bài thi chính thức
       const handleSubmitExam = (isForced = false) => {
         setShowSubmitModal(false);
+
+        if (!isForced && config.requireAllQuestionsAnswered) {
+          const missing = [];
+          if (grade === 8 || grade === 9) {
+            const qs = currentOfficialExam?.mcqQuestions || [];
+            qs.forEach(q => {
+              if (examAnswers.mcq[q.num] === undefined) {
+                missing.push(`Câu ${q.num} (Trắc nghiệm)`);
+              }
+            });
+            const es = currentOfficialExam?.essayQuestions || [];
+            es.forEach(q => {
+              const text = (examAnswers.essay[q.num] || '').trim();
+              if (!text) {
+                missing.push(`Câu ${q.num} (Tự luận)`);
+              }
+            });
+          } else if (grade === 10) {
+            const p1 = currentOfficialExam?.part1_mcq || [];
+            p1.forEach(q => {
+              if (examAnswers.mcq[q.num] === undefined) {
+                missing.push(`Câu ${q.num} (Phần I)`);
+              }
+            });
+            const p2 = currentOfficialExam?.part2_tf || [];
+            p2.forEach(q => {
+              const userSub = examAnswers.tf[q.num] || {};
+              const unans = (q.subQuestions || []).filter(sub => userSub[sub.letter] === undefined);
+              if (unans.length > 0) {
+                missing.push(`Câu ${q.num} (Đúng/Sai: ý ${unans.map(s => s.letter).join(', ')})`);
+              }
+            });
+            const es = currentOfficialExam?.essayQuestions || [];
+            es.forEach(q => {
+              const text = (examAnswers.essay[q.num] || '').trim();
+              if (!text) {
+                missing.push(`Câu ${q.num} (Tự luận)`);
+              }
+            });
+          }
+
+          if (missing.length > 0) {
+            showDialog(
+              'Chưa Hoàn Thành Tất Cả Câu Hỏi',
+              `⚠️ Thầy Cô yêu cầu em phải làm hết 100% câu hỏi trước khi nộp bài thi!\n\nHiện em còn ${missing.length} phần chưa hoàn thành:\n• ${missing.slice(0, 8).join('\n• ')}${missing.length > 8 ? `\n... và còn ${missing.length - 8} câu nữa` : ''}\n\nEm vui lòng kiểm tra và hoàn thành trước khi nộp nhé!`,
+              'warning'
+            );
+            return;
+          }
+        }
+
         window.AsianSchoolTimer.stop();
         window.AsianSchoolAntiCheat.setSubmitting(true);
         window.AsianSchoolAntiCheat.stop();
@@ -921,8 +1027,10 @@
             } else if (cmd.command === 'unlock_session') {
               setIsSessionLocked(false);
               setLockReason(null);
+              setViolations(0);
               if (window.AsianSchoolAntiCheat) {
-                window.AsianSchoolAntiCheat.requestFullscreen();
+                window.AsianSchoolAntiCheat.resetViolations();
+                window.AsianSchoolAntiCheat.requestFullscreen().catch(() => {});
               }
               setBroadcastNotice({
                 type: 'success',
@@ -941,6 +1049,30 @@
         checkCommands();
         return () => clearInterval(interval);
       }, [examState, sessionId]);
+
+      const handleStudentResumeFromLock = async () => {
+        setIsSessionLocked(false);
+        setLockReason(null);
+        setViolations(0);
+        if (window.AsianSchoolAntiCheat) {
+          window.AsianSchoolAntiCheat.resetViolations();
+          await window.AsianSchoolAntiCheat.requestFullscreen().catch(() => {});
+        }
+        if (window.AsianSchoolStorage) {
+          window.AsianSchoolStorage.updateLiveSession({
+            sessionId,
+            fullName,
+            studentClass,
+            studentId,
+            grade,
+            mode,
+            examCode: assignedCode,
+            violations: 0,
+            status: mode === 'exam' ? 'in_progress' : 'practicing',
+            isLocked: false
+          });
+        }
+      };
 
       const handleRestartPractice = () => {
         // Sinh một bộ câu hỏi ngẫu nhiên mới cho lần ôn tập kế tiếp
@@ -993,9 +1125,18 @@
                     </p>
                   )}
                 </div>
-                <div className="text-xs text-amber-300 font-semibold italic flex items-center justify-center space-x-2 pt-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
-                  <span>Đang đợi Giám thị xác nhận mở khóa từ xa...</span>
+                <div className="pt-2 space-y-3">
+                  <button
+                    type="button"
+                    onClick={handleStudentResumeFromLock}
+                    className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-2xl shadow-xl shadow-emerald-950/40 uppercase tracking-wider transition flex items-center justify-center space-x-2"
+                  >
+                    <span>🔓</span>
+                    <span>Bấm Để Trở Lại Bài Thi (Sau Khi Thầy Mở Khóa)</span>
+                  </button>
+                  <p className="text-[11px] text-slate-400 italic text-center">
+                    Sau khi Thầy thông báo đã mở khóa, em bấm nút trên để vào lại toàn màn hình ngay lập tức.
+                  </p>
                 </div>
               </div>
             </div>
@@ -1976,6 +2117,18 @@
                       {scoreResult.violations >= 3 && (
                         <div className="mt-2 inline-block px-3 py-1 bg-red-100 border-2 border-red-500 rounded-xl text-red-800 text-xs font-black shadow-sm">
                           🚨 Biên bản vi phạm: Đã trừ 5 điểm vào kết quả thi (Vi phạm 3 lần)
+                        </div>
+                      )}
+
+                      {mode === 'exam' && (
+                        <div className="mt-3 p-3.5 bg-amber-50 border-2 border-amber-300 rounded-2xl text-xs text-amber-900 font-semibold space-y-1 text-left">
+                          <div className="flex items-center space-x-1.5 font-black text-amber-950 text-xs">
+                            <span>📝</span>
+                            <span>PHẦN TỰ LUẬN (3,0 ĐIỂM): ĐANG CHỜ GIÁO VIÊN CHẤM BÀI</span>
+                          </div>
+                          <p className="text-[11px] text-amber-800 leading-relaxed font-medium">
+                            Điểm hiển thị phía trên là Điểm Trắc Nghiệm ({scoreResult.netPoints !== undefined ? scoreResult.netPoints : scoreResult.mcqPoints} / {scoreResult.maxMcqPoints} điểm). Điểm tổng kết 10 điểm chính thức sẽ được Thầy Trần Gia Huy cập nhật sau khi chấm xong bài tự luận của em.
+                          </p>
                         </div>
                       )}
                     </div>

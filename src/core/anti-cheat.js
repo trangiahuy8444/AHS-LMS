@@ -56,6 +56,10 @@
       this.isSubmitting = val;
     }
 
+    resetViolations() {
+      this.violationCount = 0;
+    }
+
     triggerViolation(reason, details = {}) {
       if (!this.enabled || this.isSubmitting) return;
       this.violationCount++;
@@ -107,24 +111,31 @@
         return false;
       }
 
-      // 2. Chặn Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C (DevTools)
-      if (isCtrlOrCmd && e.shiftKey && ['I', 'i', 'J', 'j', 'C', 'c'].includes(key)) {
+      // 2. Chặn phím tắt mở DevTools / Inspector trên cả Windows (Ctrl+Shift+I/J/C) và macOS (Cmd+Option+I/J/C)
+      if (isCtrlOrCmd && (e.shiftKey || e.altKey) && ['I', 'i', 'J', 'j', 'C', 'c'].includes(key)) {
         e.preventDefault();
-        this.triggerViolation('Mở bảng điều khiển DevTools kiểm tra mã');
+        this.triggerViolation('Mở bảng điều khiển DevTools kiểm tra mã nguồn');
         return false;
       }
 
-      // 3. Chặn Ctrl+U (Xem mã nguồn)
+      // 3. Chặn xem mã nguồn (Ctrl+U / Cmd+Option+U / Cmd+U)
       if (isCtrlOrCmd && (key === 'U' || key === 'u')) {
         e.preventDefault();
         this.triggerViolation('Xem mã nguồn trang web');
         return false;
       }
 
-      // 4. Chặn Copy/Paste/Cut nếu không cho phép
-      if (!this.allowCopyPaste && isCtrlOrCmd && ['C', 'c', 'V', 'v', 'X', 'x'].includes(key)) {
+      // 4. Chặn lưu trang (Ctrl+S / Cmd+S) và in trang (Ctrl+P / Cmd+P)
+      if (isCtrlOrCmd && ['S', 's', 'P', 'p'].includes(key)) {
         e.preventDefault();
-        this.triggerViolation(`Sử dụng phím tắt sao chép/dán (${key.toUpperCase()})`);
+        this.triggerViolation(`Nhấn phím tắt hệ thống (${key.toUpperCase()})`);
+        return false;
+      }
+
+      // 5. Chặn Copy/Paste/Cut/SelectAll nếu không cho phép
+      if (!this.allowCopyPaste && isCtrlOrCmd && ['C', 'c', 'V', 'v', 'X', 'x', 'A', 'a'].includes(key)) {
+        e.preventDefault();
+        this.triggerViolation(`Sử dụng phím tắt sao chép/chọn (${key.toUpperCase()})`);
         return false;
       }
     }
