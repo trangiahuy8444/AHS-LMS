@@ -69,7 +69,10 @@ test('validateExam phát hiện lỗi cấu trúc mã đề', () => {
 });
 
 test('Cổng học sinh không còn đọc mã đề từ data/ và chỉ gửi bài làm, không tự chấm điểm thi', () => {
-  const html = fs.readFileSync(path.join(__dirname, '../test/index.html'), 'utf8');
+  const srcDir = path.join(__dirname, '../src/student');
+  const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap(e =>
+    e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]);
+  const html = walk(srcDir).map(f => fs.readFileSync(f, 'utf8')).join('\n');
   assert.ok(!html.includes('gradeData.officialExams'), 'Không lấy đề chính thức từ data/*.js');
   assert.ok(html.includes('AsianSchoolCloud.startExam'), 'Vào phòng thi qua startExam');
   assert.ok(html.includes('AsianSchoolCloud.submitExam'), 'Nộp bài qua submitExam');

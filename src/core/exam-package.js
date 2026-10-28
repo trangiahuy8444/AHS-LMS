@@ -7,12 +7,10 @@
  */
 
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) {
-    module.exports = factory();
-  } else {
-    root.AsianSchoolExamPackage = factory();
-  }
-}(typeof self !== 'undefined' ? self : this, function () {
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  if (root) root.AsianSchoolExamPackage = api;
+}(typeof self !== 'undefined' ? self : (typeof globalThis !== 'undefined' ? globalThis : this), function () {
   const ANSWER_FIELDS = ['correctAnswer', 'answerLetter', 'modelAnswer', 'rubric', 'explanation'];
 
   // Hệ số chấm câu Đúng/Sai theo số ý đúng (quy ước tổ, trùng ngan-hang-de-web/domain/scoring.py)

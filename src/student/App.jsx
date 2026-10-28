@@ -1,0 +1,2491 @@
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+
+const CLASS_LISTS = {
+  8: ['8/19', '8/20', '8/21', '8/22', '8/23'],
+  9: ['9/20', '9/21', '9/22', '9/23', '9/24', '9/25', '9/26'],
+  10: ['10/14', '10/15', '10/16']
+};
+
+const ENFORCE_NO_EMPTY = false;
+
+function App() {
+  // Setup state
+  const [grade, setGrade] = useState(8);
+  const [mode, setMode] = useState('practice'); // 'practice' | 'exam'
+  const [examState, setExamState] = useState('entry'); // 'entry' | 'in_progress' | 'submitted'
+  
+  // User info
+  const [fullName, setFullName] = useState('');
+  const [studentClass, setStudentClass] = useState('8/19');
+  const [studentId, setStudentId] = useState(''); // Mã LMS
+  const [sessionId, setSessionId] = useState('');
+  const [assignedCode, setAssignedCode] = useState('101');
+  // Đề chính thức đã bỏ đáp án, đọc từ exam_public khi vào phòng thi (AsianSchoolCloud.startExam); không nằm trong data/*.js
+  const [officialExam, setOfficialExam] = useState(null);
+  const [isContactingServer, setIsContactingServer] = useState(false);
+  const submittingExamRef = useRef(false);
+  const [activeQuestionIdx, setActiveQuestionIdx] = useState(0);
+
+  // Exam password state
+  const [examPasswordInput, setExamPasswordInput] = useState('');
+  const [showExamPassword, setShowExamPassword] = useState(false);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+
+  // Answers state
+  const [practiceAnswers, setPracticeAnswers] = useState({ mcq: {}, tf: {}, essay: {} });
+  const [examAnswers, setExamAnswers] = useState({ mcq: {}, tf: {}, essay: {} });
+  
+  // Timer & Anti-cheat Modal State
+  const [timeLeftStr, setTimeLeftStr] = useState('45:00');
+  const [secondsLeft, setSecondsLeft] = useState(45 * 60);
+  const [violations, setViolations] = useState(0);
+  const [showWarningModal, setShowWarningModal] = useState(false);
+  const [warningMessage, setWarningMessage] = useState('');
+  const [broadcastNotice, setBroadcastNotice] = useState(null);
+  const [scoreResult, setScoreResult] = useState(null);
+  const [isCapturing, setIsCapturing] = useState(false);
+
+  // Hệ thống Thông Báo Nội Bộ Tĩnh (Thay thế alert, không hiệu ứng nhảy giật)
+  const [customDialog, setCustomDialog] = useState(null); // { title, message, type: 'info'|'warning'|'error'|'success', onConfirm }
+  const showDialog = (title, message, type = 'info', onConfirm = null) => {
+    setCustomDialog({ title, message, type, onConfirm });
+  };
+
+  // Lock State & Time Tracking
+  const [isSessionLocked, setIsSessionLocked] = useState(false);
+  const [isProctorUnlocked, setIsProctorUnlocked] = useState(false);
+  const [lockReason, setLockReason] = useState(null); // 'violation_3_times' | 'proctor_lock'
+  const [examStartTime, setExamStartTime] = useState(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [showMobileQuestionDrawer, setShowMobileQuestionDrawer] = useState(false);
+
+  // Định dạng giây trôi qua mm:ss
+  const formatElapsed = (totalSec) => {
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  // Bộ đếm thời gian làm bài thực tế
+  useEffect(() => {
+    if (examState !== 'in_progress') return;
+    const timer = setInterval(() => {
+      setElapsedSeconds(prev => prev + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [examState]);
+
+  // Class Access Control State ('practice_only' | 'exam_only' | 'both_open' | 'closed')
+  const [classAccessMode, setClassAccessMode] = useState(
+    window.AsianSchoolStorage ? window.AsianSchoolStorage.getClassAccessMode(studentClass) : 'practice_only'
+  );
+
+  // Cấu hình thời gian làm bài & xáo trộn đề từ Admin
+  const [config, setConfig] = useState(() => (
+    (typeof window !== 'undefined' && window.AsianSchoolStorage)
+      ? window.AsianSchoolStorage.getConfig()
+      : {}
+  ));
+
+  // Lắng nghe cấu hình Admin thay đổi thời gian thực
+  useEffect(() => {
+    if (!window.AsianSchoolStorage) return;
+    const unsub = window.AsianSchoolStorage.onConfigChange((newCfg) => {
+      setConfig(newCfg);
+    });
+    return () => unsub();
+  }, []);
+
+  // Chặn toàn diện phím tắt mở Inspector / DevTools trên cả Windows và macOS (F12, Cmd+Opt+I/J/C, Ctrl+Shift+I/J/C)
+  useEffect(() => {
+    const handleInspectBlock = (e) => {
+      const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+      if (e.key === 'F12') {
+        e.preventDefault();
+        return false;
+      }
+      if (isCtrlOrCmd && (e.shiftKey || e.altKey) && ['i', 'j', 'c'].includes(e.key.toLowerCase())) {
+        e.preventDefault();
+        return false;
+      }
+      if (isCtrlOrCmd && ['u', 's', 'p'].includes(e.key.toLowerCase())) {
+        e.preventDefault();
+        return false;
+      }
+    };
+    const handleContextMenuBlock = (e) => {
+      e.preventDefault();
+      return false;
+    };
+
+    window.addEventListener('keydown', handleInspectBlock, true);
+    document.addEventListener('contextmenu', handleContextMenuBlock, true);
+    return () => {
+      window.removeEventListener('keydown', handleInspectBlock, true);
+      document.removeEventListener('contextmenu', handleContextMenuBlock, true);
+    };
+  }, []);
+
+  // Cập nhật quyền truy cập khi đổi lớp hoặc cấu hình thay đổi thời gian thực từ Cloud
+  useEffect(() => {
+    if (!window.AsianSchoolStorage) return;
+    const syncAccess = () => {
+      const acc = window.AsianSchoolStorage.getClassAccessMode(studentClass);
+      setClassAccessMode(acc);
+      if (acc === 'exam_only') {
+        setMode('exam');
+      } else if (acc === 'practice_only') {
+        setMode('practice');
+      }
+    };
+    syncAccess();
+
+    const unsub = window.AsianSchoolStorage.onConfigChange(() => {
+      syncAccess();
+    });
+    return () => unsub();
+  }, [studentClass]);
+
+  // Data references
+  const gradeData = grade === 8 ? window.EXAM_DATA_G8 : (grade === 9 ? window.EXAM_DATA_G9 : window.EXAM_DATA_G10);
+  
+  // Bộ đề ngẫu nhiên cho Practice Mode:
+  // THCS: 28 câu trắc nghiệm (ngẫu nhiên từ 35 câu) + 3 câu tự luận
+  // THPT: 19 câu trắc nghiệm (ngẫu nhiên từ 25 câu) + 3 câu đúng/sai (ngẫu nhiên từ 6 câu) + 3 câu tự luận
+  const [practiceSet, setPracticeSet] = useState(() => {
+    const initialGradeData = grade === 8 ? window.EXAM_DATA_G8 : (grade === 9 ? window.EXAM_DATA_G9 : window.EXAM_DATA_G10);
+    const currentCfg = (typeof window !== 'undefined' && window.AsianSchoolStorage)
+      ? window.AsianSchoolStorage.getConfig()
+      : {};
+    if (typeof window !== 'undefined' && window.AsianSchoolStorage && window.AsianSchoolStorage.generatePracticeSet) {
+      return window.AsianSchoolStorage.generatePracticeSet(grade, initialGradeData, currentCfg);
+    }
+    return { mcqQuestions: [], tfQuestions: [], essayQuestions: [] };
+  });
+
+  const practiceQuestions = practiceSet.mcqQuestions || [];
+  const practiceTfQuestions = practiceSet.tfQuestions || [];
+  const practiceEssayQuestions = practiceSet.essayQuestions || [];
+  const currentOfficialExam = officialExam;
+
+  // Cập nhật lớp & đề cương khi đổi khối
+  useEffect(() => {
+    if (CLASS_LISTS[grade] && !CLASS_LISTS[grade].includes(studentClass)) {
+      setStudentClass(CLASS_LISTS[grade][0]);
+    }
+    const currentData = grade === 8 ? window.EXAM_DATA_G8 : (grade === 9 ? window.EXAM_DATA_G9 : window.EXAM_DATA_G10);
+    if (typeof window !== 'undefined' && window.AsianSchoolStorage && window.AsianSchoolStorage.generatePracticeSet) {
+      setPracticeSet(window.AsianSchoolStorage.generatePracticeSet(grade, currentData, config));
+    }
+    setPracticeAnswers({ mcq: {}, tf: {}, essay: {} });
+  }, [grade]);
+
+  // Danh sách câu hỏi thống nhất cho Practice Mode (1 câu mỗi lần)
+  const practiceItems = useMemo(() => {
+    const items = [];
+    (practiceQuestions || []).forEach((q, idx) => {
+      items.push({
+        id: 'mcq-' + q.id,
+        type: 'mcq',
+        section: 'Phần I. Trắc nghiệm nhiều lựa chọn',
+        label: 'Câu ' + (idx + 1),
+        num: idx + 1,
+        points: 0.25,
+        data: q,
+        isAnswered: practiceAnswers.mcq[q.id] !== undefined
+      });
+    });
+    if (grade === 10) {
+      (practiceTfQuestions || []).forEach((tf) => {
+        const userSub = practiceAnswers.tf[tf.num] || {};
+        const answeredCount = tf.subQuestions.filter(s => userSub[s.letter] !== undefined).length;
+        items.push({
+          id: 'tf-' + tf.num,
+          type: 'tf',
+          section: 'Phần II. Trắc nghiệm Đúng / Sai',
+          label: 'Câu ' + tf.num,
+          num: tf.num,
+          points: 1.0,
+          data: tf,
+          isAnswered: answeredCount === tf.subQuestions.length,
+          partialCount: answeredCount,
+          totalSubs: tf.subQuestions.length
+        });
+      });
+    }
+    (practiceEssayQuestions || []).forEach((es) => {
+      const text = (practiceAnswers.essay[es.num] || '').trim();
+      items.push({
+        id: 'essay-' + es.num,
+        type: 'essay',
+        section: grade === 10 ? 'Phần III. Tự luận & Tình huống' : 'Phần II. Tự luận & Tình huống',
+        label: 'Câu ' + es.num,
+        num: es.num,
+        points: null,
+        data: es,
+        isAnswered: text.length > 0
+      });
+    });
+    return items;
+  }, [grade, practiceQuestions, practiceTfQuestions, practiceEssayQuestions, practiceAnswers]);
+
+  // Danh sách câu hỏi thống nhất cho Exam Mode (1 câu mỗi lần)
+  const examItems = useMemo(() => {
+    if (!currentOfficialExam) return [];
+    const items = [];
+    if (grade === 8 || grade === 9) {
+      (currentOfficialExam.mcqQuestions || []).forEach((q) => {
+        items.push({
+          id: 'exam-mcq-' + q.num,
+          type: 'exam_mcq',
+          section: 'Phần I. Trắc nghiệm nhiều lựa chọn (7,0 điểm)',
+          label: 'Câu ' + q.num,
+          num: q.num,
+          points: 0.25,
+          data: q,
+          isAnswered: examAnswers.mcq[q.num] !== undefined
+        });
+      });
+      (currentOfficialExam.essayQuestions || []).forEach((es) => {
+        const text = (examAnswers.essay[es.num] || '').trim();
+        items.push({
+          id: 'exam-essay-' + es.num,
+          type: 'exam_essay',
+          section: 'Phần II. Tự luận (3,0 điểm)',
+          label: 'Câu ' + es.num,
+          num: es.num,
+          points: 1.0,
+          data: es,
+          isAnswered: text.length > 0
+        });
+      });
+    } else if (grade === 10) {
+      (currentOfficialExam.part1_mcq || []).forEach((q) => {
+        items.push({
+          id: 'exam-mcq-' + q.num,
+          type: 'exam_mcq',
+          section: 'Phần I. Trắc nghiệm nhiều lựa chọn (4,75 điểm)',
+          label: 'Câu ' + q.num,
+          num: q.num,
+          points: 0.25,
+          data: q,
+          isAnswered: examAnswers.mcq[q.num] !== undefined
+        });
+      });
+      (currentOfficialExam.part2_tf || []).forEach((tf) => {
+        const userSub = examAnswers.tf[tf.num] || {};
+        const answeredCount = tf.subQuestions.filter(s => userSub[s.letter] !== undefined).length;
+        items.push({
+          id: 'exam-tf-' + tf.num,
+          type: 'exam_tf',
+          section: 'Phần II. Trắc nghiệm Đúng / Sai (3,0 điểm)',
+          label: 'Câu ' + tf.num,
+          num: tf.num,
+          points: 1.0,
+          data: tf,
+          isAnswered: answeredCount === tf.subQuestions.length,
+          partialCount: answeredCount,
+          totalSubs: tf.subQuestions.length
+        });
+      });
+      (currentOfficialExam.part3_essay || []).forEach((es) => {
+        const text = (examAnswers.essay[es.num] || '').trim();
+        items.push({
+          id: 'exam-essay-' + es.num,
+          type: 'exam_essay',
+          section: 'Phần III. Tự luận (2,25 điểm)',
+          label: 'Câu ' + es.num,
+          num: es.num,
+          points: 0.75,
+          data: es,
+          isAnswered: text.length > 0
+        });
+      });
+    }
+    return items;
+  }, [grade, currentOfficialExam, examAnswers]);
+
+  // Khi học sinh tắt cảnh báo vi phạm -> Tự động quay lại Toàn màn hình
+  const handleDismissWarning = async () => {
+    setShowWarningModal(false);
+    try {
+      await window.AsianSchoolAntiCheat.requestFullscreen();
+    } catch (e) {
+      console.warn('Cannot request fullscreen', e);
+    }
+  };
+
+  // Bắt đầu làm bài
+  const handleStart = async () => {
+    if (!fullName.trim()) {
+      showDialog('Yêu Cầu Nhập Họ Tên', 'Vui lòng nhập đầy đủ Họ và tên học sinh trước khi bắt đầu!', 'warning');
+      return;
+    }
+
+    // 1. KÍCH HOẠT CHẾ ĐỘ TOÀN MÀN HÌNH TỨC THÌ (INSTANT FULLSCREEN) TỪ CỬ CHỈ BẤM NÚT
+    try {
+      if (window.AsianSchoolAntiCheat && window.AsianSchoolAntiCheat.requestFullscreen) {
+        await window.AsianSchoolAntiCheat.requestFullscreen();
+      }
+    } catch (e) {
+      console.warn('Fullscreen request rejected', e);
+    }
+
+    // Kiểm tra quyền truy cập ca thi của lớp
+    const currentClassAccess = window.AsianSchoolStorage.getClassAccessMode(studentClass);
+    if (mode === 'exam' && currentClassAccess === 'practice_only') {
+      showDialog('Thông Báo Ca Thi', `🔒 Ca thi chính thức của Lớp ${studentClass} chưa bắt đầu!\n\nEm vui lòng chọn chế độ "ÔN TẬP ĐỀ CƯƠNG" để luyện tập nhé.`, 'info');
+      return;
+    }
+    if (mode === 'practice' && currentClassAccess === 'exam_only') {
+      showDialog('Ca Thi Đang Diễn Ra', `⚠️ Lớp ${studentClass} hiện đang trong ca kiểm tra chính thức 45 phút!\n\nEm vui lòng chọn chế độ "THI GIỮA HK1" để làm bài.`, 'warning');
+      return;
+    }
+    if (currentClassAccess === 'closed') {
+      showDialog('Cổng Làm Bài Tạm Đóng', `🔒 Cổng làm bài tạm thời đóng đối với Lớp ${studentClass}.\n\nVui lòng báo Giám thị Thầy Trần Gia Huy để được hỗ trợ.`, 'warning');
+      return;
+    }
+
+    const sid = 'sess-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+
+    // Bài thi chính thức: firestore.rules kiểm tra mật khẩu phòng thi, lớp đang mở ca thi, lượt thi theo mã LMS;
+    // học sinh chỉ nhận đề không kèm đáp án
+    let serverStart = null;
+    if (mode === 'exam') {
+      if (!examPasswordInput.trim()) {
+        showDialog('Yêu Cầu Mật Khẩu', '⚠️ VUI LÒNG NHẬP MẬT KHẨU PHÒNG THI!\n\nMật khẩu do Thầy/Cô giám thị cung cấp trước giờ làm bài.', 'warning');
+        return;
+      }
+      setIsContactingServer(true);
+      try {
+        serverStart = await window.AsianSchoolCloud.startExam({
+          grade, studentClass, fullName, studentId, sessionId: sid, password: examPasswordInput
+        });
+      } catch (err) {
+        setIsContactingServer(false);
+        showDialog('Chưa Vào Được Phòng Thi', `❌ ${err.message || 'Không kết nối được máy chủ.'}\n\nNếu em chắc chắn đã nhập đúng mật khẩu, hãy báo Thầy/Cô giám thị.`, 'error');
+        return;
+      }
+      setIsContactingServer(false);
+      setOfficialExam(serverStart.exam);
+      submittingExamRef.current = false;
+    }
+
+    // Nếu là ôn tập: Luôn bốc ngẫu nhiên một bộ đề mới (28 câu THCS hoặc 19 câu + 3 câu Đ/S THPT)
+    if (mode === 'practice') {
+      const currentData = grade === 8 ? window.EXAM_DATA_G8 : (grade === 9 ? window.EXAM_DATA_G9 : window.EXAM_DATA_G10);
+      if (typeof window !== 'undefined' && window.AsianSchoolStorage && window.AsianSchoolStorage.generatePracticeSet) {
+        setPracticeSet(window.AsianSchoolStorage.generatePracticeSet(grade, currentData, config));
+      }
+      setPracticeAnswers({ mcq: {}, tf: {}, essay: {} });
+    }
+
+    setSessionId(sid);
+    setActiveQuestionIdx(0);
+    setIsSessionLocked(false);
+    setIsProctorUnlocked(false);
+    setLockReason(null);
+    setExamStartTime(serverStart ? new Date(serverStart.startedAtMs) : new Date());
+    setElapsedSeconds(0);
+
+    // Xác định mã đề
+    const code = serverStart ? serverStart.examCode : window.AsianSchoolStorage.determineExamCode(grade, studentClass);
+    setAssignedCode(code);
+
+    // Bật chống gian lận
+    window.AsianSchoolAntiCheat.start({
+      mode,
+      onViolation: (v) => {
+        setViolations(v.count);
+        if (v.count >= 3) {
+          setIsSessionLocked(true);
+          setIsProctorUnlocked(false);
+          setLockReason('violation_3_times');
+          window.AsianSchoolStorage.updateLiveSession({
+            sessionId: sid,
+            fullName,
+            studentClass,
+            studentId,
+            grade,
+            mode,
+            examCode: code || (mode === 'practice' ? 'DE_CUONG' : '101'),
+            violations: v.count,
+            status: 'locked',
+            isLocked: true,
+            lockReason: 'violation_3_times',
+            penaltyPoints: mode === 'exam' ? 5 : 0
+          });
+        } else {
+          setWarningMessage(`Cảnh báo vi phạm lần ${v.count}/3: Em vừa rời khỏi giao diện làm bài hoặc thoát toàn màn hình! Nếu vi phạm đến lần thứ 3, hệ thống sẽ KHÓA BÀI THI và TRỪ 5 ĐIỂM!`);
+          setShowWarningModal(true);
+          window.AsianSchoolStorage.updateLiveSession({
+            sessionId: sid,
+            fullName,
+            studentClass,
+            studentId,
+            grade,
+            mode,
+            examCode: code || (mode === 'practice' ? 'DE_CUONG' : '101'),
+            violations: v.count,
+            status: mode === 'exam' ? 'in_progress' : 'practicing',
+            isLocked: false
+          });
+        }
+      }
+    });
+
+    // Cấu hình thời gian làm bài từ Admin
+    const examDur = serverStart ? serverStart.durationMinutes : (config.examDurationMinutes || 45);
+    // Tải lại trang giữa giờ: đồng hồ tính tiếp từ giờ bắt đầu máy chủ ghi nhận
+    const examRemainingMin = serverStart
+      ? Math.max(1 / 60, examDur - (Date.now() - serverStart.startedAtMs) / 60000)
+      : examDur;
+    const practiceDur = config.practiceDurationMinutes || 0;
+
+    // Nếu là chế độ Thi: Kích hoạt đồng hồ đếm ngược theo thời gian do Admin thiết lập
+    if (mode === 'exam') {
+      window.AsianSchoolTimer.start({
+        durationMinutes: examRemainingMin,
+        onTick: (sec, fmt) => {
+          setSecondsLeft(sec);
+          setTimeLeftStr(fmt);
+          // Nhịp tim định kỳ 60 giây (tối ưu hóa hạn mức Firebase cho 26 học sinh)
+          if (sec % 60 === 0) {
+            window.AsianSchoolStorage.updateLiveSession({
+              sessionId: sid,
+              fullName,
+              studentClass,
+              studentId,
+              grade,
+              mode: 'exam',
+              examCode: code,
+              violations,
+              status: 'in_progress',
+              timeLeft: fmt
+            });
+          }
+        },
+        onWarning: () => {
+          showDialog('Cảnh Báo Thời Gian', '⚠️ Chú ý: Thời gian làm bài thi chỉ còn dưới 5 phút! Các em hãy kiểm tra lại toàn bộ bài làm.', 'warning');
+        },
+        onTimeout: () => {
+          showDialog('Hết Giờ Làm Bài', `⏰ Đã hết thời gian làm bài ${examDur} phút! Hệ thống đang tự động thu bài của bạn.`, 'info', () => {
+            handleSubmitExam(true);
+          });
+          handleSubmitExam(true);
+        }
+      });
+
+      // Gửi phiên trực tiếp lên bảng giám sát giáo viên (Live Monitoring)
+      window.AsianSchoolStorage.updateLiveSession({
+        sessionId: sid,
+        fullName,
+        studentClass,
+        studentId,
+        grade,
+        mode: 'exam',
+        examCode: code,
+        violations: 0,
+        status: 'in_progress',
+        timeLeft: `${examDur}:00`
+      });
+    } else {
+      // Chế độ Ôn tập đề cương: Vẫn cho phép giáo viên giám sát từ xa theo thời gian thực
+      if (practiceDur > 0) {
+        window.AsianSchoolTimer.start({
+          durationMinutes: practiceDur,
+          onTick: (sec, fmt) => {
+            setSecondsLeft(sec);
+            setTimeLeftStr(fmt);
+            if (sec % 60 === 0) {
+              window.AsianSchoolStorage.updateLiveSession({
+                sessionId: sid,
+                fullName,
+                studentClass,
+                studentId,
+                grade,
+                mode: 'practice',
+                examCode: 'DE_CUONG',
+                violations,
+                status: 'practicing',
+                timeLeft: fmt
+              });
+            }
+          },
+          onWarning: () => {
+            showDialog('Cảnh Báo Thời Gian', '⚠️ Chú ý: Thời gian ôn tập chỉ còn dưới 5 phút!', 'warning');
+          },
+          onTimeout: () => {
+            showDialog('Hết Giờ Ôn Tập', `⏰ Đã hết thời gian ôn tập ${practiceDur} phút! Hệ thống đang tự động nộp bài ôn tập của bạn.`, 'info', () => {
+              handleSubmitPractice();
+            });
+            handleSubmitPractice();
+          }
+        });
+      }
+
+      // Khởi tạo phiên giám sát ôn tập từ xa
+      window.AsianSchoolStorage.updateLiveSession({
+        sessionId: sid,
+        fullName,
+        studentClass,
+        studentId,
+        grade,
+        mode: 'practice',
+        examCode: 'DE_CUONG',
+        violations: 0,
+        status: 'practicing',
+        timeLeft: practiceDur > 0 ? `${practiceDur}:00` : 'Tự do'
+      });
+    }
+
+    setExamState('in_progress');
+  };
+
+  // Nộp bài ôn tập
+  const handleSubmitPractice = () => {
+    setShowSubmitModal(false);
+    if (config.requireAllQuestionsAnswered) {
+      const missing = [];
+      practiceQuestions.forEach((q, idx) => {
+        if (practiceAnswers.mcq[q.id] === undefined) {
+          missing.push(`Câu ${idx + 1} (Trắc nghiệm)`);
+        }
+      });
+      if (grade === 10) {
+        practiceTfQuestions.forEach((tf, idx) => {
+          const userSub = practiceAnswers.tf[tf.num] || {};
+          const unans = (tf.subQuestions || []).filter(sub => userSub[sub.letter] === undefined);
+          if (unans.length > 0) {
+            missing.push(`Câu ${idx + 1} Đ/S (ý ${unans.map(s => s.letter).join(', ')})`);
+          }
+        });
+      }
+      practiceEssayQuestions.forEach((es, idx) => {
+        const text = (practiceAnswers.essay[es.num] || '').trim();
+        if (!text) {
+          missing.push(`Câu ${idx + 1} (Tự luận)`);
+        }
+      });
+
+      if (missing.length > 0) {
+        showDialog(
+          'Chưa Hoàn Thành Tất Cả Câu Hỏi',
+          `⚠️ Thầy Cô yêu cầu em phải làm hết 100% câu hỏi trước khi nộp bài!\n\nHiện em còn ${missing.length} phần chưa hoàn thành:\n• ${missing.slice(0, 8).join('\n• ')}${missing.length > 8 ? `\n... và còn ${missing.length - 8} câu nữa` : ''}\n\nEm vui lòng hoàn thành đầy đủ nhé!`,
+          'warning'
+        );
+        return;
+      }
+    }
+
+    window.AsianSchoolAntiCheat.setSubmitting(true);
+    window.AsianSchoolAntiCheat.stop();
+    window.AsianSchoolAntiCheat.exitFullscreen();
+
+    let correctMcq = 0;
+    practiceQuestions.forEach(q => {
+      if (practiceAnswers.mcq[q.id] === q.correctAnswer) {
+        correctMcq++;
+      }
+    });
+
+    let correctTfSub = 0;
+    let totalTfSub = 0;
+    let tfPoints = 0;
+    if (grade === 10) {
+      practiceTfQuestions.forEach(tf => {
+        const userSub = practiceAnswers.tf[tf.num] || {};
+        let subCorrect = 0;
+        tf.subQuestions.forEach(sub => {
+          totalTfSub++;
+          if (userSub[sub.letter] === sub.correctAnswer) {
+            correctTfSub++;
+            subCorrect++;
+          }
+        });
+        // Điểm Đúng/Sai theo chuẩn Bộ GD: 1 ý = 0.1đ, 2 ý = 0.25đ, 3 ý = 0.5đ, 4 ý = 1.0đ
+        if (subCorrect === 1) tfPoints += 0.1;
+        else if (subCorrect === 2) tfPoints += 0.25;
+        else if (subCorrect === 3) tfPoints += 0.5;
+        else if (subCorrect === 4) tfPoints += 1.0;
+      });
+    }
+
+    const totalMcq = practiceQuestions.length;
+    let score = 0;
+    let mcqPoints = Math.round(correctMcq * 0.25 * 100) / 100;
+    tfPoints = Math.round(tfPoints * 100) / 100;
+
+    if (grade === 10) {
+      // THPT: 19 câu MCQ (4.75đ) + 3 câu Đúng/Sai (3.0đ) = 7.75 điểm tự động tối đa
+      const autoTotal = Math.round((mcqPoints + tfPoints) * 100) / 100;
+      score = (autoTotal > 0) ? Math.min(10, Math.round(((autoTotal / 7.75) * 10) * 100) / 100).toFixed(2) : '0.00';
+    } else {
+      // THCS: 28 câu MCQ (7.0đ), quy đổi sang thang 10
+      score = totalMcq > 0 ? ((correctMcq / totalMcq) * 10).toFixed(2) : '0.00';
+    }
+
+    const durationSec = examStartTime ? Math.round((Date.now() - examStartTime) / 1000) : 0;
+    const mins = Math.floor(durationSec / 60);
+    const secs = durationSec % 60;
+    const durationFormatted = `${mins} phút ${secs < 10 ? '0' : ''}${secs} giây`;
+
+    const result = {
+      mode: 'practice',
+      correctCount: correctMcq,
+      totalQuestions: totalMcq,
+      correctTfSub,
+      totalTfSub,
+      tfPoints,
+      mcqPoints,
+      score: parseFloat(score),
+      essayAnswered: Object.keys(practiceAnswers.essay).length,
+      violations,
+      durationSeconds: durationSec,
+      durationFormatted,
+      submittedAt: new Date().toISOString()
+    };
+
+    // Lưu vào phiên tạm theo Mã LMS (không lưu vĩnh viễn vào CSDL)
+    const savedPracticeDoc = window.AsianSchoolStorage.saveSubmission({
+      sessionId,
+      fullName,
+      studentClass,
+      studentId,
+      grade,
+      mode: 'practice',
+      score: parseFloat(score),
+      correctCount: correctMcq,
+      totalQuestions: totalMcq,
+      violations,
+      durationSeconds: durationSec,
+      durationFormatted,
+      answers: practiceAnswers
+    });
+
+    result.attemptNumber = savedPracticeDoc?.attemptNumber || 1;
+    setScoreResult(result);
+    setExamState('submitted');
+
+    // Báo trạng thái hoàn thành phiên ôn tập lên bảng giám sát giáo viên
+    window.AsianSchoolStorage.updateLiveSession({
+      sessionId,
+      fullName,
+      studentClass,
+      studentId,
+      grade,
+      mode: 'practice',
+      examCode: 'DE_CUONG',
+      violations,
+      status: 'submitted',
+      score: parseFloat(score)
+    });
+  };
+
+  // Nộp bài thi chính thức
+  const handleSubmitExam = async (isForced = false) => {
+    setShowSubmitModal(false);
+    // Hết giờ có thể gọi nộp bài 2 lần (hộp thoại + gọi trực tiếp): chỉ gửi 1 lần
+    if (submittingExamRef.current) return;
+
+    if (!isForced && config.requireAllQuestionsAnswered) {
+      const missing = [];
+      if (grade === 8 || grade === 9) {
+        const qs = currentOfficialExam?.mcqQuestions || [];
+        qs.forEach(q => {
+          if (examAnswers.mcq[q.num] === undefined) {
+            missing.push(`Câu ${q.num} (Trắc nghiệm)`);
+          }
+        });
+        const es = currentOfficialExam?.essayQuestions || currentOfficialExam?.part3_essay || [];
+        es.forEach(q => {
+          const text = (examAnswers.essay[q.num] || '').trim();
+          if (!text) {
+            missing.push(`Câu ${q.num} (Tự luận)`);
+          }
+        });
+      } else if (grade === 10) {
+        const p1 = currentOfficialExam?.part1_mcq || [];
+        p1.forEach(q => {
+          if (examAnswers.mcq[q.num] === undefined) {
+            missing.push(`Câu ${q.num} (Phần I)`);
+          }
+        });
+        const p2 = currentOfficialExam?.part2_tf || [];
+        p2.forEach(q => {
+          const userSub = examAnswers.tf[q.num] || {};
+          const unans = (q.subQuestions || []).filter(sub => userSub[sub.letter] === undefined);
+          if (unans.length > 0) {
+            missing.push(`Câu ${q.num} (Đúng/Sai: ý ${unans.map(s => s.letter).join(', ')})`);
+          }
+        });
+        const es = currentOfficialExam?.essayQuestions || currentOfficialExam?.part3_essay || [];
+        es.forEach(q => {
+          const text = (examAnswers.essay[q.num] || '').trim();
+          if (!text) {
+            missing.push(`Câu ${q.num} (Tự luận)`);
+          }
+        });
+      }
+
+      if (missing.length > 0) {
+        showDialog(
+          'Chưa Hoàn Thành Tất Cả Câu Hỏi',
+          `⚠️ Thầy Cô yêu cầu em phải làm hết 100% câu hỏi trước khi nộp bài thi!\n\nHiện em còn ${missing.length} phần chưa hoàn thành:\n• ${missing.slice(0, 8).join('\n• ')}${missing.length > 8 ? `\n... và còn ${missing.length - 8} câu nữa` : ''}\n\nEm vui lòng kiểm tra và hoàn thành trước khi nộp nhé!`,
+          'warning'
+        );
+        return;
+      }
+    }
+
+    submittingExamRef.current = true;
+    window.AsianSchoolTimer.stop();
+    window.AsianSchoolAntiCheat.setSubmitting(true);
+    window.AsianSchoolAntiCheat.stop();
+    window.AsianSchoolAntiCheat.exitFullscreen();
+
+    // Bản sao bài làm trên máy, phòng khi mất mạng lúc nộp
+    try {
+      localStorage.setItem('asian_school_pending_exam_v1', JSON.stringify({
+        grade, sessionId, fullName, studentClass, studentId, examCode: assignedCode, violations, answers: examAnswers, savedAt: new Date().toISOString()
+      }));
+    } catch (e) { /* bộ nhớ đầy hoặc bị chặn */ }
+
+    // Chỉ gửi bài làm; trang quản trị của giáo viên chấm trắc nghiệm (+ Đúng/Sai Khối 10) và tự luận
+    let finalResult;
+    setIsContactingServer(true);
+    try {
+      finalResult = await window.AsianSchoolCloud.submitExam({ grade, studentId, answers: examAnswers, violations });
+    } catch (err) {
+      setIsContactingServer(false);
+      submittingExamRef.current = false;
+      showDialog(
+        'Chưa Nộp Được Bài',
+        `⚠️ ${err.message || 'Mất kết nối tới máy chủ.'}\n\nBài làm của em vẫn được giữ trên máy. Em kiểm tra mạng rồi bấm "Đồng ý" để nộp lại, hoặc báo Thầy/Cô giám thị.`,
+        'error',
+        () => handleSubmitExam(true)
+      );
+      return;
+    }
+    setIsContactingServer(false);
+    try { localStorage.removeItem('asian_school_pending_exam_v1'); } catch (e) { /* bỏ qua */ }
+
+    setScoreResult(finalResult);
+    setExamState('submitted');
+
+    window.AsianSchoolStorage.updateLiveSession({
+      sessionId,
+      fullName,
+      studentClass,
+      studentId,
+      grade,
+      mode: 'exam',
+      examCode: assignedCode,
+      violations,
+      status: 'submitted',
+      pendingGrading: true
+    });
+  };
+
+  // CHỤP ẢNH MÀN HÌNH KẾT QUẢ ĐỂ HỌC SINH NỘP LÊN LMS
+  const handleCaptureScreenshot = async () => {
+    const card = document.getElementById('result-capture-card');
+    if (!card) return;
+    setIsCapturing(true);
+
+    const cleanLms = (studentId || 'ChuaCoLMS').trim().replace(/[^a-zA-Z0-9]/g, '');
+    const cleanName = (fullName || 'HocSinh').trim().replace(/\s+/g, '_');
+    const cleanClass = (studentClass || 'Lop').replace(/[\/\s]/g, '_');
+    const modeTag = mode === 'exam' ? 'ThiGK1' : 'OnTap';
+    const attemptTag = mode === 'practice' ? `_Lan${scoreResult?.attemptNumber || 1}` : '';
+    const fileName = `LMS_${cleanLms}_${cleanName}_Lop_${cleanClass}_Tin${grade}_${modeTag}${attemptTag}.png`;
+
+    try {
+      let dataUrl = null;
+
+      if (typeof html2canvas !== 'undefined') {
+        try {
+          const canvas = await html2canvas(card, {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: '#ffffff',
+            scrollY: -window.scrollY,
+            scrollX: 0
+          });
+          dataUrl = canvas.toDataURL('image/png');
+        } catch (canvasErr) {
+          console.warn('html2canvas toDataURL fallback to Canvas 2D engine', canvasErr);
+        }
+      }
+
+      if (!dataUrl) {
+        const fallbackCanvas = document.createElement('canvas');
+        fallbackCanvas.width = 1200;
+        fallbackCanvas.height = 760;
+        const ctx = fallbackCanvas.getContext('2d');
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, 1200, 760);
+
+        ctx.strokeStyle = '#1e3a8a';
+        ctx.lineWidth = 8;
+        ctx.strokeRect(20, 20, 1160, 720);
+        ctx.strokeStyle = '#93c5fd';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(32, 32, 1136, 696);
+
+        ctx.fillStyle = '#1e3a8a';
+        ctx.font = 'bold 30px sans-serif';
+        ctx.fillText('TRƯỜNG TIỂU HỌC, THCS & THPT QUỐC TẾ Á CHÂU', 60, 85);
+        ctx.fillStyle = '#475569';
+        ctx.font = 'bold 20px sans-serif';
+        ctx.fillText(`BỘ MÔN TIN HỌC — XÁC NHẬN KẾT QUẢ BÀI LÀM (${mode === 'practice' ? 'ÔN TẬP ĐỀ CƯƠNG' : 'THI GIỮA HỌC KỲ 1'})`, 60, 125);
+
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(60, 155);
+        ctx.lineTo(1140, 155);
+        ctx.stroke();
+
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 22px sans-serif';
+        ctx.fillText(`Họ và tên học sinh: ${fullName || 'Học sinh'}`, 60, 215);
+        ctx.fillText(`Lớp học: Lớp ${studentClass}`, 60, 265);
+        ctx.fillStyle = '#1d4ed8';
+        ctx.fillText(`Mã LMS: ${studentId || 'Chưa nhập'}`, 60, 315);
+        ctx.fillStyle = '#0f172a';
+        ctx.fillText(`Khối lớp: Khối ${grade}`, 60, 365);
+        if (mode === 'practice') {
+          ctx.fillStyle = '#b45309';
+          ctx.fillText(`Số lần rèn luyện: LẦN THỨ ${scoreResult?.attemptNumber || 1}`, 60, 415);
+          ctx.fillStyle = '#475569';
+          ctx.fillText(`Mã đề: ${scoreResult?.examCode || 'Đề cương ôn tập'}`, 60, 455);
+        } else {
+          ctx.fillText(`Mã đề: ${scoreResult?.examCode || 'Đề thi chính thức'}`, 60, 415);
+        }
+
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillRect(720, 185, 420, 290);
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(720, 185, 420, 290);
+
+        ctx.fillStyle = '#1e3a8a';
+        ctx.font = 'bold 22px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(mode === 'practice' ? 'ĐIỂM ĐẠT ĐƯỢC' : 'BÀI THI CHÍNH THỨC', 930, 230);
+
+        ctx.font = 'black 84px sans-serif';
+        ctx.fillStyle = '#dc2626';
+        if (mode === 'practice') {
+          ctx.fillText(`${scoreResult?.score ?? 0} / 10`, 930, 335);
+        } else {
+          ctx.font = 'bold 54px sans-serif';
+          ctx.fillStyle = '#047857';
+          ctx.fillText('ĐÃ NỘP BÀI', 930, 335);
+        }
+
+        if (mode === 'practice') {
+          ctx.font = 'bold 18px sans-serif';
+          ctx.fillStyle = '#059669';
+          ctx.fillText(`Đúng: ${scoreResult?.correctCount || 0}/${scoreResult?.totalQuestions || 0} câu trắc nghiệm`, 930, 380);
+
+          // Khung làm nổi bật và chống che mất SỐ LẦN ĐÃ LÀM
+          ctx.fillStyle = '#fef3c7';
+          ctx.fillRect(740, 405, 380, 50);
+          ctx.strokeStyle = '#f59e0b';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(740, 405, 380, 50);
+
+          ctx.fillStyle = '#92400e';
+          ctx.font = 'bold 22px sans-serif';
+          ctx.fillText(`[ SỐ LẦN ĐÃ LÀM: LẦN THỨ ${scoreResult?.attemptNumber || 1} ]`, 930, 438);
+        }
+        ctx.textAlign = 'left';
+
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(60, 505);
+        ctx.lineTo(1140, 505);
+        ctx.stroke();
+
+        ctx.fillStyle = '#475569';
+        ctx.font = '16px sans-serif';
+        ctx.fillText(`Thời gian nộp bài: ${new Date(scoreResult?.submittedAt || Date.now()).toLocaleString('vi-VN')}`, 60, 540);
+        ctx.fillText(`Thời gian làm bài thực tế: ${scoreResult?.durationFormatted || '45 phút'}`, 60, 570);
+        const violText = `Số lần vi phạm an toàn bài thi: ${scoreResult?.violations || 0} lần ${scoreResult?.violations >= 3 ? '— [BIÊN BẢN: TRỪ 5 ĐIỂM]' : ''}`;
+        if (scoreResult?.violations >= 3) {
+          ctx.fillStyle = '#dc2626';
+          ctx.font = 'bold 16px sans-serif';
+          ctx.fillText(violText, 60, 600);
+        } else {
+          ctx.fillText(violText, 60, 600);
+        }
+        ctx.fillStyle = '#475569';
+        ctx.font = '16px sans-serif';
+        ctx.fillText(`Mã phiên làm bài (Session): ${scoreResult?.sessionId || sessionId || 'N/A'}`, 60, 630);
+
+        ctx.fillStyle = '#2563eb';
+        ctx.font = 'bold 16px sans-serif';
+        ctx.fillText('ĐÃ ĐƯỢC HỆ THỐNG XÁC THỰC — DÙNG ẢNH NÀY NỘP LÊN LMS', 60, 640);
+
+        dataUrl = fallbackCanvas.toDataURL('image/png');
+      }
+
+      const link = document.createElement('a');
+      link.download = fileName;
+      link.href = dataUrl;
+      link.click();
+      showDialog(
+        '📸 ĐÃ LƯU ẢNH KẾT QUẢ VỀ MÁY THÀNH CÔNG',
+        `Tên tệp: ${fileName}\n\nEm hãy dùng tệp ảnh vừa tải về để nộp lên hệ thống LMS nhé!`,
+        'success'
+      );
+    } catch (err) {
+      console.error('Lỗi khi chụp màn hình', err);
+      showDialog(
+        'Không Thể Tạo Ảnh Tự Động',
+        'Em có thể dùng chức năng chụp màn hình (PrintScreen / Snipping Tool) của máy tính để lưu lại và nộp lên LMS nhé!',
+        'warning'
+      );
+    } finally {
+      setIsCapturing(false);
+    }
+  };
+
+  // Lắng nghe lệnh giám thị thời gian thực từ Admin (Gia hạn giờ, Thu bài, Thông báo)
+  useEffect(() => {
+    if (examState !== 'in_progress' || !sessionId) return;
+
+    const checkCommands = () => {
+      if (!window.AsianSchoolStorage) return;
+      const pending = window.AsianSchoolStorage.getPendingProctorCommands(sessionId);
+      pending.forEach(cmd => {
+        if (cmd.command === 'extend_time') {
+          const mins = cmd.payload?.minutes || 5;
+          if (window.AsianSchoolTimer) {
+            window.AsianSchoolTimer.extendSeconds(mins * 60);
+          }
+          setBroadcastNotice({
+            type: 'success',
+            title: 'Gia Hạn Thời Gian Làm Bài ⏱️',
+            message: `Thầy Trần Gia Huy vừa cộng thêm ${mins} phút vào thời gian làm bài của em!`
+          });
+        } else if (cmd.command === 'force_submit') {
+          showDialog('⏰ LỆNH THU BÀI TỪ GIÁM THỊ', 'Thầy/Cô giám thị đã kích hoạt lệnh thu bài thi của em ngay bây giờ!', 'warning');
+          handleSubmitExam(true);
+        } else if (cmd.command === 'broadcast_message') {
+          setBroadcastNotice({
+            type: 'info',
+            title: 'Thông Báo Phòng Thi Từ Thầy Trần Gia Huy 📢',
+            message: cmd.payload?.message || 'Các em chú ý thời gian làm bài!'
+          });
+        } else if (cmd.command === 'unlock_session') {
+          setIsProctorUnlocked(true);
+          setBroadcastNotice({
+            type: 'success',
+            title: 'Giáo Viên Đã Xác Nhận Mở Khóa Bài Thi 🔓',
+            message: 'Thầy Trần Gia Huy đã xác nhận mở khóa bài thi của em. Em hãy bấm nút "VÀO LẠI TOÀN MÀN HÌNH" trên màn hình để tiếp tục làm bài!'
+          });
+        } else if (cmd.command === 'lock_session') {
+          setIsSessionLocked(true);
+          setIsProctorUnlocked(false);
+          setLockReason('proctor_lock');
+        }
+        window.AsianSchoolStorage.consumeProctorCommand(cmd.cmdId, sessionId);
+      });
+    };
+
+    const interval = setInterval(checkCommands, 2500);
+    checkCommands();
+    return () => clearInterval(interval);
+  }, [examState, sessionId]);
+
+  const handleStudentResumeFromLock = async () => {
+    setIsSessionLocked(false);
+    setIsProctorUnlocked(false);
+    setLockReason(null);
+    setViolations(0);
+    if (window.AsianSchoolAntiCheat) {
+      window.AsianSchoolAntiCheat.resetViolations();
+      await window.AsianSchoolAntiCheat.requestFullscreen().catch(() => {});
+    }
+    if (window.AsianSchoolStorage) {
+      window.AsianSchoolStorage.updateLiveSession({
+        sessionId,
+        fullName,
+        studentClass,
+        studentId,
+        grade,
+        mode,
+        examCode: assignedCode,
+        violations: 0,
+        status: mode === 'exam' ? 'in_progress' : 'practicing',
+        isLocked: false
+      });
+    }
+  };
+
+  const handleRestartPractice = () => {
+    // Sinh một bộ câu hỏi ngẫu nhiên mới cho lần ôn tập kế tiếp
+    const currentData = grade === 8 ? window.EXAM_DATA_G8 : (grade === 9 ? window.EXAM_DATA_G9 : window.EXAM_DATA_G10);
+    if (typeof window !== 'undefined' && window.AsianSchoolStorage && window.AsianSchoolStorage.generatePracticeSet) {
+      setPracticeSet(window.AsianSchoolStorage.generatePracticeSet(grade, currentData, config));
+    }
+    setPracticeAnswers({ mcq: {}, tf: {}, essay: {} });
+    setScoreResult(null);
+    setViolations(0);
+    setActiveQuestionIdx(0);
+    setExamState('entry');
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-100 text-slate-900">
+      
+      {/* MÀN HÌNH PHONG TỎA KHÓA BÀI THI KHI VI PHẠM 3 LẦN HOẶC GIÁM THỊ KHÓA */}
+      {isSessionLocked && (
+        <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="max-w-lg w-full max-h-[90vh] overflow-y-auto bg-slate-900 border-4 border-red-600 rounded-3xl p-6 sm:p-8 text-center shadow-2xl space-y-5">
+            <div className="w-20 h-20 mx-auto rounded-full bg-red-600/20 border-2 border-red-500 flex items-center justify-center text-4xl shadow-lg shadow-red-500/20">
+              🚨
+            </div>
+            <div className="space-y-2">
+              <span className="px-3 py-1 rounded-full bg-red-600 text-white font-black text-xs uppercase tracking-wider">
+                {lockReason === 'violation_3_times' ? 'Biên Bản Vi Phạm 3 Lần' : 'Lệnh Khóa Phòng Thi'}
+              </span>
+              <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">
+                BÀI THI BỊ TẠM THỜI KHÓA
+              </h2>
+            </div>
+            <div className="p-4 bg-red-950/80 border border-red-800 rounded-2xl text-left space-y-2.5 text-xs text-red-200 leading-relaxed">
+              {lockReason === 'violation_3_times' ? (
+                <>
+                  <p className="font-bold text-red-100 flex items-center space-x-1">
+                    <span>⚠️</span>
+                    <span>Học sinh đã vi phạm quy chế an toàn bài thi 3 lần (chuyển tab / rời toàn màn hình).</span>
+                  </p>
+                  <p className="text-amber-300 font-extrabold text-sm border-t border-b border-red-800/80 py-2">
+                    ⚖️ HỆ THỐNG GHI NHẬN: BỊ TRỪ 5 ĐIỂM VÀO KẾT QUẢ THI
+                  </p>
+                  <p>
+                    Bài làm của em hiện đang bị KHÓA. Em vui lòng <strong>giữ nguyên màn hình này</strong> và <strong>báo trực tiếp với Giám thị (Thầy Trần Gia Huy)</strong> để được kiểm tra và xác nhận mở khóa bài thi.
+                  </p>
+                </>
+              ) : (
+                <p>
+                  Giám thị (Thầy Trần Gia Huy) đã tạm dừng và khóa bài thi của em. Vui lòng báo Giám thị tại phòng thi để được mở khóa.
+                </p>
+              )}
+            </div>
+            <div className="pt-2 space-y-3">
+              {isProctorUnlocked ? (
+                <div className="space-y-3">
+                  <div className="p-3.5 bg-emerald-500/20 border-2 border-emerald-400 rounded-2xl text-center space-y-1">
+                    <p className="text-emerald-300 font-black text-sm uppercase">
+                      ✅ THẦY TRẦN GIA HUY ĐÃ DUYỆT MỞ KHÓA BÀI THI!
+                    </p>
+                    <p className="text-xs text-slate-200 font-medium">
+                      Em hãy bấm nút dưới đây để đưa trình duyệt về chế độ <strong>Toàn Màn Hình</strong> và tiếp tục làm bài.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleStudentResumeFromLock}
+                    className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-2xl shadow-xl shadow-emerald-950/40 uppercase tracking-wider transition flex items-center justify-center space-x-2 ring-4 ring-emerald-400/40"
+                  >
+                    <span>🔓</span>
+                    <span>BẤM VÀO ĐÂY ĐỂ VÀO LẠI TOÀN MÀN HÌNH</span>
+                  </button>
+                  <p className="text-[11px] text-slate-400 italic text-center">
+                    Hệ thống sẽ ngay lập tức khôi phục toàn màn hình và mở lại bài làm cho em.
+                  </p>
+                </div>
+              ) : (
+                <div className="p-4 bg-amber-500/10 border-2 border-amber-500/40 rounded-2xl text-center space-y-2">
+                  <div className="inline-flex items-center space-x-2 text-amber-300 font-extrabold text-xs uppercase tracking-wide">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
+                    <span>ĐANG CHỜ GIÁO VIÊN DUYỆT MỞ KHÓA TỪ XA...</span>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed font-medium">
+                    Bài thi đang bị khóa bảo vệ. Thí sinh <strong>không thể tự mở khóa</strong>. Em hãy giữ nguyên màn hình và báo Thầy Trần Gia Huy tại phòng thi để được kiểm tra.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CẢNH BÁO VI PHẠM (CHỐNG GIAN LẬN TOÀN MÀN HÌNH) */}
+      {showWarningModal && !isSessionLocked && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-white text-slate-900 rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full text-center border-4 border-red-500">
+            <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full mx-auto flex items-center justify-center mb-4">
+              <svg className="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+              </svg>
+            </div>
+            <h3 className="text-xl font-black text-red-600 mb-2">CẢNH BÁO VI PHẠM BẢO MẬT!</h3>
+            <p className="text-sm font-semibold text-slate-700 mb-4 leading-relaxed">
+              {warningMessage || 'Bạn vừa thoát khỏi chế độ toàn màn hình hoặc chuyển sang ứng dụng khác!'}
+            </p>
+            <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-bold py-2.5 px-4 rounded-xl mb-5">
+              Tổng số lần vi phạm đã ghi nhận: {violations} lần
+            </div>
+            <button
+              type="button"
+              onClick={handleDismissWarning}
+              className="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white font-extrabold rounded-2xl text-sm transition shadow-lg shadow-red-600/30 uppercase tracking-wider"
+            >
+              Tôi Đã Hiểu & Quay Lại Toàn Màn Hình
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL XÁC NHẬN NỘP BÀI THI */}
+      {showSubmitModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-white text-slate-900 rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full border-2 border-slate-200 space-y-4">
+            <div className="w-14 h-14 bg-blue-100 text-blue-700 rounded-2xl mx-auto flex items-center justify-center text-2xl">
+              📝
+            </div>
+            <h3 className="text-xl font-black text-center text-slate-900">
+              XÁC NHẬN NỘP BÀI LÀM
+            </h3>
+            {(() => {
+              const activeList = mode === 'practice' ? practiceItems : examItems;
+              const answeredCount = activeList.filter(item => item.isAnswered).length;
+              const total = activeList.length;
+              const unans = total - answeredCount;
+
+              return (
+                <div className="space-y-3 text-sm text-slate-700 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                  <div className="flex justify-between font-medium">
+                    <span>Tổng số câu hỏi:</span>
+                    <strong className="text-slate-900">{total} câu</strong>
+                  </div>
+                  <div className="flex justify-between font-medium">
+                    <span>Số câu đã hoàn thành:</span>
+                    <strong className="text-emerald-700 font-bold">{answeredCount} câu</strong>
+                  </div>
+                  {unans > 0 && (
+                    <div className="flex justify-between font-medium text-amber-700">
+                      <span>Số câu chưa hoàn thành:</span>
+                      <strong className="text-amber-800 font-bold">{unans} câu</strong>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            <p className="text-xs text-slate-500 text-center font-medium">
+              Em có chắc chắn muốn nộp bài ngay bây giờ để hệ thống chấm điểm và xuất kết quả không?
+            </p>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowSubmitModal(false)}
+                className="py-3 rounded-xl border-2 border-slate-300 font-bold text-sm text-slate-700 hover:bg-slate-100 transition"
+              >
+                Quay Lại Làm Tiếp
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (mode === 'practice') {
+                    handleSubmitPractice();
+                  } else {
+                    handleSubmitExam(false);
+                  }
+                }}
+                className={`py-3 rounded-xl text-white font-extrabold text-sm transition shadow-md uppercase tracking-wide ${
+                  mode === 'practice' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'
+                }`}
+              >
+                Đồng Ý Nộp Bài
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL THÔNG BÁO TỪ GIÁO VIÊN / LỆNH GIÁM THỊ PHÒNG THI */}
+      {broadcastNotice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white text-slate-900 rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full border-4 border-blue-600 space-y-4 text-center">
+            <div className={`w-16 h-16 rounded-2xl mx-auto flex items-center justify-center text-3xl shadow-md ${
+              broadcastNotice.type === 'success' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'
+            }`}>
+              {broadcastNotice.type === 'success' ? '⏱️' : '📢'}
+            </div>
+            <h3 className="text-xl font-black text-slate-900">
+              {broadcastNotice.title}
+            </h3>
+            <p className="text-sm font-semibold text-slate-800 leading-relaxed bg-slate-50 p-4 rounded-2xl border-2 border-slate-200 whitespace-pre-line text-left">
+              {broadcastNotice.message}
+            </p>
+            <button
+              type="button"
+              onClick={() => setBroadcastNotice(null)}
+              className="w-full py-3.5 bg-blue-700 hover:bg-blue-800 text-white font-black rounded-2xl text-sm transition shadow-lg shadow-blue-700/30 uppercase tracking-wider"
+            >
+              Em Đã Hiểu & Tiếp Tục Làm Bài
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* HEADER CHÍNH — NỀN TRẮNG SÁNG, LOGO TO RÕ, ĐỘ TƯƠNG PHẢN CAO, RESPONSIVE ĐA THIẾT BỊ */}
+      <header className="border-b bg-white border-slate-200 sticky top-0 z-30 shadow-sm backdrop-blur">
+        <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2">
+          <div className="flex items-center space-x-2 sm:space-x-3.5 min-w-0">
+            <img
+              src={window.ASIAN_SCHOOL_LOGO_BASE64 || "../assets/logo_asian_school.png"}
+              alt="Logo Trường Quốc Tế Á Châu"
+              className="h-9 sm:h-12 md:h-14 w-auto object-contain drop-shadow-sm shrink-0"
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
+            <div className="min-w-0 truncate">
+              <h1 className="font-black text-xs sm:text-sm md:text-base text-blue-950 leading-tight uppercase truncate">
+                TRƯỜNG QUỐC TẾ Á CHÂU
+              </h1>
+              <p className="text-[10px] sm:text-xs text-slate-500 font-semibold tracking-wide hidden sm:block truncate">
+                Bộ Môn Tin Học — Cổng Ôn Tập & Kiểm Tra Giữa HK1 (2026 - 2027)
+              </p>
+            </div>
+          </div>
+
+          {examState === 'in_progress' && (
+            <div className="flex items-center space-x-1.5 sm:space-x-3 shrink-0">
+              {mode === 'exam' ? (
+                <div className="flex items-center space-x-1 sm:space-x-2 bg-red-50 border-2 border-red-500 text-red-700 px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-xl font-mono-code font-black text-xs sm:text-sm shadow-sm">
+                  <span className="text-sm">⏱️</span>
+                  <span className="hidden xs:inline sm:inline text-[11px] font-sans font-bold text-red-600">Còn:</span>
+                  <span>{timeLeftStr}</span>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-1.5 bg-emerald-50 border-2 border-emerald-400 text-emerald-800 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs font-bold shadow-sm">
+                  <span>⏱️</span>
+                  <span className="hidden sm:inline font-bold">Thời gian:</span>
+                  <span className="font-mono-code font-black text-emerald-900">
+                    {config.practiceDurationMinutes > 0 ? timeLeftStr : formatElapsed(elapsedSeconds)}
+                  </span>
+                </div>
+              )}
+
+              {violations > 0 && (
+                <div className="bg-amber-100 border border-amber-300 text-amber-900 px-2 sm:px-3 py-1 rounded-xl text-[10px] sm:text-xs font-extrabold flex items-center space-x-1">
+                  <span>⚠️</span>
+                  <span className="hidden sm:inline">Vi phạm:</span>
+                  <span>{violations}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </header>
+
+      {/* NỘI DUNG CHÍNH */}
+      <main className="max-w-6xl mx-auto px-4 py-6 sm:py-8">
+        
+        {/* 1. MÀN HÌNH CHỌN CHẾ ĐỘ & ĐĂNG KÝ VÀO PHÒNG LÀM BÀI */}
+        {examState === 'entry' && (
+          <div className="max-w-xl mx-auto bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-900 to-indigo-900 text-white p-6 sm:p-8 text-center">
+              <span className="px-3.5 py-1 rounded-full text-xs font-extrabold bg-blue-500/30 text-blue-200 border border-blue-400/30 uppercase tracking-widest inline-block mb-2">
+                CỔNG KHẢO THÍ HỌC SINH
+              </span>
+              <h2 className="text-xl sm:text-2xl font-black">XÁC THỰC THÔNG TIN HỌC SINH</h2>
+              <p className="text-xs sm:text-sm text-blue-200 mt-1 font-medium">
+                Bộ Môn Tin Học — Năm Học 2026 - 2027
+              </p>
+            </div>
+
+            <div className="p-6 sm:p-8 space-y-6">
+              
+              {/* Chọn Chế Độ: Ôn Tập hay Thi */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    1. Chọn Mục Đích Làm Bài <span className="text-red-500">*</span>
+                  </label>
+                  <span className="text-[11px] font-bold text-blue-900 bg-blue-100 px-2.5 py-0.5 rounded-full border border-blue-200">
+                    Lớp {studentClass}: {
+                      classAccessMode === 'exam_only' ? '🔴 Đang trong ca thi' :
+                      (classAccessMode === 'practice_only' ? '🟢 Đang mở ôn tập' :
+                      (classAccessMode === 'both_open' ? '🟡 Mở cả 2 chế độ' : '⚫ Đang đóng cổng'))
+                    }
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* NÚT ÔN TẬP ĐỀ CƯƠNG */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (classAccessMode === 'exam_only') {
+                        showDialog('Lớp Đang Trong Ca Thi Chính Thức', `Lớp ${studentClass} hiện đang trong ca kiểm tra 45 phút! Chế độ ôn tập đang tạm đóng để các em tập trung làm bài thi.`, 'warning');
+                        return;
+                      }
+                      setMode('practice');
+                    }}
+                    disabled={classAccessMode === 'closed'}
+                    className={`p-4 rounded-2xl border-2 text-left transition relative ${
+                      classAccessMode === 'exam_only'
+                        ? 'opacity-40 border-slate-200 bg-slate-100 cursor-not-allowed'
+                        : (mode === 'practice'
+                            ? 'border-blue-600 bg-blue-50/70 shadow-sm'
+                            : 'border-slate-200 hover:border-slate-300 bg-slate-50')
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <span className="text-2xl">📖</span>
+                      <span className="font-bold text-sm text-blue-950">ÔN TẬP ĐỀ CƯƠNG</span>
+                    </div>
+                    <p className="text-xs text-slate-600 mt-1 font-medium leading-relaxed">
+                      {grade === 10
+                        ? 'Bộ đề ngẫu nhiên: 19 câu Trắc nghiệm + 3 câu Đúng/Sai + 3 câu Tự luận (chuẩn ma trận THPT 10 điểm).'
+                        : 'Bộ đề ngẫu nhiên: 28 câu Trắc nghiệm + 3 câu Tự luận (chuẩn ma trận THCS 10 điểm).'
+                      }
+                    </p>
+                    {classAccessMode === 'exam_only' && (
+                      <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                        ⚠️ Tạm đóng (Lớp đang thi)
+                      </span>
+                    )}
+                  </button>
+
+                  {/* NÚT THI GIỮA HK1 */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (classAccessMode === 'practice_only') {
+                        showDialog('Ca Thi Chưa Bắt Đầu', `Ca thi chính thức của Lớp ${studentClass} chưa bắt đầu.\n\nEm vui lòng chọn "ÔN TẬP ĐỀ CƯƠNG" để luyện tập trước nhé!`, 'info');
+                        return;
+                      }
+                      setMode('exam');
+                    }}
+                    disabled={classAccessMode === 'closed'}
+                    className={`p-4 rounded-2xl border-2 text-left transition relative ${
+                      classAccessMode === 'practice_only'
+                        ? 'opacity-40 border-slate-200 bg-slate-100 cursor-not-allowed'
+                        : (mode === 'exam'
+                            ? 'border-red-600 bg-red-50/70 shadow-sm'
+                            : 'border-slate-200 hover:border-slate-300 bg-slate-50')
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <span className="text-2xl">📝</span>
+                      <span className="font-bold text-sm text-red-950">THI GIỮA HK1</span>
+                    </div>
+                    <p className="text-xs text-slate-600 mt-1 font-medium leading-relaxed">
+                      Kiểm tra chính thức 45 phút, cần mật khẩu phòng thi, bảo mật chống gian lận đa tầng.
+                    </p>
+                    {classAccessMode === 'practice_only' && (
+                      <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700 border border-slate-300">
+                        🔒 Chưa mở ca thi của lớp
+                      </span>
+                    )}
+                    {classAccessMode === 'exam_only' && (
+                      <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-300 animate-pulse">
+                        🔴 Ca thi đang diễn ra!
+                      </span>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Chọn Khối */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                  2. Chọn Khối Lớp <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-3 gap-3">
+                  {[8, 9, 10].map(g => (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => setGrade(g)}
+                      className={`py-3 rounded-2xl font-black text-sm border-2 transition ${
+                        grade === g
+                          ? 'border-blue-700 bg-blue-700 text-white shadow-md'
+                          : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                      }`}
+                    >
+                      Khối {g}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Nhập Thông tin Học sinh */}
+              <div className="space-y-4 pt-2 border-t border-slate-200">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Họ và tên học sinh <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={fullName}
+                    onChange={e => setFullName(e.target.value)}
+                    placeholder="Ví dụ: Nguyễn Văn An"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold bg-white text-slate-900"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Lớp học <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={studentClass}
+                      onChange={e => setStudentClass(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold bg-white text-slate-900"
+                    >
+                      {(CLASS_LISTS[grade] || []).map(cls => (
+                        <option key={cls} value={cls}>Lớp {cls}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Mã LMS (Học sinh) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={studentId}
+                      onChange={e => setStudentId(e.target.value)}
+                      placeholder="Ví dụ: 123456"
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold font-mono-code bg-white text-slate-900"
+                    />
+                  </div>
+                </div>
+
+                {/* MẬT KHẨU PHÒNG THI (KHI CHỌN CHẾ ĐỘ THI CHÍNH THỨC) */}
+                {mode === 'exam' && (
+                  <div className="pt-2">
+                    <label className="block text-xs font-bold text-red-700 uppercase tracking-wider mb-1 flex items-center justify-between">
+                      <span>🔒 Mật Khẩu Phòng Thi (Do Giám thị cấp) <span className="text-red-500">*</span></span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showExamPassword ? 'text' : 'password'}
+                        value={examPasswordInput}
+                        onChange={e => setExamPasswordInput(e.target.value)}
+                        placeholder="Nhập mật khẩu phòng thi..."
+                        className="w-full px-4 py-2.5 rounded-xl border-2 border-red-300 focus:outline-none focus:ring-2 focus:ring-red-500 text-sm font-semibold font-mono-code bg-red-50/40 text-slate-900 pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowExamPassword(prev => !prev)}
+                        className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                      >
+                        {showExamPassword ? 'ẨN' : 'HIỆN'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* KHUNG HƯỚNG DẪN THỰC TẾ TRÊN LMS ASIAN SCHOOL */}
+              {mode === 'practice' ? (
+                <div className="border-2 border-blue-400 bg-blue-50/70 rounded-2xl p-4 text-slate-800 space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xl">📌</span>
+                    <h4 className="text-xs font-black text-blue-950 uppercase tracking-wider">
+                      HƯỚNG DẪN VÀ ĐIỀU KIỆN HOÀN THÀNH (LMS)
+                    </h4>
+                  </div>
+                  <div className="text-xs space-y-1.5 pl-7 text-slate-700 font-medium">
+                    <p>📖 <strong className="text-blue-900">Tài liệu cho phép:</strong> Chỉ được sử dụng <strong>Sách giáo khoa</strong> trong quá trình làm bài.</p>
+                    <p>🎯 <strong className="text-blue-900">Yêu cầu đạt:</strong> Học sinh cần hoàn thành bài làm đạt từ <strong>6.0 điểm trở lên</strong> ít nhất <strong>5 lần</strong>.</p>
+                    <p className="text-amber-800 font-bold pt-0.5">💡 Sau khi nộp bài, hệ thống sẽ mở hướng dẫn chấm Rubric phần Tự luận để học sinh đối chiếu bài làm.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="border-2 border-red-400 bg-red-50/60 rounded-2xl p-4 text-slate-800 space-y-3">
+                  <div className="text-center pb-2 border-b border-red-200">
+                    <h4 className="text-sm font-black text-red-700 flex items-center justify-center space-x-1.5">
+                      <span>📝</span>
+                      <span>BÀI KIỂM TRA GIỮA HỌC KỲ 1</span>
+                    </h4>
+                    <p className="text-[11px] text-red-600 font-semibold mt-0.5">⏱ Thời gian làm bài: 45 Phút</p>
+                  </div>
+                  <div className="text-xs space-y-1.5 leading-relaxed text-slate-700 font-medium">
+                    <p className="font-extrabold text-red-900 uppercase">🎴 KỶ LUẬT & NỘI QUY PHÒNG THI</p>
+                    <ul className="space-y-1 pl-2">
+                      <li>• <strong className="text-red-700">❌ Không sử dụng tài liệu:</strong> Vi phạm sẽ nhận <strong className="text-red-700">0 điểm</strong>.</li>
+                      <li>• <strong className="text-red-700">🚫 Không chuyển TAB/Trình duyệt:</strong> Vi phạm sẽ bị <strong className="text-red-700">trừ 5 điểm</strong>.</li>
+                      <li>• <strong className="text-amber-800">⚠️ Nhắc nhở nội quy:</strong> Bị nhắc nhở từ <strong>3 lần</strong> sẽ bị <strong className="text-red-700">trừ 5 điểm</strong>.</li>
+                    </ul>
+                    <div className="p-2.5 bg-amber-50 border border-amber-300 rounded-xl text-[11px] text-amber-900 mt-2 font-semibold">
+                      <strong>🔌 LƯU Ý AN TOÀN THIẾT BỊ:</strong> Không chạm vào thùng máy (CPU), dây nguồn hoặc dây mạng. Mọi sự cố cần giơ tay báo ngay cho Giám thị.
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handleStart}
+                disabled={isContactingServer}
+                className={`w-full py-4 disabled:opacity-60 text-white font-black rounded-2xl shadow-lg transition duration-200 flex items-center justify-center space-x-2 text-sm sm:text-base uppercase tracking-wider ${
+                  mode === 'exam'
+                    ? 'bg-red-600 hover:bg-red-700 shadow-red-500/25'
+                    : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/25'
+                }`}
+              >
+                <span>{isContactingServer ? 'ĐANG KẾT NỐI MÁY CHỦ...' : (mode === 'exam' ? 'BẮT ĐẦU VÀO PHÒNG THI' : 'BẮT ĐẦU ÔN TẬP ĐỀ CƯƠNG')}</span>
+                <span>→</span>
+              </button>
+              <p className="text-[11px] text-slate-500 italic mt-2 text-center">
+                🖥️ Hệ thống sẽ tự động chuyển sang chế độ <strong>Toàn Màn Hình</strong> ngay khi bấm bắt đầu làm bài.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* 2 & 3. MÀN HÌNH LÀM BÀI 1 CÂU / LẦN (NỀN TRẮNG SÁNG, TƯƠNG PHẢN CAO, ĐẸP MẮT) */}
+        {examState === 'in_progress' && (
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            
+            {/* CỘT CHÍNH (3 CỘT): HIỂN THỊ DUY NHẤT 1 CÂU HỎI TẠI MỖI THỜI ĐIỂM */}
+            <div className="lg:col-span-3 space-y-5">
+              
+              {/* Banner Hướng Dẫn / Kỷ Luật Phòng Thi */}
+              {mode === 'practice' ? (
+                <div className="border-2 border-blue-400 bg-blue-50/80 rounded-2xl p-4 text-blue-950 flex items-start space-x-3 shadow-sm">
+                  <span className="text-xl">📖</span>
+                  <div className="text-xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-blue-900 uppercase tracking-wide">
+                        HƯỚNG DẪN ÔN TẬP ĐỀ CƯƠNG — TIN HỌC {grade}
+                      </span>
+                      <span className="text-blue-800 font-bold bg-blue-100 px-2.5 py-0.5 rounded-lg">Tài liệu SGK: Được phép</span>
+                    </div>
+                    <p className="text-slate-700 font-medium">Học sinh cần làm đạt từ <strong>6.0 điểm trở lên ít nhất 5 lần</strong> để đủ điều kiện kiểm tra giữa kỳ.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="border-2 border-red-500 bg-red-50/80 rounded-2xl p-4 text-red-950 space-y-1.5 shadow-sm">
+                  <div className="flex items-center justify-between border-b border-red-200 pb-1.5">
+                    <span className="font-black text-xs uppercase tracking-wider text-red-800 flex items-center space-x-1.5">
+                      <span>⚠️</span>
+                      <span>KỶ LUẬT PHÒNG THI CHÍNH THỨC — MÃ ĐỀ: {assignedCode}</span>
+                    </span>
+                    <span className="font-mono-code text-xs text-red-700 font-black bg-red-100 px-2.5 py-0.5 rounded-lg">⏱ Thời gian còn: {timeLeftStr}</span>
+                  </div>
+                  <p className="text-xs text-slate-700 font-medium">
+                    🚫 <strong>Cấm gian lận:</strong> Không chuyển tab/rời toàn màn hình. Vi phạm từ 3 lần sẽ bị trừ 5 điểm hoặc nhận 0 điểm theo quy chế LMS.
+                  </p>
+                </div>
+              )}
+
+              {/* Vùng hiển thị câu hỏi hiện tại */}
+              {(() => {
+                const activeList = mode === 'practice' ? practiceItems : examItems;
+                const currentItem = activeList[activeQuestionIdx] || activeList[0];
+                if (!currentItem) return null;
+                const progressPct = ((activeQuestionIdx + 1) / activeList.length) * 100;
+
+                return (
+                  <div className="space-y-4">
+                    
+                    {/* Thanh thông tin câu hỏi + Tiến trình */}
+                    <div className="bg-white border-2 border-slate-200 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-sm">
+                      <div className="flex items-center space-x-3">
+                        <span className="px-3.5 py-1.5 rounded-xl bg-blue-700 text-white font-black text-sm tracking-wide shadow-sm">
+                          {currentItem.label}
+                        </span>
+                        <span className="text-xs font-bold text-slate-700">
+                          {currentItem.section}
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <span className="text-xs text-amber-900 font-black bg-amber-100 border border-amber-300 px-3 py-1 rounded-lg">
+                          {currentItem.points ? `${currentItem.points.toFixed(2).replace('.', ',')} điểm` : 'Tự luận'}
+                        </span>
+                        <span className="text-xs text-slate-600 font-mono-code font-bold bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+                          {activeQuestionIdx + 1} / {activeList.length} câu
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Thanh Progress Bar */}
+                    <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden border border-slate-300">
+                      <div
+                        className="bg-gradient-to-r from-blue-600 to-indigo-600 h-full transition-all duration-300"
+                        style={{ width: `${progressPct}%` }}
+                      ></div>
+                    </div>
+
+                    {/* KHỐI NỘI DUNG CÂU HỎI CHÍNH (NỀN TRẮNG SÁNG, CHỮ ĐẬM RÕ) */}
+                    <div className="bg-white border-2 border-slate-200 rounded-3xl p-6 sm:p-8 space-y-6 shadow-md min-h-[420px] flex flex-col justify-between">
+                      
+                      {/* PHẦN 1: NỘI DUNG ĐỀ BÀI */}
+                      <div className="space-y-5">
+                        {/* 1. Trắc nghiệm nhiều lựa chọn (MCQ) */}
+                        {(currentItem.type === 'mcq' || currentItem.type === 'exam_mcq') && (
+                          <div className="space-y-6">
+                            <p className="text-lg sm:text-xl font-bold text-slate-900 leading-relaxed whitespace-pre-line">
+                              {currentItem.data.question}
+                            </p>
+
+                            <div className="grid grid-cols-1 gap-3 pt-2">
+                              {currentItem.data.options.map((opt, optIdx) => {
+                                const isSelected = mode === 'practice'
+                                  ? practiceAnswers.mcq[currentItem.data.id] === optIdx
+                                  : examAnswers.mcq[currentItem.data.num] === optIdx;
+                                const letter = ['A', 'B', 'C', 'D'][optIdx];
+
+                                return (
+                                  <button
+                                    key={optIdx}
+                                    type="button"
+                                    onClick={() => {
+                                      if (mode === 'practice') {
+                                        setPracticeAnswers(prev => ({
+                                          ...prev,
+                                          mcq: { ...prev.mcq, [currentItem.data.id]: optIdx }
+                                        }));
+                                      } else {
+                                        setExamAnswers(prev => ({
+                                          ...prev,
+                                          mcq: { ...prev.mcq, [currentItem.data.num]: optIdx }
+                                        }));
+                                      }
+                                    }}
+                                    className={`w-full p-4 rounded-2xl border-2 text-left flex items-start space-x-3.5 transition transform active:scale-[0.99] ${
+                                      isSelected
+                                        ? 'border-blue-600 bg-blue-50 text-blue-950 font-bold shadow-md ring-2 ring-blue-500/20'
+                                        : 'border-slate-200 hover:border-blue-400 bg-slate-50 hover:bg-blue-50/40 text-slate-800 font-semibold'
+                                    }`}
+                                  >
+                                    <span
+                                      className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shrink-0 transition ${
+                                        isSelected
+                                          ? 'bg-blue-700 text-white shadow'
+                                          : 'bg-slate-200 text-slate-800'
+                                      }`}
+                                    >
+                                      {letter}
+                                    </span>
+                                    <span className="text-sm sm:text-base leading-relaxed pt-1.5 font-semibold">{opt}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 2. Trắc nghiệm Đúng / Sai (Khối 10) */}
+                        {(currentItem.type === 'tf' || currentItem.type === 'exam_tf') && (
+                          <div className="space-y-5">
+                            <div className="bg-purple-50 border-2 border-purple-200 p-4 rounded-2xl text-purple-950 text-sm font-bold">
+                              💡 <strong>Yêu cầu:</strong> Đọc kĩ đoạn ngữ cảnh/tình huống dưới đây. Trong mỗi ý a), b), c), d), hãy chọn <strong>ĐÚNG</strong> hoặc <strong>SAI</strong>.
+                            </div>
+
+                            <p className="text-base sm:text-lg font-bold text-slate-900 leading-relaxed whitespace-pre-line bg-slate-50 p-5 rounded-2xl border-2 border-slate-200">
+                              {currentItem.data.context}
+                            </p>
+
+                            <div className="space-y-3 pt-2">
+                              {currentItem.data.subQuestions.map((sub) => {
+                                const currVal = mode === 'practice'
+                                  ? practiceAnswers.tf[currentItem.data.num]?.[sub.letter]
+                                  : examAnswers.tf[currentItem.data.num]?.[sub.letter];
+
+                                return (
+                                  <div
+                                    key={sub.letter}
+                                    className={`p-4 rounded-2xl border-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition ${
+                                      currVal !== undefined
+                                        ? 'bg-blue-50/50 border-blue-300'
+                                        : 'bg-white border-slate-200'
+                                    }`}
+                                  >
+                                    <div className="flex items-start space-x-3">
+                                      <span className="font-black text-purple-700 text-base uppercase shrink-0">
+                                        {sub.letter})
+                                      </span>
+                                      <span className="text-sm sm:text-base text-slate-800 leading-relaxed font-semibold">
+                                        {sub.text}
+                                      </span>
+                                    </div>
+
+                                    <div className="flex items-center space-x-2.5 shrink-0 self-end sm:self-center">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (mode === 'practice') {
+                                            setPracticeAnswers(prev => ({
+                                              ...prev,
+                                              tf: {
+                                                ...prev.tf,
+                                                [currentItem.data.num]: {
+                                                  ...(prev.tf[currentItem.data.num] || {}),
+                                                  [sub.letter]: true
+                                                }
+                                              }
+                                            }));
+                                          } else {
+                                            setExamAnswers(prev => ({
+                                              ...prev,
+                                              tf: {
+                                                ...prev.tf,
+                                                [currentItem.data.num]: {
+                                                  ...(prev.tf[currentItem.data.num] || {}),
+                                                  [sub.letter]: true
+                                                }
+                                              }
+                                            }));
+                                          }
+                                        }}
+                                        className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition border-2 ${
+                                          currVal === true
+                                            ? 'bg-emerald-600 border-emerald-500 text-white shadow-md ring-2 ring-emerald-500/30'
+                                            : 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'
+                                        }`}
+                                      >
+                                        ✓ ĐÚNG
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (mode === 'practice') {
+                                            setPracticeAnswers(prev => ({
+                                              ...prev,
+                                              tf: {
+                                                ...prev.tf,
+                                                [currentItem.data.num]: {
+                                                  ...(prev.tf[currentItem.data.num] || {}),
+                                                  [sub.letter]: false
+                                                }
+                                              }
+                                            }));
+                                          } else {
+                                            setExamAnswers(prev => ({
+                                              ...prev,
+                                              tf: {
+                                                ...prev.tf,
+                                                [currentItem.data.num]: {
+                                                  ...(prev.tf[currentItem.data.num] || {}),
+                                                  [sub.letter]: false
+                                                }
+                                              }
+                                            }));
+                                          }
+                                        }}
+                                        className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition border-2 ${
+                                          currVal === false
+                                            ? 'bg-rose-600 border-rose-500 text-white shadow-md ring-2 ring-rose-500/30'
+                                            : 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'
+                                        }`}
+                                      >
+                                        ✕ SAI
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 3. Tự luận (Essay) */}
+                        {(currentItem.type === 'essay' || currentItem.type === 'exam_essay') && (
+                          <div className="space-y-5">
+                            <p className="text-base sm:text-lg font-bold text-slate-900 leading-relaxed whitespace-pre-line bg-slate-50 p-5 rounded-2xl border-2 border-slate-200">
+                              {currentItem.data.context}
+                            </p>
+
+                            {currentItem.data.subItems && currentItem.data.subItems.length > 0 && (
+                              <div className="space-y-2.5 bg-indigo-50/50 p-4 rounded-2xl border border-indigo-200">
+                                {currentItem.data.subItems.map(item => (
+                                  <div key={item.letter} className="text-sm text-slate-800 flex items-start space-x-2 font-semibold">
+                                    <span className="font-black text-indigo-700">{item.letter})</span>
+                                    <span>{item.text}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            <div className="pt-2">
+                              <div className="flex items-center justify-between mb-2">
+                                <label className="block text-xs font-black text-slate-700 uppercase tracking-wider">
+                                  Phần nhập bài làm của thí sinh:
+                                </label>
+                                <span className="text-xs text-slate-500 font-mono-code font-bold">
+                                  Đã nhập: {((mode === 'practice' ? practiceAnswers.essay[currentItem.data.num] : examAnswers.essay[currentItem.data.num]) || '').length} ký tự
+                                </span>
+                              </div>
+                              <textarea
+                                rows={8}
+                                value={
+                                  mode === 'practice'
+                                    ? (practiceAnswers.essay[currentItem.data.num] || '')
+                                    : (examAnswers.essay[currentItem.data.num] || '')
+                                }
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  if (mode === 'practice') {
+                                    setPracticeAnswers(prev => ({
+                                      ...prev,
+                                      essay: { ...prev.essay, [currentItem.data.num]: val }
+                                    }));
+                                  } else {
+                                    setExamAnswers(prev => ({
+                                      ...prev,
+                                      essay: { ...prev.essay, [currentItem.data.num]: val }
+                                    }));
+                                  }
+                                }}
+                                placeholder="Nhập nội dung giải bài tập, phân tích tình huống của em vào đây..."
+                                className="w-full bg-white border-2 border-slate-300 rounded-2xl p-4 text-slate-900 text-base leading-relaxed focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 font-sans shadow-inner"
+                              ></textarea>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* PHẦN 2: THANH NÚT ĐIỀU HƯỚNG CÂU TRƯỚC / TIẾP THEO / NỘP BÀI */}
+                      <div className="pt-6 border-t-2 border-slate-100 flex flex-wrap items-center justify-between gap-3">
+                        <button
+                          type="button"
+                          disabled={activeQuestionIdx === 0}
+                          onClick={() => setActiveQuestionIdx(prev => Math.max(0, prev - 1))}
+                          className={`px-5 py-3 rounded-2xl font-bold text-sm transition flex items-center space-x-2 ${
+                            activeQuestionIdx === 0
+                              ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                              : 'bg-white hover:bg-slate-100 text-slate-800 border-2 border-slate-300 shadow-sm'
+                          }`}
+                        >
+                          <span>←</span>
+                          <span>Câu trước</span>
+                        </button>
+
+                        {/* Nút định vị nhanh Bảng câu hỏi trên điện thoại/máy tính bảng */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const sidebarEl = document.getElementById('question-palette-sidebar');
+                            if (sidebarEl) sidebarEl.scrollIntoView({ behavior: 'smooth' });
+                          }}
+                          className="lg:hidden px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-300 flex items-center space-x-1 shadow-sm"
+                        >
+                          <span>📋</span>
+                          <span>Câu {activeQuestionIdx + 1}/{activeList.length}</span>
+                        </button>
+
+                        <div className="flex items-center space-x-3">
+                          {activeQuestionIdx < activeList.length - 1 ? (
+                            <button
+                              type="button"
+                              onClick={() => setActiveQuestionIdx(prev => Math.min(activeList.length - 1, prev + 1))}
+                              className="px-6 py-3 rounded-2xl bg-blue-700 hover:bg-blue-800 text-white font-black text-sm transition shadow-lg shadow-blue-700/30 flex items-center space-x-2"
+                            >
+                              <span>Câu tiếp theo</span>
+                              <span>→</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setShowSubmitModal(true)}
+                              className={`px-6 py-3 rounded-2xl font-black text-sm transition shadow-lg flex items-center space-x-2 uppercase tracking-wider ${
+                                mode === 'practice'
+                                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/30'
+                                  : 'bg-red-600 hover:bg-red-700 text-white shadow-red-600/30'
+                              }`}
+                            >
+                              <span>✓ Nộp bài ngay</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* CỘT PHẢI (1 CỘT): SIDEBAR DANH SÁCH CÂU HỎI & NỘP BÀI (TRẮNG SÁNG, NỔI BẬT) */}
+            <div className="lg:col-span-1" id="question-palette-sidebar">
+              <div className="bg-white border-2 border-slate-200 p-5 rounded-3xl sticky top-20 space-y-4 shadow-lg">
+                
+                {/* WIDGET ĐỒNG HỒ THỜI GIAN TRỰC TIẾP TRÊN BẢNG BÀI LÀM */}
+                <div className="bg-gradient-to-br from-slate-50 to-blue-50/60 border-2 border-blue-200 rounded-2xl p-3.5 space-y-1.5 shadow-sm">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    <span>{mode === 'exam' ? 'Thời gian còn lại' : (config.practiceDurationMinutes > 0 ? 'Thời gian còn lại' : 'Thời gian làm bài')}</span>
+                    <span className="text-blue-900 font-extrabold">{mode === 'exam' ? 'Phòng thi' : 'Ôn tập'}</span>
+                  </div>
+                  <div className="text-2xl font-black font-mono-code text-red-600 flex items-center space-x-2">
+                    <span>⏱️</span>
+                    <span>{mode === 'exam' ? timeLeftStr : (config.practiceDurationMinutes > 0 ? timeLeftStr : formatElapsed(elapsedSeconds))}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-slate-600 font-semibold pt-1 border-t border-blue-100">
+                    <span>Bắt đầu: {examStartTime ? examStartTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Vừa xong'}</span>
+                    <span className="text-emerald-700 font-bold">Đã làm: {formatElapsed(elapsedSeconds)}</span>
+                  </div>
+                </div>
+
+                {/* Header Sidebar */}
+                <div className="flex items-center justify-between border-b-2 border-slate-100 pb-3">
+                  <div>
+                    <h3 className="font-black text-xs text-blue-950 uppercase tracking-wider">
+                      BẢNG CÂU HỎI
+                    </h3>
+                    <p className="text-[11px] text-slate-500 font-semibold">
+                      {mode === 'practice' ? 'Đề cương ôn tập' : `Mã đề ${assignedCode}`}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    {(() => {
+                      const activeList = mode === 'practice' ? practiceItems : examItems;
+                      const answeredTotal = activeList.filter(item => item.isAnswered).length;
+                      return (
+                        <span className="text-xs font-black text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg">
+                          {answeredTotal} / {activeList.length}
+                        </span>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* Phân nhóm câu hỏi theo từng phần trong Sidebar */}
+                {(() => {
+                  const activeList = mode === 'practice' ? practiceItems : examItems;
+                  const sections = [];
+                  activeList.forEach((item, idx) => {
+                    let sec = sections.find(s => s.name === item.section);
+                    if (!sec) {
+                      sec = { name: item.section, items: [] };
+                      sections.push(sec);
+                    }
+                    sec.items.push({ item, globalIdx: idx });
+                  });
+
+                  return (
+                    <div className="space-y-4 max-h-[460px] overflow-y-auto pr-1">
+                      {sections.map((sec, secIdx) => (
+                        <div key={secIdx} className="space-y-2">
+                          <span className="text-[11px] font-black text-slate-600 uppercase tracking-wide block">
+                            {sec.name.split('(')[0]}
+                          </span>
+                          <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+                            {sec.items.map(({ item, globalIdx }) => {
+                              const isCurrent = globalIdx === activeQuestionIdx;
+                              const isDone = item.isAnswered;
+                              const isPartial = item.partialCount && item.partialCount > 0 && !isDone;
+
+                              let btnStyle = 'bg-white text-slate-800 hover:bg-slate-100 border-2 border-slate-300 shadow-sm font-bold';
+                              if (isCurrent) {
+                                btnStyle = 'bg-blue-600 text-white font-black ring-4 ring-blue-200 border-2 border-blue-600 scale-105 shadow-md z-10';
+                              } else if (isDone) {
+                                btnStyle = 'bg-emerald-600 hover:bg-emerald-700 text-white font-black border-2 border-emerald-600 shadow-sm';
+                              } else if (isPartial) {
+                                btnStyle = 'bg-amber-500 hover:bg-amber-600 text-white font-black border-2 border-amber-500 shadow-sm';
+                              }
+
+                              return (
+                                <button
+                                  key={globalIdx}
+                                  type="button"
+                                  onClick={() => setActiveQuestionIdx(globalIdx)}
+                                  className={`h-9 rounded-xl text-xs transition flex items-center justify-center ${btnStyle}`}
+                                  title={`${item.label}: ${item.section}`}
+                                >
+                                  {globalIdx + 1}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+
+                {/* Chú thích màu sắc */}
+                <div className="pt-3 border-t-2 border-slate-100 flex items-center justify-around text-[11px] text-slate-600 font-bold">
+                  <div className="flex items-center space-x-1.5">
+                    <span className="w-3 h-3 rounded-full bg-blue-600 inline-block"></span>
+                    <span>Đang xem</span>
+                  </div>
+                  <div className="flex items-center space-x-1.5">
+                    <span className="w-3 h-3 rounded-full bg-emerald-600 inline-block"></span>
+                    <span>Đã làm</span>
+                  </div>
+                  <div className="flex items-center space-x-1.5">
+                    <span className="w-3 h-3 rounded-full bg-slate-300 border border-slate-400 inline-block"></span>
+                    <span>Chưa làm</span>
+                  </div>
+                </div>
+
+                {/* Nút Nộp Bài Lớn ở Sidebar */}
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowSubmitModal(true)}
+                    className={`w-full py-3.5 rounded-2xl font-black text-xs transition shadow-xl uppercase tracking-wider ${
+                      mode === 'practice'
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/30'
+                        : 'bg-red-600 hover:bg-red-700 text-white shadow-red-600/30'
+                    }`}
+                  >
+                    {mode === 'practice' ? 'NỘP BÀI & XEM ĐÁNH GIÁ' : 'NỘP BÀI THI CHÍNH THỨC'}
+                  </button>
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* 4. MÀN HÌNH KẾT QUẢ BÀI LÀM (CHUẨN TƯƠNG PHẢN, CHỤP ẢNH TÊN CHUẨN, MỞ ĐÁP ÁN TỰ LUẬN) */}
+        {examState === 'submitted' && scoreResult && (
+          <div className="max-w-3xl mx-auto space-y-6">
+            
+            {/* THẺ KẾT QUẢ BÀI LÀM — ĐƯỢC THIẾT KẾ ĐỂ CHỤP ẢNH NỘP LÊN LMS */}
+            <div
+              id="result-capture-card"
+              className="bg-white text-slate-900 rounded-3xl shadow-xl border-2 border-slate-200 p-6 sm:p-8 space-y-5"
+            >
+              {/* Header Thẻ Kết Quả */}
+              <div className="flex items-center justify-between border-b-2 border-slate-100 pb-4">
+                <div className="flex items-center space-x-3">
+                  <img
+                    src={window.ASIAN_SCHOOL_LOGO_BASE64 || "../assets/logo_asian_school.png"}
+                    alt="Logo Asian School"
+                    className="h-12 w-auto object-contain"
+                  />
+                  <div>
+                    <h3 className="font-black text-xs sm:text-sm text-blue-950 leading-tight uppercase">
+                      TRƯỜNG QUỐC TẾ Á CHÂU (ASIAN SCHOOL)
+                    </h3>
+                    <p className="text-[11px] text-slate-600 font-bold">
+                      BỘ MÔN TIN HỌC — XÁC NHẬN KẾT QUẢ BÀI LÀM TRỰC TUYẾN
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="px-3.5 py-1.5 rounded-full text-xs font-black bg-blue-100 text-blue-900 border border-blue-300 shadow-sm inline-block">
+                    {mode === 'practice' ? `ÔN TẬP ĐỀ CƯƠNG — LẦN ${scoreResult.attemptNumber || 1}` : 'THI GIỮA HK1'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Thông tin học sinh */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-2xl border-2 border-slate-200 text-xs">
+                <div>
+                  <p className="text-slate-500 font-semibold">Họ và tên:</p>
+                  <p className="font-black text-slate-900 text-sm truncate">{fullName}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500 font-semibold">Lớp học:</p>
+                  <p className="font-black text-slate-900 text-sm">Lớp {studentClass}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500 font-semibold">Mã LMS:</p>
+                  <p className="font-black text-blue-800 text-sm font-mono-code">{studentId || 'Chưa nhập'}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500 font-semibold">{mode === 'practice' ? 'Số lần làm bài:' : 'Mã Đề Thi:'}</p>
+                  <p className={`font-black text-sm font-mono-code ${mode === 'practice' ? 'text-amber-800 font-black' : 'text-slate-900'}`}>
+                    {mode === 'practice' ? `LẦN THỨ ${scoreResult.attemptNumber || 1}` : (scoreResult.examCode || 'Đề cương')}
+                  </p>
+                </div>
+              </div>
+
+              {/* Khối Điểm Số Nổi Bật (High Contrast, Padding Đáy Đầy Đủ Chống Che Chữ Khi Chụp) */}
+              <div className="text-center py-6 px-4 bg-blue-50/80 rounded-3xl border-2 border-blue-200 shadow-sm space-y-3 pb-8">
+                <p className="text-xs text-blue-900 font-black uppercase tracking-widest">
+                  {mode === 'practice' ? 'ĐIỂM ĐẠT ĐƯỢC' : 'BÀI THI CHÍNH THỨC'}
+                </p>
+                {mode === 'practice' ? (
+                  <div className="text-5xl sm:text-6xl font-black text-red-600 my-1">
+                    {scoreResult.score}
+                    <span className="text-xl text-slate-600 font-bold"> / 10</span>
+                  </div>
+                ) : (
+                  <div className="text-3xl sm:text-4xl font-black text-emerald-700 my-1">✅ ĐÃ NỘP BÀI THÀNH CÔNG</div>
+                )}
+                <div className="space-y-2">
+                  <p className="text-xs text-slate-700 font-bold">
+                    {mode === 'practice'
+                      ? `Làm đúng ${scoreResult.correctCount} / ${scoreResult.totalQuestions} câu trắc nghiệm • Thời gian làm: ${scoreResult.durationFormatted || 'N/A'}`
+                      : `Thời gian làm bài: ${scoreResult.durationFormatted || '45 phút'} • Nộp lúc: ${new Date(scoreResult.submittedAt).toLocaleTimeString('vi-VN')} • Số lần vi phạm: ${scoreResult.violations} lần`
+                    }
+                  </p>
+                  {mode === 'practice' && (
+                    <div className="pt-2">
+                      <div className="inline-block px-6 py-2.5 bg-amber-100 border-2 border-amber-500 rounded-2xl text-amber-950 text-sm sm:text-base font-black shadow-md">
+                        🎯 SỐ LẦN ĐÃ LÀM: LẦN THỨ {scoreResult.attemptNumber || 1}
+                      </div>
+                    </div>
+                  )}
+                  {scoreResult.violations >= 3 && (
+                    <div className="mt-2 inline-block px-4 py-1.5 bg-red-100 border-2 border-red-500 rounded-xl text-red-800 text-xs font-black shadow-sm">
+                      🚨 Biên bản vi phạm: Trừ 5 điểm vào kết quả thi (Vi phạm 3 lần)
+                    </div>
+                  )}
+
+                  {mode === 'exam' && (
+                    <div className="mt-3 p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl text-xs text-amber-900 font-semibold space-y-1 text-left">
+                      <div className="flex items-center space-x-1.5 font-black text-amber-950 text-xs">
+                        <span>📝</span>
+                        <span>BÀI LÀM ĐÃ ĐƯỢC GHI NHẬN, ĐANG CHỜ GIÁO VIÊN CHẤM</span>
+                      </div>
+                      <p className="text-[11px] text-amber-800 leading-relaxed font-medium">
+                        Mã đề {scoreResult.examCode}. Thầy Trần Gia Huy sẽ chấm phần trắc nghiệm và tự luận, sau đó công bố điểm 10 chính thức trên LMS.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Footer Thẻ */}
+              <div className="pt-2 border-t-2 border-slate-100 flex items-center justify-between text-[11px] text-slate-600 font-semibold">
+                <span>Hệ thống kiểm tra trực tuyến Tin học Asian School</span>
+                <span>Xác nhận: Giáo viên bộ môn Thầy Trần Gia Huy</span>
+              </div>
+            </div>
+
+            {/* CÁC NÚT THAO TÁC: CHỤP ẢNH NỘP LMS & LÀM LẠI */}
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={handleCaptureScreenshot}
+                disabled={isCapturing}
+                className="px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm rounded-2xl shadow-lg shadow-emerald-600/30 transition flex items-center space-x-2"
+              >
+                <span>📸</span>
+                <span>{isCapturing ? 'Đang tạo ảnh...' : 'CHỤP MÀN HÌNH KẾT QUẢ (NỘP LÊN LMS)'}</span>
+              </button>
+
+              {mode === 'practice' ? (
+                <button
+                  type="button"
+                  onClick={handleRestartPractice}
+                  className="px-6 py-3.5 bg-blue-700 hover:bg-blue-800 text-white font-bold text-sm rounded-2xl transition shadow-md"
+                >
+                  Làm Lại Bài Ôn Tập 🔄
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className="px-6 py-3.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-sm rounded-2xl transition shadow-md"
+                >
+                  Hoàn Tất Bài Thi 🔒
+                </button>
+              )}
+            </div>
+
+            {/* PHẦN ĐÁNH GIÁ ĐÚNG/SAI & MỞ ĐÁP ÁN TỰ LUẬN CHO HỌC SINH */}
+            <div className="space-y-6 pt-4">
+              
+              {mode === 'practice' && (
+                <div className="p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl text-xs text-amber-950 font-semibold space-y-1">
+                  <p>💡 <strong>Ghi chú sư phạm:</strong> Đối với phần trắc nghiệm, hệ thống chỉ thông báo câu nào em làm <strong>ĐÚNG</strong> hoặc <strong>SAI</strong> để em tự tra cứu lại tài liệu.</p>
+                  <p>📝 Đối với <strong>Phần Tự Luận</strong>, hệ thống đã mở toàn bộ <strong>Hướng dẫn trả lời & Thang điểm chấm (Rubric LMS)</strong> ở phía dưới để em đối chiếu!</p>
+                </div>
+              )}
+
+              {/* 1. Đánh giá Trắc nghiệm (Practice) */}
+              {mode === 'practice' && (
+                <div className="space-y-4">
+                  <h3 className="font-black text-base text-slate-900 flex items-center space-x-2">
+                    <span>📝</span>
+                    <span>Kết Quả Đánh Giá Từng Câu Trắc Nghiệm</span>
+                  </h3>
+
+                  {practiceQuestions.map((q, idx) => {
+                    const userChoice = practiceAnswers.mcq[q.id];
+                    const isAnswered = userChoice !== undefined;
+                    const isCorrect = userChoice === q.correctAnswer;
+                    const userLetter = isAnswered ? ['A', 'B', 'C', 'D'][userChoice] : null;
+
+                    return (
+                      <div
+                        key={q.id}
+                        className={`p-5 rounded-2xl border-2 shadow-sm space-y-2.5 transition ${
+                          !isAnswered
+                            ? 'bg-slate-50 border-slate-200 text-slate-800'
+                            : (isCorrect ? 'bg-emerald-50 border-emerald-400 text-slate-900' : 'bg-rose-50 border-rose-400 text-slate-900')
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-black text-xs text-slate-600 uppercase">
+                            Câu {idx + 1}
+                          </span>
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-black ${
+                              !isAnswered
+                                ? 'bg-slate-200 text-slate-700'
+                                : (isCorrect ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white')
+                            }`}
+                          >
+                            {!isAnswered ? '— Chưa làm' : (isCorrect ? '✓ Bạn làm ĐÚNG' : '✕ Bạn làm SAI')}
+                          </span>
+                        </div>
+
+                        <p className="font-bold text-slate-900 text-sm sm:text-base leading-relaxed">{q.question}</p>
+
+                        {/* Hiển thị đầy đủ 4 phương án A, B, C, D */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
+                          {q.options.map((optText, optIdx) => {
+                            const letter = ['A', 'B', 'C', 'D'][optIdx];
+                            const isUserSelected = userChoice === optIdx;
+
+                            let cardClass = "bg-white border-slate-200 text-slate-800";
+                            let badgeClass = "bg-slate-100 text-slate-700 border-slate-300";
+                            let tagBadge = null;
+
+                            if (isUserSelected) {
+                              if (isCorrect) {
+                                cardClass = "bg-emerald-50 border-emerald-500 text-emerald-950 font-bold shadow-sm ring-1 ring-emerald-500/30";
+                                badgeClass = "bg-emerald-600 text-white border-emerald-600";
+                                tagBadge = (
+                                  <span className="shrink-0 text-[11px] font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300">
+                                    ✓ Em đã chọn
+                                  </span>
+                                );
+                              } else {
+                                cardClass = "bg-rose-50 border-rose-500 text-rose-950 font-bold shadow-sm ring-1 ring-rose-500/30";
+                                badgeClass = "bg-rose-600 text-white border-rose-600";
+                                tagBadge = (
+                                  <span className="shrink-0 text-[11px] font-black text-rose-700 bg-rose-100 px-2 py-0.5 rounded border border-rose-300">
+                                    ✕ Em đã chọn
+                                  </span>
+                                );
+                              }
+                            }
+
+                            return (
+                              <div
+                                key={optIdx}
+                                className={`p-3 rounded-xl border-2 flex items-start space-x-2.5 text-xs sm:text-sm transition ${cardClass}`}
+                              >
+                                <span className={`w-6 h-6 rounded-lg flex items-center justify-center font-black text-xs shrink-0 border mt-0.5 ${badgeClass}`}>
+                                  {letter}
+                                </span>
+                                <span className="flex-1 leading-snug">{optText}</span>
+                                {tagBadge}
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        <div className="pt-2 text-xs">
+                          {isAnswered ? (
+                            <p className={`font-semibold ${isCorrect ? 'text-emerald-800' : 'text-rose-800'}`}>
+                              Phương án em đã chọn: <strong>{userLetter}. {q.options[userChoice]}</strong> {isCorrect ? '(Chính xác ✓)' : '(Chưa chính xác ✕ — Hãy đọc lại lý thuyết để tìm ra phương án đúng)'}
+                            </p>
+                          ) : (
+                            <p className="text-slate-500 italic font-medium">Em chưa chọn đáp án cho câu hỏi này.</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* 2. Đánh giá Đúng/Sai (Khối 10 Practice) */}
+              {mode === 'practice' && grade === 10 && practiceTfQuestions.length > 0 && (
+                <div className="space-y-4 pt-4">
+                  <h3 className="font-black text-base text-slate-900 flex items-center space-x-2">
+                    <span>⚖️</span>
+                    <span>Kết Quả Đánh Giá Phần Đúng / Sai</span>
+                  </h3>
+
+                  {practiceTfQuestions.map((tf) => (
+                    <div key={tf.num} className="p-5 rounded-2xl bg-white border-2 border-slate-200 shadow-sm space-y-3">
+                      <span className="font-black text-xs text-purple-800 uppercase">
+                        Câu {tf.num} (Đúng / Sai)
+                      </span>
+                      <p className="font-bold text-slate-900 text-sm whitespace-pre-line">
+                        {tf.context}
+                      </p>
+
+                      <div className="space-y-2 pt-1">
+                        {tf.subQuestions.map(sub => {
+                          const userVal = practiceAnswers.tf[tf.num]?.[sub.letter];
+                          const isAns = userVal !== undefined;
+                          const isSubCorrect = userVal === sub.correctAnswer;
+                          return (
+                            <div
+                              key={sub.letter}
+                              className={`p-3 rounded-xl border-2 text-xs flex items-center justify-between ${
+                                !isAns
+                                  ? 'bg-slate-50 border-slate-200 text-slate-700'
+                                  : (isSubCorrect ? 'bg-emerald-50 border-emerald-300 text-emerald-950 font-bold' : 'bg-rose-50 border-rose-300 text-rose-950 font-bold')
+                              }`}
+                            >
+                              <span><strong>{sub.letter})</strong> {sub.text}</span>
+                              <span className={`px-2 py-0.5 rounded text-[11px] font-black ${
+                                !isAns ? 'bg-slate-200 text-slate-700' : (isSubCorrect ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white')
+                              }`}>
+                                {isAns ? (userVal ? 'Chọn ĐÚNG' : 'Chọn SAI') : 'Chưa làm'}
+                                {isAns && (isSubCorrect ? ' (✓ ĐÚNG)' : ' (✕ SAI)')}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 3. MỞ ĐÁP ÁN PHẦN TỰ LUẬN CHO HỌC SINH (RUBRIC LMS) */}
+              {((mode === 'practice' ? practiceEssayQuestions : (currentOfficialExam?.essayQuestions || currentOfficialExam?.part3_essay || []))).length > 0 && (
+                <div className="space-y-4 pt-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-black text-base text-slate-900 flex items-center space-x-2">
+                      <span>📖</span>
+                      <span>HƯỚNG DẪN TRẢ LỜI & ĐÁP ÁN MẪU PHẦN TỰ LUẬN</span>
+                    </h3>
+                    <span className="px-3 py-1 rounded-full text-xs font-black bg-indigo-100 text-indigo-900 border border-indigo-200">
+                      Thang điểm Rubric LMS
+                    </span>
+                  </div>
+
+                  {((mode === 'practice' ? practiceEssayQuestions : (currentOfficialExam?.essayQuestions || currentOfficialExam?.part3_essay || []))).map((eq) => {
+                    const studentAnswer = (mode === 'practice' ? practiceAnswers.essay[eq.num] : examAnswers.essay[eq.num]) || '';
+
+                    return (
+                      <div key={eq.num} className="bg-white border-2 border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                          <span className="font-black text-sm text-indigo-900 uppercase">
+                            Câu {eq.num} (Tự luận) {eq.pointsText && `— ${eq.pointsText}`}
+                          </span>
+                          <span className="text-xs text-slate-500 font-bold">
+                            {studentAnswer.trim() ? '✓ Đã làm bài' : 'Chưa nhập bài làm'}
+                          </span>
+                        </div>
+
+                        <p className="font-bold text-slate-900 text-sm leading-relaxed whitespace-pre-line bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                          {eq.context || eq.question}
+                        </p>
+
+                        {eq.subItems && eq.subItems.length > 0 && (
+                          <div className="space-y-2 bg-indigo-50/60 p-4 rounded-2xl border border-indigo-200 text-xs sm:text-sm">
+                            <span className="font-bold text-indigo-900 text-xs block uppercase">
+                              Các ý yêu cầu trả lời:
+                            </span>
+                            {eq.subItems.map(item => (
+                              <div key={item.letter} className="flex items-start space-x-2 text-slate-800 font-semibold">
+                                <span className="font-black text-indigo-700 shrink-0">Ý {item.letter})</span>
+                                <span className="leading-relaxed">{item.text}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Bài làm của học sinh */}
+                        <div className="space-y-1.5">
+                          <span className="text-xs font-bold text-slate-600 uppercase tracking-wider block">
+                            Bài làm em đã gõ:
+                          </span>
+                          <div className="bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 text-slate-900 text-sm leading-relaxed whitespace-pre-line">
+                            {studentAnswer.trim() ? studentAnswer : <em className="text-slate-400">Học sinh chưa nhập bài làm cho câu hỏi này.</em>}
+                          </div>
+                        </div>
+
+                        {/* ĐÁP ÁN MẪU & RUBRIC CHẤM */}
+                        <div className="bg-blue-50/80 border-2 border-blue-300 rounded-2xl p-4 space-y-2">
+                          <div className="flex items-center space-x-2 text-blue-900 font-black text-xs uppercase tracking-wide">
+                            <span>💡</span>
+                            <span>Hướng Dẫn Chấm Điểm & Gợi Ý Đáp Án Chuẩn:</span>
+                          </div>
+                          <p className="text-xs sm:text-sm text-blue-950 font-semibold leading-relaxed whitespace-pre-line pl-6">
+                            {eq.modelAnswer || 'Đang cập nhật hướng dẫn trả lời chi tiết từ giáo viên.'}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+            </div>
+
+          </div>
+        )}
+
+      </main>
+
+      {/* MODAL THÔNG BÁO TĨNH (KHÔNG NHẢY GIẬT, THAY THẾ ALERT) */}
+      {customDialog && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-[2px] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full border-2 border-slate-200 p-6 space-y-4">
+            <div className="flex items-start space-x-3">
+              <div className={`p-2.5 rounded-2xl text-lg font-black shrink-0 ${
+                customDialog.type === 'success' ? 'bg-emerald-100 text-emerald-700 border border-emerald-300' :
+                customDialog.type === 'error' ? 'bg-rose-100 text-rose-700 border border-rose-300' :
+                customDialog.type === 'warning' ? 'bg-amber-100 text-amber-800 border border-amber-300' :
+                'bg-blue-100 text-blue-800 border border-blue-300'
+              }`}>
+                {customDialog.type === 'success' ? '✓' :
+                 customDialog.type === 'error' ? '✕' :
+                 customDialog.type === 'warning' ? '⚠️' : 'ℹ️'}
+              </div>
+              <div className="space-y-1 flex-1">
+                <h3 className="font-black text-slate-900 text-base leading-tight">
+                  {customDialog.title}
+                </h3>
+                <p className="text-sm text-slate-600 whitespace-pre-line leading-relaxed font-medium">
+                  {customDialog.message}
+                </p>
+              </div>
+            </div>
+            <div className="pt-2 flex justify-end space-x-2">
+              {customDialog.onConfirm ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setCustomDialog(null)}
+                    className="px-4 py-2.5 rounded-xl border-2 border-slate-200 text-slate-700 hover:bg-slate-100 font-bold text-xs"
+                  >
+                    Hủy bỏ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const fn = customDialog.onConfirm;
+                      setCustomDialog(null);
+                      if (fn) fn();
+                    }}
+                    className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-md"
+                  >
+                    Xác nhận
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setCustomDialog(null)}
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-black text-sm rounded-2xl shadow-md transition"
+                >
+                  ĐÃ HIỂU
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default App;

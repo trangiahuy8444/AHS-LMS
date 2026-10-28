@@ -19,6 +19,14 @@ global.localStorage = {
 
 const storage = require('../src/core/storage-service.js');
 
+// Mã nguồn giao diện (Vite): gộp mọi tệp .js/.jsx của trang và phần dùng chung để kiểm tra chuỗi
+function readPageSource(page) {
+  const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap(e =>
+    e.isDirectory() ? walk(path.join(dir, e.name)) : (/\.(jsx?|mjs)$/.test(e.name) ? [path.join(dir, e.name)] : []));
+  return [path.join(__dirname, '../src', page), path.join(__dirname, '../src/shared')]
+    .filter(d => fs.existsSync(d)).flatMap(walk).map(f => fs.readFileSync(f, 'utf8')).join('\n');
+}
+
 // Mã đề chính thức kèm đáp án chỉ nằm ở private/ trên máy giáo viên (gitignore), không có trong data/ công khai
 function loadPrivateExams(grade) {
   const file = path.join(__dirname, `../private/ma_de_chinh_thuc_khoi_${grade}.json`);
@@ -120,9 +128,9 @@ test('Kiểm tra dữ liệu Khối 10 chuẩn hoá (Đề cương TN + Đúng/S
 });
 
 test('Kiểm tra tệp logo trường học tại assets', (t) => {
-  const logoSchool = path.join(__dirname, '../assets/logo_asian_school.png');
-  const logoBanner = path.join(__dirname, '../assets/logo_asian_banner.png');
-  const logoBase64 = path.join(__dirname, '../assets/logo-base64.js');
+  const logoSchool = path.join(__dirname, '../public/assets/logo_asian_school.png');
+  const logoBanner = path.join(__dirname, '../public/assets/logo_asian_banner.png');
+  const logoBase64 = path.join(__dirname, '../public/assets/logo-base64.js');
   assert.ok(fs.existsSync(logoSchool), 'Phải có tệp logo_asian_school.png');
   assert.ok(fs.existsSync(logoBanner), 'Phải có tệp logo_asian_banner.png');
   assert.ok(fs.existsSync(logoBase64), 'Phải có tệp logo-base64.js');
@@ -233,7 +241,7 @@ test('Kiểm tra Lệnh Giám Thị Thời Gian Thực (Proctor Commands)', (t) 
 
 test('Kiểm tra Đăng nhập Quản trị qua Firebase Auth & Nhật ký Hoạt động (Audit Log)', (t) => {
   assert.strictEqual(storage.getConfig().adminPasswordHash, undefined, 'Không còn mật khẩu admin trong cấu hình phía client');
-  const adminHtml = fs.readFileSync(path.join(__dirname, '../admin/index.html'), 'utf8');
+  const adminHtml = readPageSource('admin');
   assert.ok(adminHtml.includes('AsianSchoolAuth.signInTeacher'), 'Cổng quản trị phải đăng nhập bằng Firebase Auth');
   assert.ok(!adminHtml.includes('8c6976e5b5410415'), 'Không còn hash mật khẩu admin mặc định');
 
@@ -512,7 +520,7 @@ test('Kiểm tra Hàm Kiểm tra Kết nối Google Drive Webhook (testGoogleDri
 });
 
 test('Kiểm tra Cú pháp Đặt Tên Tệp Chụp Màn Hình (Chứa Số Lần Làm Cho Ôn Tập Đề Cương)', (t) => {
-  const testHtml = fs.readFileSync(path.join(__dirname, '../test/index.html'), 'utf8');
+  const testHtml = readPageSource('student');
   assert.ok(testHtml.includes("const attemptTag = mode === 'practice' ? `_Lan${scoreResult?.attemptNumber || 1}` : '';"),
     'handleCaptureScreenshot phải gán attemptTag _LanX khi ở chế độ ôn tập');
   assert.ok(testHtml.includes("`LMS_${cleanLms}_${cleanName}_Lop_${cleanClass}_Tin${grade}_${modeTag}${attemptTag}.png`"),
@@ -582,7 +590,7 @@ test('Kiểm tra Tự Luận Chờ Giáo Viên Chấm & Điểm Nộp Bài Thi C
 
 test('Kiểm tra Cơ Chế Chặn Inspect Code & Phím Tắt DevTools Cả Mac & Windows', (t) => {
   const antiCheatCode = fs.readFileSync(path.join(__dirname, '../src/core/anti-cheat.js'), 'utf8');
-  const testHtml = fs.readFileSync(path.join(__dirname, '../test/index.html'), 'utf8');
+  const testHtml = readPageSource('student');
 
   // Kiểm tra phím tắt trên Mac (Cmd + Option + I/J/C/U) và Windows (F12, Ctrl + Shift + I/J/C, Ctrl + U)
   assert.ok(antiCheatCode.includes("e.altKey") && antiCheatCode.includes("e.shiftKey"), 'anti-cheat.js phải kiểm tra cả altKey và shiftKey cho Mac/Windows');
@@ -590,35 +598,15 @@ test('Kiểm tra Cơ Chế Chặn Inspect Code & Phím Tắt DevTools Cả Mac &
   assert.ok(testHtml.includes("e.preventDefault()"), 'test/index.html phải ngăn chặn sự kiện khi bấm phím tắt inspect');
 });
 
-test('Kiểm tra Tính Toàn Vẹn Cú Pháp JSX & Thẻ Đóng Mở trong admin/index.html', (t) => {
-  const html = fs.readFileSync(path.join(__dirname, '../admin/index.html'), 'utf8');
-  const scriptMatch = html.match(/<script type="text\/babel">([\s\S]*?)<\/script>/);
-  assert.ok(scriptMatch, 'admin/index.html phải chứa thẻ <script type="text/babel">');
-  
-  const script = scriptMatch[1];
-  const tags = [];
-  const tagRegex = /<\/?([a-zA-Z0-9]+)(?:\s+[^>]*?)?(\/?)>/g;
-  let m;
-  let errors = 0;
-  while ((m = tagRegex.exec(script)) !== null) {
-    const isClose = m[0].startsWith("</");
-    const isSelf = m[2] === "/" || ["img", "input", "br", "hr"].includes(m[1].toLowerCase());
-    const tagName = m[1];
-    if (!isSelf && !isClose) {
-      tags.push({ tag: tagName, index: m.index });
-    } else if (isClose) {
-      if (tags.length === 0) {
-        errors++;
-      } else {
-        const top = tags.pop();
-        if (top.tag !== tagName) {
-          errors++;
-        }
-      }
-    }
+test('Kiểm tra Cú pháp JSX của Cổng Học Sinh và Cổng Quản Trị (biên dịch bằng Vite/Oxc)', async (t) => {
+  const { transformWithOxc } = require('vite');
+  const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap(e =>
+    e.isDirectory() ? walk(path.join(dir, e.name)) : (e.name.endsWith('.jsx') ? [path.join(dir, e.name)] : []));
+  const files = walk(path.join(__dirname, '../src'));
+  assert.ok(files.length >= 2, 'Phải có tệp .jsx của hai cổng');
+  for (const f of files) {
+    await transformWithOxc(fs.readFileSync(f, 'utf8'), f, { jsx: { runtime: 'automatic' } });
   }
-  assert.strictEqual(errors, 0, 'admin/index.html không được có lỗi thẻ đóng mở JSX');
-  assert.strictEqual(tags.length, 0, 'admin/index.html không được có thẻ JSX chưa đóng');
 });
 
 test('Kiểm tra Hàm Dọn Dẹp Thí Sinh Lớp Cũ & Thí Sinh Hết Ca trong StorageService', (t) => {
@@ -673,7 +661,7 @@ test('Kiểm tra Quản lý Bảng Điểm Ôn Tập Đề Cương Riêng Biệt
 });
 
 test('Kiểm tra Bảo Mật Khóa Bài Thi & Cơ Chế Toàn Màn Hình Khi Giáo Viên Mở Khóa', (t) => {
-  const testHtml = fs.readFileSync(path.join(__dirname, '../test/index.html'), 'utf8');
+  const testHtml = readPageSource('student');
   assert.ok(testHtml.includes('isProctorUnlocked'), 'Phải có state isProctorUnlocked');
   assert.ok(testHtml.includes('ĐANG CHỜ GIÁO VIÊN DUYỆT MỞ KHÓA'), 'Phải hiển thị trạng thái chờ giáo viên mở khóa');
   assert.ok(testHtml.includes('THẦY TRẦN GIA HUY ĐÃ DUYỆT MỞ KHÓA'), 'Phải có giao diện khi Thầy đã mở khóa');
@@ -682,13 +670,13 @@ test('Kiểm tra Bảo Mật Khóa Bài Thi & Cơ Chế Toàn Màn Hình Khi Gi�
 });
 
 test('Kiểm tra Thích Ứng Đa Thiết Bị & Widget Thời Gian Trực Tiếp Trên Bài Làm', (t) => {
-  const testHtml = fs.readFileSync(path.join(__dirname, '../test/index.html'), 'utf8');
+  const testHtml = readPageSource('student');
   assert.ok(testHtml.includes('question-palette-sidebar'), 'Phải có id định vị bảng câu hỏi cho mobile');
   assert.ok(testHtml.includes('formatElapsed'), 'Phải có hàm định dạng thời gian trôi qua');
   assert.ok(testHtml.includes('WIDGET ĐỒNG HỒ THỜI GIAN TRỰC TIẾP'), 'Sidebar phải có widget đồng hồ trực tiếp');
   assert.ok(testHtml.includes('SỐ LẦN ĐÃ LÀM: LẦN THỨ'), 'Thẻ kết quả và Canvas fallback phải có số lần rèn luyện');
   
-  const adminHtml = fs.readFileSync(path.join(__dirname, '../admin/index.html'), 'utf8');
+  const adminHtml = readPageSource('admin');
   assert.ok(adminHtml.includes('Mẫu Bảng Điểm:'), 'Admin Tab 5 phải có bộ chọn mẫu bảng điểm');
   assert.ok(adminHtml.includes('BẢNG TỔNG HỢP KẾT QUẢ ÔN TẬP ĐỀ CƯƠNG TIN HỌC'), 'Tab 5 phải có tiêu đề bảng điểm ôn tập');
   assert.ok(adminHtml.includes('Dọn Thí Sinh Hết Ca'), 'Tab 1 phải có nút dọn dẹp thí sinh hết ca');

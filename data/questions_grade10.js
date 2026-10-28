@@ -4,15 +4,12 @@
  * Bao gồm Đề cương Ôn tập (Trắc nghiệm + Đúng/Sai + Tự luận kèm Hướng dẫn chấm Rubric) và 4 Mã Đề Thi Chính Thức
  */
 
+// Luôn gắn window.EXAM_DATA_G10 (kể cả khi Vite đóng gói tệp như CommonJS); Node test dùng module.exports
 (function (root, factory) {
-  if (typeof define === 'function' && define.amd) {
-    define([], factory);
-  } else if (typeof module === 'object' && module.exports) {
-    module.exports = factory();
-  } else {
-    root.EXAM_DATA_G10 = factory();
-  }
-}(typeof self !== 'undefined' ? self : this, function () {
+  const data = factory();
+  if (typeof module === 'object' && module.exports) module.exports = data;
+  if (root) root.EXAM_DATA_G10 = data;
+}(typeof self !== 'undefined' ? self : (typeof globalThis !== 'undefined' ? globalThis : this), function () {
   return {
   "grade": 10,
   "title": "Môn Tin Học Khối 10 - Trường Quốc Tế Á Châu (Asian School)",
