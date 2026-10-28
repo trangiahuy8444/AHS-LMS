@@ -194,6 +194,8 @@ test('Hàng chờ ôn tập: trang quản trị đẩy lên Google Sheets rồi 
     assert.strictEqual(await storage.processPracticeQueue([row], id => deleted.push(id)), 0, 'Không gửi trùng dòng đã đẩy');
   } finally {
     global.fetch = realFetch;
+    // Không để URL giả lại cho test sau (tránh gửi yêu cầu mạng thật)
+    storage.saveConfig({ googleDriveWebhookUrl: '', googleDriveWebhookToken: '' });
   }
   assert.deepStrictEqual(deleted, ['practice-1']);
   assert.strictEqual(sent.length, 1);

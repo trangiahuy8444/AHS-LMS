@@ -157,10 +157,11 @@ export default function EntryScreen() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              <label htmlFor="student-class-select" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                 Lớp học <span className="text-red-500">*</span>
               </label>
               <select
+                id="student-class-select"
                 value={studentClass}
                 onChange={e => setStudentClass(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold bg-white text-slate-900"

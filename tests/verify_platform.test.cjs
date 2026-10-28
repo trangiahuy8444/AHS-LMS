@@ -406,6 +406,8 @@ test('Kiểm tra Cấu hình Kết Nối Google Drive Webhook & Payload Sao Lưu
   const cfg = storage.getConfig();
   assert.strictEqual(cfg.googleDriveWebhookUrl, 'https://script.google.com/macros/s/AKfycb_sample_test/exec');
   assert.strictEqual(cfg.retentionDays, 21);
+  // Dọn URL mẫu để các test sau không gửi yêu cầu mạng thật tới Google
+  storage.saveConfig({ googleDriveWebhookUrl: '' });
 });
 
 test('Kiểm tra Thuật toán Ngẫu Nhiên Hóa Đề Cương (THCS 28 TN + 3 TL; THPT 19 TN + 3 Đ/S + 3 TL)', (t) => {
