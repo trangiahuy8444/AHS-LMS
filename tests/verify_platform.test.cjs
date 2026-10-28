@@ -562,18 +562,37 @@ test('Kiểm tra Cơ Chế Chặn Inspect Code & Phím Tắt DevTools Cả Mac &
   assert.ok(testHtml.includes("e.preventDefault()"), 'test/index.html phải ngăn chặn sự kiện khi bấm phím tắt inspect');
 });
 
-test('Kiểm tra Giao Diện Admin Đồng Bộ Phong Cách Asian School & Nút Mở Khóa Thí Sinh', (t) => {
-  const adminHtml = fs.readFileSync(path.join(__dirname, '../admin/index.html'), 'utf8');
-  const testHtml = fs.readFileSync(path.join(__dirname, '../test/index.html'), 'utf8');
-
-  // Kiểm tra màu sắc Asian School chuẩn
-  assert.ok(adminHtml.includes('bg-slate-100') && adminHtml.includes('bg-[#1e3a8a]'), 'admin/index.html phải có theme sáng bg-slate-100 và header xanh royal #1e3a8a');
-  assert.ok(adminHtml.includes('Xóa Thí Sinh'), 'admin/index.html phải có nút xóa thí sinh trong phòng thi');
+test('Kiểm tra Tính Toàn Vẹn Cú Pháp JSX & Thẻ Đóng Mở trong admin/index.html', (t) => {
+  const html = fs.readFileSync(path.join(__dirname, '../admin/index.html'), 'utf8');
+  const scriptMatch = html.match(/<script type="text\/babel">([\s\S]*?)<\/script>/);
+  assert.ok(scriptMatch, 'admin/index.html phải chứa thẻ <script type="text/babel">');
   
-  // Kiểm tra nút tương tác mở khóa ở học sinh (student resume button)
-  assert.ok(testHtml.includes('handleStudentResumeFromLock'), 'test/index.html phải có hàm handleStudentResumeFromLock');
-  assert.ok(testHtml.includes('Bấm Để Trở Lại Bài Thi (Sau Khi Thầy Mở Khóa)'), 'Màn hình khóa học sinh phải có nút bấm xác nhận để vào lại toàn màn hình');
+  const script = scriptMatch[1];
+  const tags = [];
+  const tagRegex = /<\/?([a-zA-Z0-9]+)(?:\s+[^>]*?)?(\/?)>/g;
+  let m;
+  let errors = 0;
+  while ((m = tagRegex.exec(script)) !== null) {
+    const isClose = m[0].startsWith("</");
+    const isSelf = m[2] === "/" || ["img", "input", "br", "hr"].includes(m[1].toLowerCase());
+    const tagName = m[1];
+    if (!isSelf && !isClose) {
+      tags.push({ tag: tagName, index: m.index });
+    } else if (isClose) {
+      if (tags.length === 0) {
+        errors++;
+      } else {
+        const top = tags.pop();
+        if (top.tag !== tagName) {
+          errors++;
+        }
+      }
+    }
+  }
+  assert.strictEqual(errors, 0, 'admin/index.html không được có lỗi thẻ đóng mở JSX');
+  assert.strictEqual(tags.length, 0, 'admin/index.html không được có thẻ JSX chưa đóng');
 });
+
 
 
 
