@@ -119,7 +119,10 @@
             let hasNewOrUpdated = false;
             cloudList.forEach((cloudItem) => {
               const local = localMap.get(cloudItem.id);
-              if (!local) {
+              // Cùng id nhưng khác giờ nộp trên server: giáo viên đã xóa lượt cũ, đây là bài nộp mới -> thay bản trên máy
+              const isNewSubmission = local && cloudItem.serverSubmittedAt
+                && toMillis(cloudItem.serverSubmittedAt) !== toMillis(local.serverSubmittedAt);
+              if (!local || isNewSubmission) {
                 localMap.set(cloudItem.id, cloudItem);
                 hasNewOrUpdated = true;
               } else {

@@ -43,6 +43,16 @@ service cloud.firestore {
           || (mode == 'class_assigned' && code == c.classMapping.get(studentClass, '')));
     }
 
+    // Khóa kho đề (exam_config.examBankLocked): không thêm, sửa, xóa nội dung mã đề; chỉ bật/tắt mã đề
+    function bankLocked() {
+      return cfg().get('examBankLocked', false) == true;
+    }
+
+    function bankWriteAllowed() {
+      return isTeacher() && (!bankLocked()
+        || (request.method == 'update' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active'])));
+    }
+
     function allowedAttempts(attempt) {
       return attempt.get('allowedAttempts', cfg().get('maxExamAttempts', 1));
     }
@@ -59,7 +69,8 @@ service cloud.firestore {
 
     // Mã đề kèm đáp án và mật khẩu phòng thi: chỉ giáo viên
     match /exam_bank/{docId} {
-      allow read, write: if isTeacher();
+      allow read: if isTeacher();
+      allow write: if bankWriteAllowed();
     }
     match /exam_secrets/{docId} {
       allow read, write: if isTeacher();
@@ -154,7 +165,8 @@ service cloud.firestore {
         return s.examDocId == docId && a.uid == request.auth.uid && a.submitted == false;
       }
       allow get: if isTeacher() || (signedIn() && sessionAllows());
-      allow list, write: if isTeacher();
+      allow list: if isTeacher();
+      allow write: if bankWriteAllowed();
     }
 
     // Bài nộp chính thức: học sinh chỉ gửi bài làm, không có trường điểm; giáo viên chấm

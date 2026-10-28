@@ -88,7 +88,8 @@ test('firestore.rules: học sinh không đọc được đề kèm đáp án, k
     const start = rules.indexOf(`match /${name}/`);
     return rules.slice(start, rules.indexOf('\n    }', start));
   };
-  assert.match(block('exam_bank'), /allow read, write: if isTeacher\(\);/);
+  assert.match(block('exam_bank'), /allow read: if isTeacher\(\);\s*allow write: if bankWriteAllowed\(\);/);
+  assert.match(rules, /hasOnly\(\['active'\]\)/, 'Kho đề khóa: chỉ được bật/tắt mã đề');
   assert.match(block('exam_secrets'), /allow read, write: if isTeacher\(\);/);
   const sub = block('submissions');
   assert.match(sub, /allow create: if signedIn\(\) && validSubmission\(request\.resource\.data\);/);
@@ -96,7 +97,7 @@ test('firestore.rules: học sinh không đọc được đề kèm đáp án, k
     assert.ok(!sub.includes(`'${field}'`), `Bài nộp của học sinh không được chứa trường ${field}`);
   });
   assert.match(block('exam_attempts'), /roomPasswordOk\(\)/);
-  assert.match(block('exam_public'), /allow list, write: if isTeacher\(\);/);
+  assert.match(block('exam_public'), /allow list: if isTeacher\(\);\s*allow write: if bankWriteAllowed\(\);/);
   assert.match(rules, /match \/\{document=\*\*\} \{\s*allow read, write: if false;/);
   // Danh sách email giáo viên trong rules phải khớp firebase-config.js
   const cfgJs = fs.readFileSync(path.join(__dirname, '../src/core/firebase-config.js'), 'utf8');

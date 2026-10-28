@@ -503,6 +503,10 @@
         const file = e.target.files && e.target.files[0];
         e.target.value = '';
         if (!file) return;
+        if (config.examBankLocked) {
+          setExamBankStatus('🔒 Kho đề đang khóa. Mở khóa trước khi tải mã đề mới.');
+          return;
+        }
         try {
           const pkg = JSON.parse(await file.text());
           const grade = Number(pkg.grade);
@@ -580,6 +584,13 @@
         setConfig(window.AsianSchoolStorage.saveConfig({ maxExamAttempts: n }));
         window.AsianSchoolStorage.logAudit('Đổi số lượt thi tối đa', `${n} lượt/mã LMS`);
         setAttemptStatus(`✅ Mỗi mã LMS được làm bài thi chính thức tối đa ${n} lượt.`);
+      };
+
+      const handleToggleExamBankLock = () => {
+        const locked = !config.examBankLocked;
+        setConfig(window.AsianSchoolStorage.saveConfig({ examBankLocked: locked }));
+        window.AsianSchoolStorage.logAudit(locked ? 'Khóa kho đề' : 'Mở khóa kho đề', locked ? 'Giữ nguyên nội dung mã đề' : 'Cho phép tải mã đề mới');
+        setExamBankStatus(locked ? '🔒 Đã khóa kho đề: không thể tải đè, sửa hay xóa mã đề.' : '🔓 Đã mở khóa kho đề.');
       };
 
       const handleToggleExamCode = async (grade, code, active) => {
@@ -2383,11 +2394,19 @@
                       Mã đề kèm đáp án chỉ lưu trên Firestore (exam_bank), không nằm trong mã nguồn công khai.
                       Chọn tệp JSON dạng {'{ "grade": 9, "officialExams": { "101": {...} } }'}, ví dụ tệp do scripts/tach_ma_de_chinh_thuc.cjs tạo ra.
                     </p>
+                    <button
+                      type="button"
+                      onClick={handleToggleExamBankLock}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold text-white shadow transition ${config.examBankLocked ? 'bg-emerald-700 hover:bg-emerald-800' : 'bg-slate-600 hover:bg-slate-700'}`}
+                    >
+                      {config.examBankLocked ? '🔒 Kho đề đang khóa — bấm để mở khóa' : '🔓 Khóa kho đề (giữ nguyên mã đề)'}
+                    </button>
                     <input
                       type="file"
                       accept="application/json,.json"
                       onChange={handleUploadExamBank}
-                      className="block text-xs text-slate-700 file:mr-3 file:px-4 file:py-2 file:rounded-xl file:border-0 file:bg-amber-600 file:text-white file:font-bold"
+                      disabled={!!config.examBankLocked}
+                      className="block disabled:opacity-40 text-xs text-slate-700 file:mr-3 file:px-4 file:py-2 file:rounded-xl file:border-0 file:bg-amber-600 file:text-white file:font-bold"
                     />
                     {examBankStatus && (
                       <pre className="text-xs whitespace-pre-wrap bg-slate-50 border border-slate-200 rounded-xl p-3">{examBankStatus}</pre>
