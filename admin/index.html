@@ -223,6 +223,7 @@
 
       // Google Drive & Retention States
       const [googleDriveUrl, setGoogleDriveUrl] = useState(config.googleDriveWebhookUrl || '');
+      const [googleDriveToken, setGoogleDriveToken] = useState(config.googleDriveWebhookToken || '');
       const [isSyncingDrive, setIsSyncingDrive] = useState(false);
       const [driveSyncNotice, setDriveSyncNotice] = useState('');
       const [isTestingDrive, setIsTestingDrive] = useState(false);
@@ -481,7 +482,10 @@
 
       const handleSaveGoogleDriveUrl = (e) => {
         if (e && e.preventDefault) e.preventDefault();
-        window.AsianSchoolStorage.saveConfig({ googleDriveWebhookUrl: googleDriveUrl.trim() });
+        window.AsianSchoolStorage.saveConfig({
+          googleDriveWebhookUrl: googleDriveUrl.trim(),
+          googleDriveWebhookToken: googleDriveToken.trim()
+        });
         setConfig(window.AsianSchoolStorage.getConfig());
         setConfigSavedNotice('Đã lưu cấu hình Google Drive Webhook thành công!');
         setTimeout(() => setConfigSavedNotice(''), 3000);
@@ -494,7 +498,7 @@
         }
         setIsTestingDrive(true);
         setDriveTestMessage({ success: null, text: 'Đang gửi gói tin kiểm tra tới Webhook...' });
-        const res = await window.AsianSchoolStorage.testGoogleDriveConnection(googleDriveUrl.trim());
+        const res = await window.AsianSchoolStorage.testGoogleDriveConnection(googleDriveUrl.trim(), googleDriveToken.trim());
         setIsTestingDrive(false);
         if (res.success) {
           setDriveTestMessage({
@@ -1988,7 +1992,7 @@
                           onClick={handleSaveGoogleDriveUrl}
                           className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition shrink-0"
                         >
-                          Lưu URL
+                          Lưu Cấu Hình
                         </button>
                         <button
                           type="button"
@@ -1998,6 +2002,19 @@
                         >
                           <span>{isTestingDrive ? '⏳ Đang Kiểm Tra...' : '🧪 Kiểm Tra Kết Nối Ngay'}</span>
                         </button>
+                      </div>
+
+                      <div className="pt-2">
+                        <label className="block text-[11px] font-medium text-slate-400 mb-1">
+                          Mã Token Xác Thực (Tùy chọn - nếu Apps Script của Thầy có dùng WEBHOOK_TOKEN):
+                        </label>
+                        <input
+                          type="text"
+                          value={googleDriveToken}
+                          onChange={e => setGoogleDriveToken(e.target.value)}
+                          placeholder="Nhập mã Token nếu có, hoặc để trống nếu script không dùng token..."
+                          className="w-full sm:w-80 bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-amber-300 font-mono-code focus:outline-none focus:border-amber-500"
+                        />
                       </div>
                     </div>
 

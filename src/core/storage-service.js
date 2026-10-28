@@ -35,6 +35,7 @@
     
     // Cấu hình Google Drive Webhook & Vòng đời lưu trữ (Retention)
     googleDriveWebhookUrl: '', // URL Web App Google Apps Script kết nối Google Drive / Sheets
+    googleDriveWebhookToken: '', // Token bảo mật xác thực với Apps Script (Tùy chọn)
     retentionDays: 21, // Số ngày lưu trữ tối đa đề xuất trên web (2-3 tuần) trước khi dọn dẹp
 
     // Ma trận phân quyền truy cập theo từng lớp học:
@@ -617,14 +618,17 @@
 
     // --- KẾT NỐI GOOGLE DRIVE (WEBHOOK & APPS SCRIPT) ---
 
-    async testGoogleDriveConnection(testUrl) {
-      const url = (testUrl !== undefined ? testUrl : (this.getConfig().googleDriveWebhookUrl || '')).trim();
+    async testGoogleDriveConnection(testUrl, testToken) {
+      const cfg = this.getConfig();
+      const url = (testUrl !== undefined ? testUrl : (cfg.googleDriveWebhookUrl || '')).trim();
+      const token = (testToken !== undefined ? testToken : (cfg.googleDriveWebhookToken || '')).trim();
       if (!url || !url.startsWith('http')) {
         return { success: false, error: 'Vui lòng dán URL Webhook hợp lệ (kết thúc bằng /exec) trước khi kiểm tra!' };
       }
       try {
         const payload = {
           action: 'test_connection',
+          token: token,
           timestamp: new Date().toISOString(),
           testRow: {
             studentId: 'TEST_LMS',
@@ -669,6 +673,7 @@
       try {
         const payload = {
           action: 'sync_row',
+          token: (cfg.googleDriveWebhookToken || '').trim(),
           submission: subDoc,
           syncedAt: new Date().toISOString()
         };
@@ -698,6 +703,7 @@
       try {
         const payload = {
           action: 'backup_file',
+          token: (cfg.googleDriveWebhookToken || '').trim(),
           examCount: examSubs.length,
           jsonContent: JSON.stringify(all, null, 2),
           csvContent: this.exportSubmissionsCSV(),
