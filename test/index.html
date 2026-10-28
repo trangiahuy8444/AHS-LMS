@@ -107,8 +107,27 @@
 
       // Lock State & Time Tracking
       const [isSessionLocked, setIsSessionLocked] = useState(false);
+      const [isProctorUnlocked, setIsProctorUnlocked] = useState(false);
       const [lockReason, setLockReason] = useState(null); // 'violation_3_times' | 'proctor_lock'
       const [examStartTime, setExamStartTime] = useState(null);
+      const [elapsedSeconds, setElapsedSeconds] = useState(0);
+      const [showMobileQuestionDrawer, setShowMobileQuestionDrawer] = useState(false);
+
+      // Định dạng giây trôi qua mm:ss
+      const formatElapsed = (totalSec) => {
+        const m = Math.floor(totalSec / 60);
+        const s = totalSec % 60;
+        return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+      };
+
+      // Bộ đếm thời gian làm bài thực tế
+      useEffect(() => {
+        if (examState !== 'in_progress') return;
+        const timer = setInterval(() => {
+          setElapsedSeconds(prev => prev + 1);
+        }, 1000);
+        return () => clearInterval(timer);
+      }, [examState]);
 
       // Class Access Control State ('practice_only' | 'exam_only' | 'both_open' | 'closed')
       const [classAccessMode, setClassAccessMode] = useState(
@@ -407,8 +426,10 @@
         setSessionId(sid);
         setActiveQuestionIdx(0);
         setIsSessionLocked(false);
+        setIsProctorUnlocked(false);
         setLockReason(null);
-        setExamStartTime(Date.now());
+        setExamStartTime(new Date());
+        setElapsedSeconds(0);
 
         // Xác định mã đề
         const code = window.AsianSchoolStorage.determineExamCode(grade, studentClass);
@@ -421,6 +442,7 @@
             setViolations(v.count);
             if (v.count >= 3) {
               setIsSessionLocked(true);
+              setIsProctorUnlocked(false);
               setLockReason('violation_3_times');
               window.AsianSchoolStorage.updateLiveSession({
                 sessionId: sid,
@@ -865,7 +887,9 @@
                 scale: 2,
                 useCORS: true,
                 allowTaint: true,
-                backgroundColor: '#ffffff'
+                backgroundColor: '#ffffff',
+                scrollY: -window.scrollY,
+                scrollX: 0
               });
               dataUrl = canvas.toDataURL('image/png');
             } catch (canvasErr) {
@@ -876,18 +900,18 @@
           if (!dataUrl) {
             const fallbackCanvas = document.createElement('canvas');
             fallbackCanvas.width = 1200;
-            fallbackCanvas.height = 700;
+            fallbackCanvas.height = 760;
             const ctx = fallbackCanvas.getContext('2d');
 
             ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, 1200, 700);
+            ctx.fillRect(0, 0, 1200, 760);
 
             ctx.strokeStyle = '#1e3a8a';
             ctx.lineWidth = 8;
-            ctx.strokeRect(20, 20, 1160, 660);
+            ctx.strokeRect(20, 20, 1160, 720);
             ctx.strokeStyle = '#93c5fd';
             ctx.lineWidth = 2;
-            ctx.strokeRect(32, 32, 1136, 636);
+            ctx.strokeRect(32, 32, 1136, 696);
 
             ctx.fillStyle = '#1e3a8a';
             ctx.font = 'bold 30px sans-serif';
@@ -921,53 +945,61 @@
             }
 
             ctx.fillStyle = '#f8fafc';
-            ctx.fillRect(720, 185, 420, 250);
+            ctx.fillRect(720, 185, 420, 290);
             ctx.strokeStyle = '#3b82f6';
             ctx.lineWidth = 3;
-            ctx.strokeRect(720, 185, 420, 250);
+            ctx.strokeRect(720, 185, 420, 290);
 
             ctx.fillStyle = '#1e3a8a';
             ctx.font = 'bold 22px sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(mode === 'practice' ? 'ĐIỂM ĐẠT ĐƯỢC' : 'ĐIỂM TRẮC NGHIỆM', 930, 235);
+            ctx.fillText(mode === 'practice' ? 'ĐIỂM ĐẠT ĐƯỢC' : 'ĐIỂM TRẮC NGHIỆM', 930, 230);
 
             ctx.font = 'black 84px sans-serif';
             ctx.fillStyle = '#dc2626';
             const pts = mode === 'practice' ? (scoreResult?.score ?? 0) : (scoreResult?.mcqPoints ?? 0);
-            ctx.fillText(`${pts} / 10`, 930, 340);
+            ctx.fillText(`${pts} / 10`, 930, 335);
 
             if (mode === 'practice') {
               ctx.font = 'bold 18px sans-serif';
               ctx.fillStyle = '#059669';
-              ctx.fillText(`Đúng: ${scoreResult?.correctCount || 0}/${scoreResult?.totalQuestions || 0} câu trắc nghiệm`, 930, 395);
-              ctx.fillStyle = '#b45309';
-              ctx.font = 'bold 20px sans-serif';
-              ctx.fillText(`[ LẦN LÀM THỨ: ${scoreResult?.attemptNumber || 1} ]`, 930, 425);
+              ctx.fillText(`Đúng: ${scoreResult?.correctCount || 0}/${scoreResult?.totalQuestions || 0} câu trắc nghiệm`, 930, 380);
+
+              // Khung làm nổi bật và chống che mất SỐ LẦN ĐÃ LÀM
+              ctx.fillStyle = '#fef3c7';
+              ctx.fillRect(740, 405, 380, 50);
+              ctx.strokeStyle = '#f59e0b';
+              ctx.lineWidth = 2;
+              ctx.strokeRect(740, 405, 380, 50);
+
+              ctx.fillStyle = '#92400e';
+              ctx.font = 'bold 22px sans-serif';
+              ctx.fillText(`[ SỐ LẦN ĐÃ LÀM: LẦN THỨ ${scoreResult?.attemptNumber || 1} ]`, 930, 438);
             }
             ctx.textAlign = 'left';
 
             ctx.strokeStyle = '#cbd5e1';
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.moveTo(60, 480);
-            ctx.lineTo(1140, 480);
+            ctx.moveTo(60, 505);
+            ctx.lineTo(1140, 505);
             ctx.stroke();
 
             ctx.fillStyle = '#475569';
             ctx.font = '16px sans-serif';
-            ctx.fillText(`Thời gian nộp bài: ${new Date(scoreResult?.submittedAt || Date.now()).toLocaleString('vi-VN')}`, 60, 515);
-            ctx.fillText(`Thời gian làm bài thực tế: ${scoreResult?.durationFormatted || '45 phút'}`, 60, 545);
+            ctx.fillText(`Thời gian nộp bài: ${new Date(scoreResult?.submittedAt || Date.now()).toLocaleString('vi-VN')}`, 60, 540);
+            ctx.fillText(`Thời gian làm bài thực tế: ${scoreResult?.durationFormatted || '45 phút'}`, 60, 570);
             const violText = `Số lần vi phạm an toàn bài thi: ${scoreResult?.violations || 0} lần ${scoreResult?.violations >= 3 ? '— [BIÊN BẢN: TRỪ 5 ĐIỂM]' : ''}`;
             if (scoreResult?.violations >= 3) {
               ctx.fillStyle = '#dc2626';
               ctx.font = 'bold 16px sans-serif';
-              ctx.fillText(violText, 60, 575);
+              ctx.fillText(violText, 60, 600);
             } else {
-              ctx.fillText(violText, 60, 575);
+              ctx.fillText(violText, 60, 600);
             }
             ctx.fillStyle = '#475569';
             ctx.font = '16px sans-serif';
-            ctx.fillText(`Mã phiên làm bài (Session): ${scoreResult?.sessionId || sessionId || 'N/A'}`, 60, 605);
+            ctx.fillText(`Mã phiên làm bài (Session): ${scoreResult?.sessionId || sessionId || 'N/A'}`, 60, 630);
 
             ctx.fillStyle = '#2563eb';
             ctx.font = 'bold 16px sans-serif';
@@ -1025,20 +1057,15 @@
                 message: cmd.payload?.message || 'Các em chú ý thời gian làm bài!'
               });
             } else if (cmd.command === 'unlock_session') {
-              setIsSessionLocked(false);
-              setLockReason(null);
-              setViolations(0);
-              if (window.AsianSchoolAntiCheat) {
-                window.AsianSchoolAntiCheat.resetViolations();
-                window.AsianSchoolAntiCheat.requestFullscreen().catch(() => {});
-              }
+              setIsProctorUnlocked(true);
               setBroadcastNotice({
                 type: 'success',
                 title: 'Giáo Viên Đã Xác Nhận Mở Khóa Bài Thi 🔓',
-                message: 'Thầy Trần Gia Huy đã xác nhận mở khóa bài thi của em. Em hãy tập trung làm bài nghiêm túc!'
+                message: 'Thầy Trần Gia Huy đã xác nhận mở khóa bài thi của em. Em hãy bấm nút "VÀO LẠI TOÀN MÀN HÌNH" trên màn hình để tiếp tục làm bài!'
               });
             } else if (cmd.command === 'lock_session') {
               setIsSessionLocked(true);
+              setIsProctorUnlocked(false);
               setLockReason('proctor_lock');
             }
             window.AsianSchoolStorage.consumeProctorCommand(cmd.cmdId, sessionId);
@@ -1052,6 +1079,7 @@
 
       const handleStudentResumeFromLock = async () => {
         setIsSessionLocked(false);
+        setIsProctorUnlocked(false);
         setLockReason(null);
         setViolations(0);
         if (window.AsianSchoolAntiCheat) {
@@ -1093,7 +1121,7 @@
           {/* MÀN HÌNH PHONG TỎA KHÓA BÀI THI KHI VI PHẠM 3 LẦN HOẶC GIÁM THỊ KHÓA */}
           {isSessionLocked && (
             <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4">
-              <div className="max-w-lg w-full bg-slate-900 border-4 border-red-600 rounded-3xl p-6 sm:p-8 text-center shadow-2xl space-y-5">
+              <div className="max-w-lg w-full max-h-[90vh] overflow-y-auto bg-slate-900 border-4 border-red-600 rounded-3xl p-6 sm:p-8 text-center shadow-2xl space-y-5">
                 <div className="w-20 h-20 mx-auto rounded-full bg-red-600/20 border-2 border-red-500 flex items-center justify-center text-4xl shadow-lg shadow-red-500/20">
                   🚨
                 </div>
@@ -1126,17 +1154,39 @@
                   )}
                 </div>
                 <div className="pt-2 space-y-3">
-                  <button
-                    type="button"
-                    onClick={handleStudentResumeFromLock}
-                    className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-2xl shadow-xl shadow-emerald-950/40 uppercase tracking-wider transition flex items-center justify-center space-x-2"
-                  >
-                    <span>🔓</span>
-                    <span>Bấm Để Trở Lại Bài Thi (Sau Khi Thầy Mở Khóa)</span>
-                  </button>
-                  <p className="text-[11px] text-slate-400 italic text-center">
-                    Sau khi Thầy thông báo đã mở khóa, em bấm nút trên để vào lại toàn màn hình ngay lập tức.
-                  </p>
+                  {isProctorUnlocked ? (
+                    <div className="space-y-3">
+                      <div className="p-3.5 bg-emerald-500/20 border-2 border-emerald-400 rounded-2xl text-center space-y-1">
+                        <p className="text-emerald-300 font-black text-sm uppercase">
+                          ✅ THẦY TRẦN GIA HUY ĐÃ DUYỆT MỞ KHÓA BÀI THI!
+                        </p>
+                        <p className="text-xs text-slate-200 font-medium">
+                          Em hãy bấm nút dưới đây để đưa trình duyệt về chế độ <strong>Toàn Màn Hình</strong> và tiếp tục làm bài.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleStudentResumeFromLock}
+                        className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-2xl shadow-xl shadow-emerald-950/40 uppercase tracking-wider transition flex items-center justify-center space-x-2 ring-4 ring-emerald-400/40"
+                      >
+                        <span>🔓</span>
+                        <span>BẤM VÀO ĐÂY ĐỂ VÀO LẠI TOÀN MÀN HÌNH</span>
+                      </button>
+                      <p className="text-[11px] text-slate-400 italic text-center">
+                        Hệ thống sẽ ngay lập tức khôi phục toàn màn hình và mở lại bài làm cho em.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-amber-500/10 border-2 border-amber-500/40 rounded-2xl text-center space-y-2">
+                      <div className="inline-flex items-center space-x-2 text-amber-300 font-extrabold text-xs uppercase tracking-wide">
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
+                        <span>ĐANG CHỜ GIÁO VIÊN DUYỆT MỞ KHÓA TỪ XA...</span>
+                      </div>
+                      <p className="text-xs text-slate-300 leading-relaxed font-medium">
+                        Bài thi đang bị khóa bảo vệ. Thí sinh <strong>không thể tự mở khóa</strong>. Em hãy giữ nguyên màn hình và báo Thầy Trần Gia Huy tại phòng thi để được kiểm tra.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1263,43 +1313,49 @@
             </div>
           )}
 
-          {/* HEADER CHÍNH — NỀN TRẮNG SÁNG, LOGO TO RÕ, ĐỘ TƯƠNG PHẢN CAO */}
+          {/* HEADER CHÍNH — NỀN TRẮNG SÁNG, LOGO TO RÕ, ĐỘ TƯƠNG PHẢN CAO, RESPONSIVE ĐA THIẾT BỊ */}
           <header className="border-b bg-white border-slate-200 sticky top-0 z-30 shadow-sm backdrop-blur">
-            <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-              <div className="flex items-center space-x-3.5">
+            <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2">
+              <div className="flex items-center space-x-2 sm:space-x-3.5 min-w-0">
                 <img
                   src={window.ASIAN_SCHOOL_LOGO_BASE64 || "../assets/logo_asian_school.png"}
                   alt="Logo Trường Quốc Tế Á Châu"
-                  className="h-12 sm:h-14 w-auto object-contain drop-shadow-sm"
+                  className="h-9 sm:h-12 md:h-14 w-auto object-contain drop-shadow-sm shrink-0"
                   onError={(e) => { e.target.style.display = 'none'; }}
                 />
-                <div>
-                  <h1 className="font-black text-sm sm:text-base text-blue-950 leading-tight uppercase">
-                    TRƯỜNG TIỂU HỌC, THCS & THPT QUỐC TẾ Á CHÂU
+                <div className="min-w-0 truncate">
+                  <h1 className="font-black text-xs sm:text-sm md:text-base text-blue-950 leading-tight uppercase truncate">
+                    TRƯỜNG QUỐC TẾ Á CHÂU
                   </h1>
-                  <p className="text-xs text-slate-600 font-semibold tracking-wide">
+                  <p className="text-[10px] sm:text-xs text-slate-500 font-semibold tracking-wide hidden sm:block truncate">
                     Bộ Môn Tin Học — Cổng Ôn Tập & Kiểm Tra Giữa HK1 (2026 - 2027)
                   </p>
                 </div>
               </div>
 
               {examState === 'in_progress' && (
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-1.5 sm:space-x-3 shrink-0">
                   {mode === 'exam' ? (
-                    <div className="flex items-center space-x-2 bg-red-50 border-2 border-red-500 text-red-700 px-4 py-1.5 rounded-xl font-mono-code font-black text-sm shadow-sm">
-                      <span>⏱️</span>
+                    <div className="flex items-center space-x-1 sm:space-x-2 bg-red-50 border-2 border-red-500 text-red-700 px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-xl font-mono-code font-black text-xs sm:text-sm shadow-sm">
+                      <span className="text-sm">⏱️</span>
+                      <span className="hidden xs:inline sm:inline text-[11px] font-sans font-bold text-red-600">Còn:</span>
                       <span>{timeLeftStr}</span>
                     </div>
                   ) : (
-                    <div className="bg-emerald-50 border border-emerald-400 text-emerald-800 px-3 py-1 rounded-xl text-xs font-bold">
-                      ÔN TẬP ĐỀ CƯƠNG
+                    <div className="flex items-center space-x-1.5 bg-emerald-50 border-2 border-emerald-400 text-emerald-800 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs font-bold shadow-sm">
+                      <span>⏱️</span>
+                      <span className="hidden sm:inline font-bold">Thời gian:</span>
+                      <span className="font-mono-code font-black text-emerald-900">
+                        {config.practiceDurationMinutes > 0 ? timeLeftStr : formatElapsed(elapsedSeconds)}
+                      </span>
                     </div>
                   )}
 
                   {violations > 0 && (
-                    <div className="bg-amber-100 border border-amber-300 text-amber-900 px-3 py-1 rounded-xl text-xs font-extrabold flex items-center space-x-1">
+                    <div className="bg-amber-100 border border-amber-300 text-amber-900 px-2 sm:px-3 py-1 rounded-xl text-[10px] sm:text-xs font-extrabold flex items-center space-x-1">
                       <span>⚠️</span>
-                      <span>Vi phạm: {violations}</span>
+                      <span className="hidden sm:inline">Vi phạm:</span>
+                      <span>{violations}</span>
                     </div>
                   )}
                 </div>
@@ -1887,6 +1943,19 @@
                               <span>Câu trước</span>
                             </button>
 
+                            {/* Nút định vị nhanh Bảng câu hỏi trên điện thoại/máy tính bảng */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const sidebarEl = document.getElementById('question-palette-sidebar');
+                                if (sidebarEl) sidebarEl.scrollIntoView({ behavior: 'smooth' });
+                              }}
+                              className="lg:hidden px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-300 flex items-center space-x-1 shadow-sm"
+                            >
+                              <span>📋</span>
+                              <span>Câu {activeQuestionIdx + 1}/{activeList.length}</span>
+                            </button>
+
                             <div className="flex items-center space-x-3">
                               {activeQuestionIdx < activeList.length - 1 ? (
                                 <button
@@ -1920,9 +1989,25 @@
                 </div>
 
                 {/* CỘT PHẢI (1 CỘT): SIDEBAR DANH SÁCH CÂU HỎI & NỘP BÀI (TRẮNG SÁNG, NỔI BẬT) */}
-                <div className="lg:col-span-1">
-                  <div className="bg-white border-2 border-slate-200 p-5 rounded-3xl sticky top-20 space-y-5 shadow-lg">
+                <div className="lg:col-span-1" id="question-palette-sidebar">
+                  <div className="bg-white border-2 border-slate-200 p-5 rounded-3xl sticky top-20 space-y-4 shadow-lg">
                     
+                    {/* WIDGET ĐỒNG HỒ THỜI GIAN TRỰC TIẾP TRÊN BẢNG BÀI LÀM */}
+                    <div className="bg-gradient-to-br from-slate-50 to-blue-50/60 border-2 border-blue-200 rounded-2xl p-3.5 space-y-1.5 shadow-sm">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                        <span>{mode === 'exam' ? 'Thời gian còn lại' : (config.practiceDurationMinutes > 0 ? 'Thời gian còn lại' : 'Thời gian làm bài')}</span>
+                        <span className="text-blue-900 font-extrabold">{mode === 'exam' ? 'Phòng thi' : 'Ôn tập'}</span>
+                      </div>
+                      <div className="text-2xl font-black font-mono-code text-red-600 flex items-center space-x-2">
+                        <span>⏱️</span>
+                        <span>{mode === 'exam' ? timeLeftStr : (config.practiceDurationMinutes > 0 ? timeLeftStr : formatElapsed(elapsedSeconds))}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-slate-600 font-semibold pt-1 border-t border-blue-100">
+                        <span>Bắt đầu: {examStartTime ? examStartTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Vừa xong'}</span>
+                        <span className="text-emerald-700 font-bold">Đã làm: {formatElapsed(elapsedSeconds)}</span>
+                      </div>
+                    </div>
+
                     {/* Header Sidebar */}
                     <div className="flex items-center justify-between border-b-2 border-slate-100 pb-3">
                       <div>
@@ -2092,16 +2177,16 @@
                     </div>
                   </div>
 
-                  {/* Khối Điểm Số Nổi Bật (High Contrast) */}
-                  <div className="text-center py-5 bg-gradient-to-b from-blue-50/70 to-slate-50 rounded-2xl border-2 border-blue-200 shadow-sm">
+                  {/* Khối Điểm Số Nổi Bật (High Contrast, Padding Đáy Đầy Đủ Chống Che Chữ Khi Chụp) */}
+                  <div className="text-center py-6 px-4 bg-blue-50/80 rounded-3xl border-2 border-blue-200 shadow-sm space-y-3 pb-8">
                     <p className="text-xs text-blue-900 font-black uppercase tracking-widest">
                       {mode === 'practice' ? 'ĐIỂM ĐẠT ĐƯỢC' : 'ĐIỂM TRẮC NGHIỆM CHÍNH THỨC'}
                     </p>
-                    <div className="text-5xl font-black text-red-600 my-2">
+                    <div className="text-5xl sm:text-6xl font-black text-red-600 my-1">
                       {mode === 'practice' ? scoreResult.score : (scoreResult.netPoints !== undefined ? scoreResult.netPoints : scoreResult.mcqPoints)}
                       <span className="text-xl text-slate-600 font-bold"> / {mode === 'practice' ? 10 : scoreResult.maxMcqPoints}</span>
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-2">
                       <p className="text-xs text-slate-700 font-bold">
                         {mode === 'practice'
                           ? `Làm đúng ${scoreResult.correctCount} / ${scoreResult.totalQuestions} câu trắc nghiệm • Thời gian làm: ${scoreResult.durationFormatted || 'N/A'}`
@@ -2109,19 +2194,20 @@
                         }
                       </p>
                       {mode === 'practice' && (
-                        <div className="mt-2 inline-flex items-center space-x-2 px-4 py-2 bg-amber-100 border-2 border-amber-400 rounded-2xl text-amber-950 text-sm font-black shadow-sm">
-                          <span>🎯</span>
-                          <span>SỐ LẦN ĐÃ LÀM: LẦN THỨ {scoreResult.attemptNumber || 1}</span>
+                        <div className="pt-2">
+                          <div className="inline-block px-6 py-2.5 bg-amber-100 border-2 border-amber-500 rounded-2xl text-amber-950 text-sm sm:text-base font-black shadow-md">
+                            🎯 SỐ LẦN ĐÃ LÀM: LẦN THỨ {scoreResult.attemptNumber || 1}
+                          </div>
                         </div>
                       )}
                       {scoreResult.violations >= 3 && (
-                        <div className="mt-2 inline-block px-3 py-1 bg-red-100 border-2 border-red-500 rounded-xl text-red-800 text-xs font-black shadow-sm">
+                        <div className="mt-2 inline-block px-4 py-1.5 bg-red-100 border-2 border-red-500 rounded-xl text-red-800 text-xs font-black shadow-sm">
                           🚨 Biên bản vi phạm: Đã trừ 5 điểm vào kết quả thi (Vi phạm 3 lần)
                         </div>
                       )}
 
                       {mode === 'exam' && (
-                        <div className="mt-3 p-3.5 bg-amber-50 border-2 border-amber-300 rounded-2xl text-xs text-amber-900 font-semibold space-y-1 text-left">
+                        <div className="mt-3 p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl text-xs text-amber-900 font-semibold space-y-1 text-left">
                           <div className="flex items-center space-x-1.5 font-black text-amber-950 text-xs">
                             <span>📝</span>
                             <span>PHẦN TỰ LUẬN (3,0 ĐIỂM): ĐANG CHỜ GIÁO VIÊN CHẤM BÀI</span>

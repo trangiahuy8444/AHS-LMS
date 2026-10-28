@@ -6,6 +6,7 @@
 
 (function () {
   const SUBMISSIONS_KEY = 'asian_school_submissions_v1';
+  const PRACTICE_SUBMISSIONS_KEY = 'asian_school_practice_submissions_v1';
   const LIVE_KEY = 'asian_school_live_sessions_v1';
   const CONFIG_KEY = 'asian_school_exam_config_v1';
   const PROCTOR_CMD_KEY = 'asian_school_proctor_commands_v1';
@@ -64,6 +65,7 @@
   class StorageService {
     constructor() {
       this.submissionListeners = [];
+      this.practiceSubmissionListeners = [];
       this.liveListeners = [];
       this.configListeners = [];
       this.cmdListeners = [];
@@ -72,6 +74,7 @@
       if (typeof window !== 'undefined') {
         window.addEventListener('storage', (e) => {
           if (e.key === SUBMISSIONS_KEY) this.notify(this.submissionListeners, this.getSubmissions());
+          if (e.key === PRACTICE_SUBMISSIONS_KEY) this.notify(this.practiceSubmissionListeners, this.getPracticeSubmissions());
           if (e.key === LIVE_KEY) this.notify(this.liveListeners, this.getLiveSessions());
           if (e.key === CONFIG_KEY) this.notify(this.configListeners, this.getConfig());
           if (e.key === PROCTOR_CMD_KEY) this.notify(this.cmdListeners, this.getProctorCommandsRaw());
@@ -316,6 +319,51 @@
       this.practiceSessionMap.delete(key);
     }
 
+    // --- QUẢN LÝ BÀI NỘP ÔN TẬP ĐỀ CƯƠNG (TÁCH BIỆT VỚI BÀI THI CHÍNH THỨC) ---
+
+    getPracticeSubmissions() {
+      try {
+        return JSON.parse(localStorage.getItem(PRACTICE_SUBMISSIONS_KEY) || '[]');
+      } catch {
+        return [];
+      }
+    }
+
+    savePracticeSubmission(subDoc) {
+      if (!subDoc) return null;
+      const list = this.getPracticeSubmissions();
+      list.unshift(subDoc);
+      // Giới hạn lưu tối đa 500 bài ôn tập gần nhất để tối ưu bộ nhớ
+      const trimmed = list.slice(0, 500);
+      localStorage.setItem(PRACTICE_SUBMISSIONS_KEY, JSON.stringify(trimmed));
+      this.notify(this.practiceSubmissionListeners, trimmed);
+      return subDoc;
+    }
+
+    deletePracticeSubmission(subId) {
+      const list = this.getPracticeSubmissions();
+      const filtered = list.filter(s => s.id !== subId);
+      localStorage.setItem(PRACTICE_SUBMISSIONS_KEY, JSON.stringify(filtered));
+      this.notify(this.practiceSubmissionListeners, filtered);
+      return { success: true, count: filtered.length };
+    }
+
+    clearPracticeSubmissionsByClass(studentClass) {
+      const list = this.getPracticeSubmissions();
+      const filtered = list.filter(s => s.studentClass !== studentClass);
+      localStorage.setItem(PRACTICE_SUBMISSIONS_KEY, JSON.stringify(filtered));
+      this.notify(this.practiceSubmissionListeners, filtered);
+      this.logAudit('Xóa bảng điểm ôn tập lớp', `Đã xóa kết quả ôn tập của Lớp ${studentClass}`);
+      return { success: true, count: filtered.length };
+    }
+
+    onPracticeSubmissionChange(cb) {
+      this.practiceSubmissionListeners.push(cb);
+      return () => {
+        this.practiceSubmissionListeners = this.practiceSubmissionListeners.filter(f => f !== cb);
+      };
+    }
+
     getSubmissions() {
       try {
         return JSON.parse(localStorage.getItem(SUBMISSIONS_KEY) || '[]');
@@ -350,7 +398,7 @@
       const penalty = subData.penaltyPoints !== undefined ? subData.penaltyPoints : (subData.violations >= 3 ? 5 : 0);
       let calculatedFinal = typeof rawScore === 'number' ? Math.max(0, Math.round((rawScore - penalty) * 100) / 100) : rawScore;
 
-      // 1. NẾU LÀ ÔN TẬP ĐỀ CƯƠNG: Lưu trong phiên theo Mã LMS, tự động gửi Webhook Google Drive
+      // 1. NẾU LÀ ÔN TẬP ĐỀ CƯƠNG: Lưu trong kho ôn tập riêng (phục vụ in bảng điểm đề cương), tự động gửi Webhook Google Drive
       if (subData.mode === 'practice') {
         const studentKey = subData.studentId || subData.studentCode || 'HS_ON_TAP';
         const attemptNum = this.incrementPracticeAttempt(studentKey);
@@ -366,9 +414,11 @@
           finalScore: calculatedFinal,
           isPracticeOnly: true
         };
+        // Lưu vào kho kết quả ôn tập đề cương riêng biệt
+        this.savePracticeSubmission(transientDoc);
         // Tự động lưu điểm ôn tập lên Google Drive Webhook
         this.syncRowToGoogleDrive(transientDoc);
-        // Trả về bản ghi tạm để học sinh xem kết quả và tải ảnh minh chứng, không đẩy vào danh sách bài thi
+        // Trả về bản ghi để học sinh xem kết quả và tải ảnh minh chứng
         return transientDoc;
       }
 
@@ -833,6 +883,57 @@
           }
         } catch (e) { /* local fallback */ }
       }
+    }
+
+    clearLiveSessionsByClass(studentClass) {
+      let list = this.getLiveSessions();
+      const targetSessions = list.filter(s => s.studentClass === studentClass);
+      list = list.filter(s => s.studentClass !== studentClass);
+      localStorage.setItem(LIVE_KEY, JSON.stringify(list));
+      this.notify(this.liveListeners, list);
+
+      if (typeof window !== 'undefined' && window.firebaseDb) {
+        try {
+          targetSessions.forEach(s => {
+            if (typeof window.firebaseDb.collection === 'function') {
+              window.firebaseDb.collection('live_sessions').doc(s.sessionId).delete().catch(() => {});
+            } else {
+              const { doc, deleteDoc } = window.firebaseFirestoreModule || {};
+              if (doc && deleteDoc) {
+                deleteDoc(doc(window.firebaseDb, 'live_sessions', s.sessionId)).catch(() => {});
+              }
+            }
+          });
+        } catch (e) { /* ignore */ }
+      }
+      this.logAudit('Dọn dẹp thí sinh theo lớp', `Đã dọn dẹp ${targetSessions.length} thí sinh của Lớp ${studentClass}`);
+      return { success: true, count: targetSessions.length };
+    }
+
+    cleanStaleLiveSessions(maxAgeMinutes = 15) {
+      let list = this.getLiveSessions();
+      const cutoff = Date.now() - (maxAgeMinutes * 60 * 1000);
+      const staleOrDone = list.filter(s => s.status === 'submitted' || (s.lastPing && s.lastPing < cutoff));
+      list = list.filter(s => s.status !== 'submitted' && (!s.lastPing || s.lastPing >= cutoff));
+      localStorage.setItem(LIVE_KEY, JSON.stringify(list));
+      this.notify(this.liveListeners, list);
+
+      if (typeof window !== 'undefined' && window.firebaseDb) {
+        try {
+          staleOrDone.forEach(s => {
+            if (typeof window.firebaseDb.collection === 'function') {
+              window.firebaseDb.collection('live_sessions').doc(s.sessionId).delete().catch(() => {});
+            } else {
+              const { doc, deleteDoc } = window.firebaseFirestoreModule || {};
+              if (doc && deleteDoc) {
+                deleteDoc(doc(window.firebaseDb, 'live_sessions', s.sessionId)).catch(() => {});
+              }
+            }
+          });
+        } catch (e) { /* ignore */ }
+      }
+      this.logAudit('Dọn dẹp thí sinh cũ', `Đã dọn ${staleOrDone.length} thí sinh đã nộp bài hoặc không hoạt động quá ${maxAgeMinutes} phút`);
+      return { success: true, count: staleOrDone.length };
     }
 
     onLiveChange(cb) {

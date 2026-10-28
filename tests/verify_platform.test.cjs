@@ -593,6 +593,81 @@ test('Kiểm tra Tính Toàn Vẹn Cú Pháp JSX & Thẻ Đóng Mở trong admin
   assert.strictEqual(tags.length, 0, 'admin/index.html không được có thẻ JSX chưa đóng');
 });
 
+test('Kiểm tra Hàm Dọn Dẹp Thí Sinh Lớp Cũ & Thí Sinh Hết Ca trong StorageService', (t) => {
+  storage.updateLiveSession({ sessionId: 's-819-1', studentClass: '8/19', fullName: 'Nguyen A', status: 'in_progress', lastPing: Date.now() });
+  storage.updateLiveSession({ sessionId: 's-819-2', studentClass: '8/19', fullName: 'Le B', status: 'in_progress', lastPing: Date.now() });
+  storage.updateLiveSession({ sessionId: 's-820-1', studentClass: '8/20', fullName: 'Tran C', status: 'in_progress', lastPing: Date.now() });
+  
+  assert.ok(storage.getLiveSessions().some(s => s.sessionId === 's-819-1'));
+  assert.ok(storage.getLiveSessions().some(s => s.sessionId === 's-820-1'));
+
+  // Xóa toàn bộ học sinh lớp 8/19
+  const resClear = storage.clearLiveSessionsByClass('8/19');
+  assert.strictEqual(resClear.success, true);
+  assert.strictEqual(resClear.count, 2);
+  assert.ok(!storage.getLiveSessions().some(s => s.studentClass === '8/19'), 'Không còn học sinh 8/19');
+  assert.ok(storage.getLiveSessions().some(s => s.studentClass === '8/20'), 'Học sinh 8/20 vẫn được giữ nguyên');
+
+  // Kiểm tra dọn dẹp thí sinh không hoạt động / đã nộp
+  storage.updateLiveSession({ sessionId: 's-stale', studentClass: '8/20', fullName: 'Stale D', status: 'submitted', lastPing: Date.now() });
+  const resStale = storage.cleanStaleLiveSessions(10);
+  assert.strictEqual(resStale.success, true);
+  assert.ok(!storage.getLiveSessions().some(s => s.sessionId === 's-stale'), 'Thí sinh submitted đã được dọn sạch');
+});
+
+test('Kiểm tra Quản lý Bảng Điểm Ôn Tập Đề Cương Riêng Biệt (Practice Submissions)', (t) => {
+  const pDoc = {
+    studentId: 'LMS8888',
+    fullName: 'Hoang Van E',
+    studentClass: '8/21',
+    mode: 'practice',
+    score: 8.5,
+    correctCount: 24,
+    totalQuestions: 28,
+    durationFormatted: '18 phút 30 giây'
+  };
+
+  const saved = storage.saveSubmission(pDoc);
+  assert.strictEqual(saved.mode, 'practice');
+  assert.strictEqual(saved.isPracticeOnly, true);
+  
+  const practiceList = storage.getPracticeSubmissions();
+  assert.ok(practiceList.length > 0, 'Kho bài nộp ôn tập phải chứa bài vừa nộp');
+  const found = practiceList.find(s => s.studentId === 'LMS8888');
+  assert.ok(found, 'Tìm thấy bài ôn tập của học sinh');
+  assert.strictEqual(found.studentClass, '8/21');
+  assert.strictEqual(found.attemptNumber, 1);
+
+  // Xóa bài ôn tập
+  const delRes = storage.deletePracticeSubmission(found.id);
+  assert.strictEqual(delRes.success, true);
+  assert.ok(!storage.getPracticeSubmissions().some(s => s.id === found.id));
+});
+
+test('Kiểm tra Bảo Mật Khóa Bài Thi & Cơ Chế Toàn Màn Hình Khi Giáo Viên Mở Khóa', (t) => {
+  const testHtml = fs.readFileSync(path.join(__dirname, '../test/index.html'), 'utf8');
+  assert.ok(testHtml.includes('isProctorUnlocked'), 'Phải có state isProctorUnlocked');
+  assert.ok(testHtml.includes('ĐANG CHỜ GIÁO VIÊN DUYỆT MỞ KHÓA'), 'Phải hiển thị trạng thái chờ giáo viên mở khóa');
+  assert.ok(testHtml.includes('THẦY TRẦN GIA HUY ĐÃ DUYỆT MỞ KHÓA'), 'Phải có giao diện khi Thầy đã mở khóa');
+  assert.ok(testHtml.includes('BẤM VÀO ĐÂY ĐỂ VÀO LẠI TOÀN MÀN HÌNH'), 'Phải có nút bấm kích hoạt toàn màn hình');
+  assert.ok(testHtml.includes('handleStudentResumeFromLock'), 'Phải gọi hàm handleStudentResumeFromLock');
+});
+
+test('Kiểm tra Thích Ứng Đa Thiết Bị & Widget Thời Gian Trực Tiếp Trên Bài Làm', (t) => {
+  const testHtml = fs.readFileSync(path.join(__dirname, '../test/index.html'), 'utf8');
+  assert.ok(testHtml.includes('question-palette-sidebar'), 'Phải có id định vị bảng câu hỏi cho mobile');
+  assert.ok(testHtml.includes('formatElapsed'), 'Phải có hàm định dạng thời gian trôi qua');
+  assert.ok(testHtml.includes('WIDGET ĐỒNG HỒ THỜI GIAN TRỰC TIẾP'), 'Sidebar phải có widget đồng hồ trực tiếp');
+  assert.ok(testHtml.includes('SỐ LẦN ĐÃ LÀM: LẦN THỨ'), 'Thẻ kết quả và Canvas fallback phải có số lần rèn luyện');
+  
+  const adminHtml = fs.readFileSync(path.join(__dirname, '../admin/index.html'), 'utf8');
+  assert.ok(adminHtml.includes('Mẫu Bảng Điểm:'), 'Admin Tab 5 phải có bộ chọn mẫu bảng điểm');
+  assert.ok(adminHtml.includes('BẢNG TỔNG HỢP KẾT QUẢ ÔN TẬP ĐỀ CƯƠNG TIN HỌC'), 'Tab 5 phải có tiêu đề bảng điểm ôn tập');
+  assert.ok(adminHtml.includes('Dọn Thí Sinh Hết Ca'), 'Tab 1 phải có nút dọn dẹp thí sinh hết ca');
+  assert.ok(adminHtml.includes('Xóa Lớp Này'), 'Tab 1 phải có nút dọn dẹp thí sinh theo lớp');
+  assert.ok(adminHtml.includes('xl:grid-cols-4'), 'Lưới giám sát Tab 1 phải hỗ trợ responsive 4 cột trên laptop');
+});
+
 
 
 
