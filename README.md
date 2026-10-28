@@ -52,36 +52,44 @@
 
 ---
 
-## 🛠️ 3. CẤU TRÚC MÃ NGUỒN
+## 🛠️ 3. CẤU TRÚC MÃ NGUỒN (VITE + REACT 18 + TAILWIND v3)
 
 ```
 AHS-LMS/
-├── index.html                   # Trang chủ cổng tập trung giới thiệu và điều hướng
-├── .gitignore                   # Cấu hình bỏ qua tệp tạm
-├── README.md                    # Tài liệu hướng dẫn hệ thống
-├── assets/
-│   ├── logo_asian_school.png    # Huy hiệu biểu trưng Trường Quốc Tế Á Châu
-│   └── logo-base64.js           # Chuỗi Base64 logo dùng chụp ảnh kết quả
-├── data/
-│   ├── questions_grade8.js      # Đề cương ôn tập Khối 8 (công khai)
-│   ├── questions_grade9.js      # Đề cương ôn tập Khối 9 (công khai)
-│   └── questions_grade10.js     # Đề cương ôn tập, Đúng/Sai Khối 10 (công khai)
-├── firestore.rules              # Quy tắc truy cập Firestore (thay máy chủ trên gói Spark)
-├── scripts/                     # Tách mã đề chính thức sang private/
+├── index.html, test/index.html, admin/index.html   # Khung trang; mã nằm trong src/
+├── vite.config.mjs, tailwind.config.mjs, postcss.config.mjs, eslint.config.mjs
+├── data/questions_grade{8,9,10}.js   # Đề cương ôn tập công khai (không có mã đề chính thức)
+├── public/assets/                    # Logo (logo-base64.js dùng khi chụp ảnh kết quả)
 ├── src/
-│   └── core/
-│       ├── firebase-config.js   # Khởi tạo SDK Firebase & đồng bộ Cloud Firestore
-│       ├── exam-package.js      # Bỏ đáp án, chấm điểm, kiểm tra cấu trúc mã đề 
-│       ├── storage-service.js   # Module quản lý CSDL, chấm tự luận & xuất CSV
-│       ├── anti-cheat.js        # Module giám sát chống gian lận đa tầng
-│       └── exam-timer.js        # Bộ đếm ngược chống tua giờ
-├── test/
-│   └── index.html               # Giao diện làm bài của Học Sinh (React + Tailwind)
-├── admin/
-│   └── index.html               # Cổng Quản Trị & Giám Sát của Giáo Viên (React + Tailwind)
-└── tests/
-    └── verify_platform.test.cjs # Bộ kiểm thử tự động 11 bài test đảm bảo tính toàn vẹn
+│   ├── core/            # Logic dùng chung, giữ dạng UMD để Node test require() được
+│   │   ├── firebase-config.js   # Firebase Auth/Firestore, AsianSchoolCloud.startExam/submitExam
+│   │   ├── storage-service.js   # Cấu hình, bài nộp, chấm tự luận, tự chấm trắc nghiệm, CSV
+│   │   ├── exam-package.js      # Bỏ đáp án, chấm điểm, kiểm tra cấu trúc mã đề
+│   │   ├── anti-cheat.js, exam-timer.js
+│   ├── shared/globals.js        # Nạp firebase compat + html2canvas từ npm vào window
+│   ├── student/         # Cổng học sinh
+│   │   ├── App.jsx, StudentContext.js, constants.js
+│   │   ├── hooks/       # useStudentController (state), useProctorCommands, useBlockDevtools
+│   │   ├── actions/     # bắt đầu phiên, nộp ôn tập, nộp bài thi, chụp ảnh kết quả
+│   │   ├── screens/     # EntryScreen, ExamScreen, ResultScreen
+│   │   ├── questions/   # McqQuestion, TrueFalseQuestion, EssayQuestion, QuestionSidebar
+│   │   ├── result/      # ResultCard, AnswerReview
+│   │   └── components/  # LockScreen, các hộp thoại, StudentHeader
+│   └── admin/           # Cổng quản trị
+│       ├── AdminApp.jsx, AdminContext.js, LoginScreen.jsx
+│       ├── hooks/useAdminController.js   # state, đồng bộ Firestore, dữ liệu dẫn xuất
+│       ├── actions/     # giám thị, ca thi theo lớp, chấm tự luận, xuất/sao lưu, kho đề, cấu hình
+│       ├── tabs/        # Live, Submissions, Answers, Analytics, Print, Config
+│       ├── config/      # 7 card của tab Cấu hình
+│       ├── live/        # Bảng điều phối ca thi, danh sách thí sinh
+│       └── components/  # Modal chấm tự luận, phát thông báo, toast, dialog
+├── firestore.rules      # Quy tắc truy cập (thay máy chủ trên gói Spark)
+├── scripts/             # Tách mã đề sang private/, kiểm tra bản build không lọt đề
+├── tests/               # node --test
+└── .github/workflows/deploy.yml   # Lint → test → build → kiểm tra lọt đề → GitHub Pages
 ```
+
+Mỗi component lấy state từ context (`useStudent()` / `useAdmin()`) thay vì truyền props qua nhiều tầng. Muốn sửa một màn hình, mở đúng tệp trong `screens/`, `tabs/` hoặc `config/`. Muốn sửa cách xử lý, mở tệp tương ứng trong `actions/`.
 
 ---
 
@@ -112,11 +120,16 @@ Giáo viên được nhận diện bằng email Google trong `isTeacher()` của
 3. **Firestore Database > Rules**: dán toàn bộ `firestore.rules`, bấm **Publish**.
 4. Vào `/admin`, chọn **Đăng nhập bằng Google**, rồi mở tab Cấu hình: đặt mật khẩu phòng thi và tải tệp mã đề JSON (`{ "grade": 9, "officialExams": {...} }`).
 
-### Kiểm thử trên máy
+### Phát triển và kiểm thử trên máy (Node ≥ 22.12)
 
 ```sh
-node --test tests/*.cjs
+npm install            # lần đầu; nên đặt thư mục dự án ngoài Google Drive để node_modules không bị đồng bộ
+npm run dev            # http://localhost:5173/AHS-LMS/test/ và /AHS-LMS/admin/
+npm run check          # ESLint + test + build + kiểm tra bản build không lọt mã đề
+npm run preview        # xem bản build tại http://localhost:4173/AHS-LMS/
 ```
+
+Push lên `main` thì GitHub Actions tự chạy `npm run check` rồi đăng lên GitHub Pages (Settings → Pages → Source: **GitHub Actions**).
 
 `scripts/tach_ma_de_chinh_thuc.cjs` tách mã đề từ `data/` sang `private/` (chạy thử mặc định, thêm `--apply` để ghi tệp).
 
