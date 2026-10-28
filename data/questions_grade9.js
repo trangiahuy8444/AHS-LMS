@@ -338,8 +338,8 @@
         "Hệ thống tưới cây tự động IoT.",
         "Máy đo huyết áp điện tử."
       ],
-      "correctAnswer": 1,
-      "answerLetter": "B",
+      "correctAnswer": 0,
+      "answerLetter": "A",
       "points": 0.25
     },
     {
@@ -364,8 +364,8 @@
         "Diễn đàn mạng xã hội có nhiều bình luận tranh cãi.",
         "Trang web giải trí tổng hợp trên mạng."
       ],
-      "correctAnswer": 1,
-      "answerLetter": "B",
+      "correctAnswer": 0,
+      "answerLetter": "A",
       "points": 0.25
     },
     {
@@ -377,8 +377,8 @@
         "Quy chuẩn mã hóa ký tự Unicode.",
         "Quy định về thời lượng sử dụng Internet của nhà trường."
       ],
-      "correctAnswer": 1,
-      "answerLetter": "B",
+      "correctAnswer": 0,
+      "answerLetter": "A",
       "points": 0.25
     },
     {
@@ -391,7 +391,7 @@
         "Lưu hình ảnh về máy rồi xóa lịch sử duyệt web."
       ],
       "correctAnswer": 0,
-      "answerLetter": "Lưu hình ảnh về máy rồi xóa lịch sử duyệt web.",
+      "answerLetter": "A",
       "points": 0.25
     },
     {
@@ -404,7 +404,7 @@
         "Hiệp hội Toán học Quốc tế."
       ],
       "correctAnswer": 0,
-      "answerLetter": "Hiệp hội Toán học Quốc tế.",
+      "answerLetter": "A",
       "points": 0.25
     },
     {
@@ -417,7 +417,7 @@
         "Làm giảm nhiệt độ lõi Trái Đất ngay lập tức."
       ],
       "correctAnswer": 0,
-      "answerLetter": "Làm giảm nhiệt độ lõi Trái Đất ngay lập tức.",
+      "answerLetter": "A",
       "points": 0.25
     },
     {
@@ -430,7 +430,7 @@
         "Lập tức khóa tài khoản cá nhân và không quan tâm nữa."
       ],
       "correctAnswer": 0,
-      "answerLetter": "Lập tức khóa tài khoản cá nhân và không quan tâm nữa.",
+      "answerLetter": "A",
       "points": 0.25
     },
     {
@@ -443,7 +443,7 @@
         "Rút dây nguồn máy tính ra cắm lại."
       ],
       "correctAnswer": 0,
-      "answerLetter": "Rút dây nguồn máy tính ra cắm lại.",
+      "answerLetter": "A",
       "points": 0.25
     },
     {
@@ -456,7 +456,7 @@
         "Sử dụng hình ảnh bản thân làm ảnh đại diện tài khoản học tập."
       ],
       "correctAnswer": 0,
-      "answerLetter": "Sử dụng hình ảnh bản thân làm ảnh đại diện tài khoản học tập.",
+      "answerLetter": "A",
       "points": 0.25
     },
     {
@@ -468,8 +468,8 @@
         "Màn hình hiển thị hình ảnh.",
         "Bộ nguồn máy tính (PSU)."
       ],
-      "correctAnswer": 0,
-      "answerLetter": "Bộ nguồn máy tính (PSU).",
+      "correctAnswer": 1,
+      "answerLetter": "B",
       "points": 0.25
     }
   ],

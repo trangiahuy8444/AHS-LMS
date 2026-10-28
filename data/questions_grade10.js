@@ -221,8 +221,8 @@
         "Máy in màu và máy chiếu.",
         "Ổ đĩa cứng và thẻ nhớ."
       ],
-      "correctAnswer": 2,
-      "answerLetter": "C",
+      "correctAnswer": 0,
+      "answerLetter": "A",
       "points": 0.25
     },
     {
@@ -247,8 +247,8 @@
         "Luôn có dung lượng nhẹ hơn ảnh vector trong mọi tình huống.",
         "Không thể hiển thị ảnh chụp phong cảnh ngoài đời thật."
       ],
-      "correctAnswer": 2,
-      "answerLetter": "C",
+      "correctAnswer": 0,
+      "answerLetter": "A",
       "points": 0.25
     },
     {
@@ -260,8 +260,8 @@
         "Ctrl + Z.",
         "Ctrl + P."
       ],
-      "correctAnswer": 2,
-      "answerLetter": "C",
+      "correctAnswer": 0,
+      "answerLetter": "A",
       "points": 0.25
     },
     {
@@ -274,7 +274,7 @@
         "Cung cấp mạng cáp viễn thông đường dài."
       ],
       "correctAnswer": 0,
-      "answerLetter": "Cung cấp mạng cáp viễn thông đường dài.",
+      "answerLetter": "A",
       "points": 0.25
     },
     {
@@ -287,7 +287,7 @@
         "Esc."
       ],
       "correctAnswer": 0,
-      "answerLetter": "Esc.",
+      "answerLetter": "A",
       "points": 0.25
     },
     {
@@ -300,7 +300,7 @@
         "Rút cáp màn hình khi không sử dụng."
       ],
       "correctAnswer": 0,
-      "answerLetter": "Rút cáp màn hình khi không sử dụng.",
+      "answerLetter": "A",
       "points": 0.25
     },
     {
@@ -313,7 +313,7 @@
         "Xóa bỏ các lớp layer thiết kế."
       ],
       "correctAnswer": 0,
-      "answerLetter": "Xóa bỏ các lớp layer thiết kế.",
+      "answerLetter": "A",
       "points": 0.25
     },
     {
@@ -325,8 +325,8 @@
         "512 MB.",
         "4 096 MB."
       ],
-      "correctAnswer": 0,
-      "answerLetter": "4 096 MB.",
+      "correctAnswer": 1,
+      "answerLetter": "B",
       "points": 0.25
     },
     {
@@ -338,8 +338,8 @@
         "Bảo hộ bí mật kinh doanh độc quyền của doanh nghiệp.",
         "Đăng ký bằng sáng chế kỹ thuật phần cứng."
       ],
-      "correctAnswer": 0,
-      "answerLetter": "Đăng ký bằng sáng chế kỹ thuật phần cứng.",
+      "correctAnswer": 1,
+      "answerLetter": "B",
       "points": 0.25
     }
   ],

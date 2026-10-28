@@ -338,8 +338,8 @@
         "Bóng bán dẫn silicon.",
         "Mạch vi xử lý tích hợp."
       ],
-      "correctAnswer": 1,
-      "answerLetter": "B",
+      "correctAnswer": 0,
+      "answerLetter": "A",
       "points": 0.25
     },
     {
@@ -351,8 +351,8 @@
         "Basic Input.",
         "Built-in Text."
       ],
-      "correctAnswer": 1,
-      "answerLetter": "B",
+      "correctAnswer": 0,
+      "answerLetter": "A",
       "points": 0.25
     },
     {
@@ -364,8 +364,8 @@
         "Khiến máy tính bị giảm dung lượng ổ cứng.",
         "Làm cho đường truyền Internet bị ngắt kết nối."
       ],
-      "correctAnswer": 1,
-      "answerLetter": "B",
+      "correctAnswer": 0,
+      "answerLetter": "A",
       "points": 0.25
     },
     {
@@ -391,7 +391,7 @@
         "32 bit."
       ],
       "correctAnswer": 0,
-      "answerLetter": "32 bit.",
+      "answerLetter": "A",
       "points": 0.25
     },
     {
@@ -404,7 +404,7 @@
         "Tắt phần mềm diệt virus khi lướt web trên mạng."
       ],
       "correctAnswer": 0,
-      "answerLetter": "Tắt phần mềm diệt virus khi lướt web trên mạng.",
+      "answerLetter": "A",
       "points": 0.25
     },
     {
@@ -417,7 +417,7 @@
         "Bàn phím cơ (Keyboard)."
       ],
       "correctAnswer": 0,
-      "answerLetter": "Bàn phím cơ (Keyboard).",
+      "answerLetter": "A",
       "points": 0.25
     },
     {
@@ -430,7 +430,7 @@
         "Thao tác kết nối các trang tài liệu."
       ],
       "correctAnswer": 0,
-      "answerLetter": "Thao tác kết nối các trang tài liệu.",
+      "answerLetter": "A",
       "points": 0.25
     },
     {
@@ -443,7 +443,7 @@
         "Tắt màn hình nhưng vẫn để nguyên tài khoản đang đăng nhập."
       ],
       "correctAnswer": 0,
-      "answerLetter": "Tắt màn hình nhưng vẫn để nguyên tài khoản đang đăng nhập.",
+      "answerLetter": "A",
       "points": 0.25
     },
     {
@@ -456,7 +456,7 @@
         "Máy tính chỉ có thể thực hiện thuật toán mà không cần chương trình."
       ],
       "correctAnswer": 0,
-      "answerLetter": "Máy tính chỉ có thể thực hiện thuật toán mà không cần chương trình.",
+      "answerLetter": "A",
       "points": 0.25
     },
     {
@@ -468,8 +468,8 @@
         "Mạch tích hợp cỡ rất lớn (VLSI - vi xử lí).",
         "Rơ-le điện từ."
       ],
-      "correctAnswer": 0,
-      "answerLetter": "Rơ-le điện từ.",
+      "correctAnswer": 2,
+      "answerLetter": "C",
       "points": 0.25
     }
   ],

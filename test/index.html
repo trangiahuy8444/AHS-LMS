@@ -386,39 +386,35 @@
             if (v.count >= 3) {
               setIsSessionLocked(true);
               setLockReason('violation_3_times');
-              if (mode === 'exam') {
-                window.AsianSchoolStorage.updateLiveSession({
-                  sessionId: sid,
-                  fullName,
-                  studentClass,
-                  studentId,
-                  grade,
-                  mode,
-                  examCode: code,
-                  violations: v.count,
-                  status: 'locked',
-                  isLocked: true,
-                  lockReason: 'violation_3_times',
-                  penaltyPoints: 5
-                });
-              }
+              window.AsianSchoolStorage.updateLiveSession({
+                sessionId: sid,
+                fullName,
+                studentClass,
+                studentId,
+                grade,
+                mode,
+                examCode: code || (mode === 'practice' ? 'DE_CUONG' : '101'),
+                violations: v.count,
+                status: 'locked',
+                isLocked: true,
+                lockReason: 'violation_3_times',
+                penaltyPoints: mode === 'exam' ? 5 : 0
+              });
             } else {
               setWarningMessage(`Cảnh báo vi phạm lần ${v.count}/3: Em vừa rời khỏi giao diện làm bài hoặc thoát toàn màn hình! Nếu vi phạm đến lần thứ 3, hệ thống sẽ KHÓA BÀI THI và TRỪ 5 ĐIỂM!`);
               setShowWarningModal(true);
-              if (mode === 'exam') {
-                window.AsianSchoolStorage.updateLiveSession({
-                  sessionId: sid,
-                  fullName,
-                  studentClass,
-                  studentId,
-                  grade,
-                  mode,
-                  examCode: code,
-                  violations: v.count,
-                  status: 'in_progress',
-                  isLocked: false
-                });
-              }
+              window.AsianSchoolStorage.updateLiveSession({
+                sessionId: sid,
+                fullName,
+                studentClass,
+                studentId,
+                grade,
+                mode,
+                examCode: code || (mode === 'practice' ? 'DE_CUONG' : '101'),
+                violations: v.count,
+                status: mode === 'exam' ? 'in_progress' : 'practicing',
+                isLocked: false
+              });
             }
           }
         });
@@ -459,7 +455,7 @@
             }
           });
 
-          // Chỉ gửi phiên trực tiếp lên bảng giám sát khi là bài thi chính thức
+          // Gửi phiên trực tiếp lên bảng giám sát giáo viên (Live Monitoring)
           window.AsianSchoolStorage.updateLiveSession({
             sessionId: sid,
             fullName,
@@ -472,21 +468,51 @@
             status: 'in_progress',
             timeLeft: `${examDur}:00`
           });
-        } else if (practiceDur > 0) {
-          // Nếu chế độ ôn tập có đặt thời gian giới hạn
-          window.AsianSchoolTimer.start({
-            durationMinutes: practiceDur,
-            onTick: (sec, fmt) => {
-              setSecondsLeft(sec);
-              setTimeLeftStr(fmt);
-            },
-            onWarning: () => {
-              alert('⚠️ Chú ý: Thời gian ôn tập chỉ còn dưới 5 phút!');
-            },
-            onTimeout: () => {
-              alert(`⏰ Đã hết thời gian ôn tập ${practiceDur} phút! Hệ thống đang tự động nộp bài ôn tập của bạn.`);
-              handleSubmitPractice();
-            }
+        } else {
+          // Chế độ Ôn tập đề cương: Vẫn cho phép giáo viên giám sát từ xa theo thời gian thực
+          if (practiceDur > 0) {
+            window.AsianSchoolTimer.start({
+              durationMinutes: practiceDur,
+              onTick: (sec, fmt) => {
+                setSecondsLeft(sec);
+                setTimeLeftStr(fmt);
+                if (sec % 60 === 0) {
+                  window.AsianSchoolStorage.updateLiveSession({
+                    sessionId: sid,
+                    fullName,
+                    studentClass,
+                    studentId,
+                    grade,
+                    mode: 'practice',
+                    examCode: 'DE_CUONG',
+                    violations,
+                    status: 'practicing',
+                    timeLeft: fmt
+                  });
+                }
+              },
+              onWarning: () => {
+                alert('⚠️ Chú ý: Thời gian ôn tập chỉ còn dưới 5 phút!');
+              },
+              onTimeout: () => {
+                alert(`⏰ Đã hết thời gian ôn tập ${practiceDur} phút! Hệ thống đang tự động nộp bài ôn tập của bạn.`);
+                handleSubmitPractice();
+              }
+            });
+          }
+
+          // Khởi tạo phiên giám sát ôn tập từ xa
+          window.AsianSchoolStorage.updateLiveSession({
+            sessionId: sid,
+            fullName,
+            studentClass,
+            studentId,
+            grade,
+            mode: 'practice',
+            examCode: 'DE_CUONG',
+            violations: 0,
+            status: 'practicing',
+            timeLeft: practiceDur > 0 ? `${practiceDur}:00` : 'Tự do'
           });
         }
 
@@ -592,6 +618,20 @@
         result.attemptNumber = savedPracticeDoc?.attemptNumber || 1;
         setScoreResult(result);
         setExamState('submitted');
+
+        // Báo trạng thái hoàn thành phiên ôn tập lên bảng giám sát giáo viên
+        window.AsianSchoolStorage.updateLiveSession({
+          sessionId,
+          fullName,
+          studentClass,
+          studentId,
+          grade,
+          mode: 'practice',
+          examCode: 'DE_CUONG',
+          violations,
+          status: 'submitted',
+          score: parseFloat(score)
+        });
       };
 
       // Nộp bài thi chính thức
@@ -2135,6 +2175,20 @@
                             <p className="font-bold text-slate-900 text-sm leading-relaxed whitespace-pre-line bg-slate-50 p-4 rounded-2xl border border-slate-200">
                               {eq.context || eq.question}
                             </p>
+
+                            {eq.subItems && eq.subItems.length > 0 && (
+                              <div className="space-y-2 bg-indigo-50/60 p-4 rounded-2xl border border-indigo-200 text-xs sm:text-sm">
+                                <span className="font-bold text-indigo-900 text-xs block uppercase">
+                                  Các ý yêu cầu trả lời:
+                                </span>
+                                {eq.subItems.map(item => (
+                                  <div key={item.letter} className="flex items-start space-x-2 text-slate-800 font-semibold">
+                                    <span className="font-black text-indigo-700 shrink-0">Ý {item.letter})</span>
+                                    <span className="leading-relaxed">{item.text}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
 
                             {/* Bài làm của học sinh */}
                             <div className="space-y-1.5">

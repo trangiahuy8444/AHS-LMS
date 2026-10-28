@@ -429,9 +429,8 @@ test('Kiểm tra Cú pháp firebase-config.js (Không lỗi cú pháp, sẵn sà
   }, 'firebase-config.js phải hợp lệ về cú pháp JavaScript');
 });
 
-test('Kiểm tra Chặn tuyệt đối Live Session cho Chế độ Ôn tập Đề cương (0% Database)', (t) => {
-  const initialSessions = storage.getLiveSessions().length;
-  // Gửi phiên trực tiếp với mode practice
+test('Kiểm tra Giám sát trực tiếp phiên Ôn tập Đề cương từ xa (Live Monitoring) & Không lưu CSDL vĩnh viễn (0% Database)', (t) => {
+  // Gửi phiên trực tiếp với mode practice phục vụ giáo viên giám sát từ xa
   const res = storage.updateLiveSession({
     sessionId: 'sess-practice-test-123',
     fullName: 'HS Ôn Tập Test',
@@ -443,9 +442,37 @@ test('Kiểm tra Chặn tuyệt đối Live Session cho Chế độ Ôn tập Đ
   });
 
   assert.strictEqual(res.mode, 'practice');
-  // Đảm bảo không ghi thêm vào liveSessions
   const currentSessions = storage.getLiveSessions();
-  assert.strictEqual(currentSessions.some(s => s.sessionId === 'sess-practice-test-123'), false, 'Phiên ôn tập đề cương tuyệt đối không được ghi vào live_sessions');
+  // Giáo viên thấy học sinh trên bảng giám sát trực tiếp
+  assert.strictEqual(currentSessions.some(s => s.sessionId === 'sess-practice-test-123'), true, 'Giáo viên phải thấy học sinh ôn tập trên bảng giám sát trực tiếp');
+
+  // Khi học sinh kết thúc phiên, dọn dẹp sạch sẽ
+  storage.removeLiveSession('sess-practice-test-123');
+  assert.strictEqual(storage.getLiveSessions().some(s => s.sessionId === 'sess-practice-test-123'), false, 'Dọn dẹp phiên ôn tập hoàn tất');
+
+  // Đảm bảo tuyệt đối không ghi vào CSDL submissions vĩnh viễn
+  const subRes = storage.saveSubmission({
+    sessionId: 'sess-practice-test-123',
+    fullName: 'HS Ôn Tập Test',
+    studentClass: '10/14',
+    studentId: 'HS99999',
+    grade: 10,
+    mode: 'practice',
+    score: 8.5
+  });
+  assert.strictEqual(subRes.isPracticeOnly, true);
+  const allPermanentSubs = storage.getSubmissions();
+  assert.strictEqual(allPermanentSubs.some(s => s.studentId === 'HS99999'), false, 'CSDL vĩnh viễn submissions tuyệt đối không chứa bài ôn tập');
+});
+
+test('Kiểm tra Tính Chuẩn Xác của Ngân Hàng Đáp Án Khối 8, 9, 10 (100% Khớp Mã Chữ và Chỉ Số)', (t) => {
+  [8, 9, 10].forEach(g => {
+    const data = require(`../data/questions_grade${g}.js`);
+    data.practiceQuestions.forEach((q, idx) => {
+      const expLetter = String.fromCharCode(65 + q.correctAnswer);
+      assert.strictEqual(q.answerLetter, expLetter, `Khối ${g} Câu ${idx+1} answerLetter (${q.answerLetter}) phải khớp correctAnswer (${expLetter})`);
+    });
+  });
 });
 
 test('Kiểm tra Hàm Kiểm tra Kết nối Google Drive Webhook (testGoogleDriveConnection)', async (t) => {

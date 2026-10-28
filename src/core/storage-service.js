@@ -738,10 +738,6 @@
 
     updateLiveSession(sessionData) {
       if (!sessionData) return null;
-      // TUYỆT ĐỐI KHÔNG LƯU VÀO CSDL HOẶC LOCALSTORAGE KHI ĐANG ÔN TẬP ĐỀ CƯƠNG
-      if (sessionData.mode === 'practice') {
-        return sessionData;
-      }
 
       const list = this.getLiveSessions();
       const idx = list.findIndex(s => s.sessionId === sessionData.sessionId);
@@ -780,6 +776,21 @@
       list = list.filter(s => s.sessionId !== sessionId);
       localStorage.setItem(LIVE_KEY, JSON.stringify(list));
       this.notify(this.liveListeners, list);
+
+      if (typeof window !== 'undefined' && window.firebaseDb) {
+        try {
+          if (typeof window.firebaseDb.collection === 'function') {
+            window.firebaseDb.collection('live_sessions').doc(sessionId).delete()
+              .catch(e => console.warn('Firestore delete live err', e));
+          } else {
+            const { doc, deleteDoc } = window.firebaseFirestoreModule || {};
+            if (doc && deleteDoc) {
+              deleteDoc(doc(window.firebaseDb, 'live_sessions', sessionId))
+                .catch(e => console.warn('Firestore delete live err', e));
+            }
+          }
+        } catch (e) { /* local fallback */ }
+      }
     }
 
     onLiveChange(cb) {
