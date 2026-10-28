@@ -6,6 +6,11 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   base: '/AHS-LMS/',
   plugins: [react()],
+  // Test component (Vitest + jsdom); test logic cũ vẫn chạy bằng node --test (tests/*.cjs)
+  test: {
+    environment: 'jsdom',
+    include: ['tests/**/*.test.jsx']
+  },
   build: {
     rollupOptions: {
       input: {
