@@ -109,6 +109,22 @@
         window.AsianSchoolStorage ? window.AsianSchoolStorage.getClassAccessMode(studentClass) : 'practice_only'
       );
 
+      // Cấu hình thời gian làm bài & xáo trộn đề từ Admin
+      const [config, setConfig] = useState(() => (
+        (typeof window !== 'undefined' && window.AsianSchoolStorage)
+          ? window.AsianSchoolStorage.getConfig()
+          : {}
+      ));
+
+      // Lắng nghe cấu hình Admin thay đổi thời gian thực
+      useEffect(() => {
+        if (!window.AsianSchoolStorage) return;
+        const unsub = window.AsianSchoolStorage.onConfigChange((newCfg) => {
+          setConfig(newCfg);
+        });
+        return () => unsub();
+      }, []);
+
       // Cập nhật quyền truy cập khi đổi lớp hoặc cấu hình thay đổi thời gian thực từ Cloud
       useEffect(() => {
         if (!window.AsianSchoolStorage) return;
@@ -137,8 +153,11 @@
       // THPT: 19 câu trắc nghiệm (ngẫu nhiên từ 25 câu) + 3 câu đúng/sai (ngẫu nhiên từ 6 câu) + 3 câu tự luận
       const [practiceSet, setPracticeSet] = useState(() => {
         const initialGradeData = grade === 8 ? window.EXAM_DATA_G8 : (grade === 9 ? window.EXAM_DATA_G9 : window.EXAM_DATA_G10);
+        const currentCfg = (typeof window !== 'undefined' && window.AsianSchoolStorage)
+          ? window.AsianSchoolStorage.getConfig()
+          : {};
         if (typeof window !== 'undefined' && window.AsianSchoolStorage && window.AsianSchoolStorage.generatePracticeSet) {
-          return window.AsianSchoolStorage.generatePracticeSet(grade, initialGradeData, config);
+          return window.AsianSchoolStorage.generatePracticeSet(grade, initialGradeData, currentCfg);
         }
         return { mcqQuestions: [], tfQuestions: [], essayQuestions: [] };
       });
