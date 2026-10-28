@@ -617,6 +617,50 @@
 
     // --- KẾT NỐI GOOGLE DRIVE (WEBHOOK & APPS SCRIPT) ---
 
+    async testGoogleDriveConnection(testUrl) {
+      const url = (testUrl !== undefined ? testUrl : (this.getConfig().googleDriveWebhookUrl || '')).trim();
+      if (!url || !url.startsWith('http')) {
+        return { success: false, error: 'Vui lòng dán URL Webhook hợp lệ (kết thúc bằng /exec) trước khi kiểm tra!' };
+      }
+      try {
+        const payload = {
+          action: 'test_connection',
+          timestamp: new Date().toISOString(),
+          testRow: {
+            studentId: 'TEST_LMS',
+            fullName: 'Kiểm Tra Kết Nối Webhook',
+            grade: '10',
+            studentClass: '10/14',
+            examCode: '101',
+            mcqPoints: 7.0,
+            essayTotal: 3.0,
+            finalScore: 10.0,
+            violations: 0,
+            durationFormatted: '00:01',
+            submittedAt: new Date().toISOString()
+          }
+        };
+
+        await fetch(url, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+
+        this.logAudit('Kiểm tra Webhook', 'Đã gửi gói tin thử nghiệm test_connection lên Google Webhook');
+        return {
+          success: true,
+          message: 'Đã phát tín hiệu kiểm tra thành công! Hãy mở file Google Sheets của Thầy: dòng điểm mẫu "Kiểm Tra Kết Nối Webhook" sẽ xuất hiện ngay.'
+        };
+      } catch (err) {
+        return {
+          success: false,
+          error: 'Lỗi gửi yêu cầu tới Webhook: ' + (err.message || 'Không thể kết nối')
+        };
+      }
+    }
+
     async syncRowToGoogleDrive(subDoc) {
       const cfg = this.getConfig();
       const url = (cfg.googleDriveWebhookUrl || '').trim();
@@ -631,7 +675,7 @@
         await fetch(url, {
           method: 'POST',
           mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify(payload)
         });
         return { success: true };
@@ -663,7 +707,7 @@
         await fetch(url, {
           method: 'POST',
           mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify(payload)
         });
 
@@ -687,6 +731,12 @@
     }
 
     updateLiveSession(sessionData) {
+      if (!sessionData) return null;
+      // TUYỆT ĐỐI KHÔNG LƯU VÀO CSDL HOẶC LOCALSTORAGE KHI ĐANG ÔN TẬP ĐỀ CƯƠNG
+      if (sessionData.mode === 'practice') {
+        return sessionData;
+      }
+
       const list = this.getLiveSessions();
       const idx = list.findIndex(s => s.sessionId === sessionData.sessionId);
       const updated = {

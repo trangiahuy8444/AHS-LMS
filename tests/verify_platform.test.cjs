@@ -422,4 +422,39 @@ test('Kiểm tra Cấu hình Admin: Thời Gian Làm Bài & Chế Độ Trộn �
   assert.strictEqual(cfg.shuffleOptions, true);
 });
 
+test('Kiểm tra Cú pháp firebase-config.js (Không lỗi cú pháp, sẵn sàng kết nối Firestore)', (t) => {
+  const code = fs.readFileSync(path.join(__dirname, '../src/core/firebase-config.js'), 'utf8');
+  assert.doesNotThrow(() => {
+    new Function(code);
+  }, 'firebase-config.js phải hợp lệ về cú pháp JavaScript');
+});
+
+test('Kiểm tra Chặn tuyệt đối Live Session cho Chế độ Ôn tập Đề cương (0% Database)', (t) => {
+  const initialSessions = storage.getLiveSessions().length;
+  // Gửi phiên trực tiếp với mode practice
+  const res = storage.updateLiveSession({
+    sessionId: 'sess-practice-test-123',
+    fullName: 'HS Ôn Tập Test',
+    studentClass: '10/14',
+    studentId: 'HS99999',
+    grade: 10,
+    mode: 'practice',
+    violations: 2
+  });
+
+  assert.strictEqual(res.mode, 'practice');
+  // Đảm bảo không ghi thêm vào liveSessions
+  const currentSessions = storage.getLiveSessions();
+  assert.strictEqual(currentSessions.some(s => s.sessionId === 'sess-practice-test-123'), false, 'Phiên ôn tập đề cương tuyệt đối không được ghi vào live_sessions');
+});
+
+test('Kiểm tra Hàm Kiểm tra Kết nối Google Drive Webhook (testGoogleDriveConnection)', async (t) => {
+  assert.ok(typeof storage.testGoogleDriveConnection === 'function', 'Phải có hàm testGoogleDriveConnection');
+  // Khi URL rỗng
+  const resEmpty = await storage.testGoogleDriveConnection('');
+  assert.strictEqual(resEmpty.success, false);
+  assert.ok(resEmpty.error.includes('Vui lòng dán URL'));
+});
+
+
 

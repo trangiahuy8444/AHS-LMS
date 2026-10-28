@@ -225,6 +225,8 @@
       const [googleDriveUrl, setGoogleDriveUrl] = useState(config.googleDriveWebhookUrl || '');
       const [isSyncingDrive, setIsSyncingDrive] = useState(false);
       const [driveSyncNotice, setDriveSyncNotice] = useState('');
+      const [isTestingDrive, setIsTestingDrive] = useState(false);
+      const [driveTestMessage, setDriveTestMessage] = useState(null);
       const [showAppsScriptGuide, setShowAppsScriptGuide] = useState(false);
       const [hasDownloadedBackup, setHasDownloadedBackup] = useState(false);
       const retentionSummary = useMemo(() => {
@@ -483,6 +485,29 @@
         setConfig(window.AsianSchoolStorage.getConfig());
         setConfigSavedNotice('Đã lưu cấu hình Google Drive Webhook thành công!');
         setTimeout(() => setConfigSavedNotice(''), 3000);
+      };
+
+      const handleTestGoogleDrive = async () => {
+        if (!googleDriveUrl.trim()) {
+          alert('Vui lòng dán URL Webhook Google Drive trước khi bấm kiểm tra!');
+          return;
+        }
+        setIsTestingDrive(true);
+        setDriveTestMessage({ success: null, text: 'Đang gửi gói tin kiểm tra tới Webhook...' });
+        const res = await window.AsianSchoolStorage.testGoogleDriveConnection(googleDriveUrl.trim());
+        setIsTestingDrive(false);
+        if (res.success) {
+          setDriveTestMessage({
+            success: true,
+            text: res.message || 'Đã kết nối thành công! Vui lòng mở Google Sheets để kiểm tra dòng dữ liệu mẫu vừa được thêm.'
+          });
+        } else {
+          setDriveTestMessage({
+            success: false,
+            text: res.error || 'Lỗi kết nối Webhook! Hãy kiểm tra lại xem bản triển khai Web App đã chọn "Anyone" chưa.'
+          });
+        }
+        setTimeout(() => setDriveTestMessage(null), 12000);
       };
 
       const handleSyncAllGoogleDrive = async () => {
@@ -1965,8 +1990,29 @@
                         >
                           Lưu URL
                         </button>
+                        <button
+                          type="button"
+                          onClick={handleTestGoogleDrive}
+                          disabled={isTestingDrive}
+                          className="px-4 py-2.5 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-bold text-xs rounded-xl shadow-lg shadow-amber-900/30 transition shrink-0 flex items-center space-x-1.5"
+                        >
+                          <span>{isTestingDrive ? '⏳ Đang Kiểm Tra...' : '🧪 Kiểm Tra Kết Nối Ngay'}</span>
+                        </button>
                       </div>
                     </div>
+
+                    {driveTestMessage && (
+                      <div className={`p-3.5 rounded-xl border text-xs font-semibold animate-fade-in flex items-center space-x-2 ${
+                        driveTestMessage.success === true
+                          ? 'bg-emerald-950/90 border-emerald-500 text-emerald-200'
+                          : (driveTestMessage.success === false
+                              ? 'bg-red-950/90 border-red-500 text-red-200'
+                              : 'bg-blue-950/90 border-blue-500 text-blue-200')
+                      }`}>
+                        <span>{driveTestMessage.success === true ? '✅' : (driveTestMessage.success === false ? '❌' : 'ℹ️')}</span>
+                        <span>{driveTestMessage.text}</span>
+                      </div>
+                    )}
 
                     <div className="flex flex-wrap items-center gap-3 pt-1">
                       <button
@@ -1984,7 +2030,7 @@
                         onClick={() => setShowAppsScriptGuide(!showAppsScriptGuide)}
                         className="px-3.5 py-2 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-xl border border-slate-700/80 transition"
                       >
-                        {showAppsScriptGuide ? 'Ẩn Hướng Dẫn Google Script ✕' : 'Xem Hướng Dẫn & Mã Script Google Drive 📖'}
+                        {showAppsScriptGuide ? 'Ẩn Hướng Dẫn Google Script ✕' : 'Xem Hướng Dẫn & Mã Script Google Drive (Mới Nhất) 📖'}
                       </button>
                     </div>
 
@@ -1995,37 +2041,151 @@
                     )}
 
                     {showAppsScriptGuide && (
-                      <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-3 text-xs text-slate-300">
-                        <h4 className="font-bold text-amber-400">Cách tạo Webhook Google Drive trong 1 phút:</h4>
-                        <ol className="list-decimal list-inside space-y-1.5 text-slate-400">
-                          <li>Mở Google Drive của Thầy, tạo 1 file Google Sheets mới (ví dụ đặt tên: <strong className="text-white">AHS_BangDiem_2026</strong>).</li>
+                      <div className="p-5 bg-slate-950 rounded-2xl border border-slate-800 space-y-4 text-xs text-slate-300">
+                        <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                          <h4 className="font-bold text-amber-400 text-sm flex items-center space-x-2">
+                            <span>⚡</span>
+                            <span>HƯỚNG DẪN THIẾT LẬP GOOGLE APPS SCRIPT (TỰ ĐỘNG PHỤC HỒI 2026)</span>
+                          </h4>
+                          <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2.5 py-0.5 rounded-full font-mono">Bản tự tạo Sheet & Folder</span>
+                        </div>
+
+                        <ol className="list-decimal list-inside space-y-2 text-slate-300 leading-relaxed">
+                          <li>Mở Google Drive của Thầy, tạo 1 file Google Sheets mới (đặt tên: <strong className="text-white">AHS_BangDiem_2026</strong>).</li>
                           <li>Chọn menu <strong>Tiện ích mở rộng (Extensions)</strong> &rarr; <strong>Apps Script</strong>.</li>
-                          <li>Xóa hết mã cũ và dán toàn bộ đoạn mã bên dưới vào.</li>
-                          <li>Bấm <strong>Triển khai (Deploy)</strong> &rarr; <strong>Quản lý bản triển khai mới</strong> &rarr; Chọn loại: <strong>Ứng dụng web (Web app)</strong>.</li>
-                          <li>Đặt quyền truy cập: <strong>Ai cũng có quyền (Anyone)</strong> &rarr; Bấm <strong>Triển khai</strong> rồi sao chép đường link dán vào ô trên.</li>
+                          <li>Xóa hết mã cũ trong trình soạn thảo và dán toàn bộ đoạn mã bên dưới vào.</li>
+                          <li>
+                            <strong className="text-amber-300">Cực kỳ quan trọng:</strong> Ở thanh công cụ trên cùng, tại ô chọn hàm thực thi, chọn hàm <code className="bg-slate-800 px-1.5 py-0.5 rounded text-emerald-400 font-mono">initSheet</code> rồi bấm nút <strong>Chạy (Run)</strong>.
+                            <div className="text-[11px] text-slate-400 pl-4 pt-1">
+                              &bull; Google sẽ hiện cửa sổ yêu cầu cấp quyền truy cập &rarr; Chọn tài khoản Google của Thầy &rarr; Bấm <em>Nâng cao (Advanced)</em> &rarr; Bấm <em>Đi tới dự án (Không an toàn)</em> &rarr; Bấm <em>Cho phép (Allow)</em>.
+                            </div>
+                          </li>
+                          <li>
+                            Bấm nút <strong>Triển khai (Deploy)</strong> &rarr; <strong>Quản lý bản triển khai mới (New deployment)</strong>:
+                            <div className="text-[11px] text-slate-400 pl-4 pt-1 space-y-1">
+                              <div>&bull; Bấm biểu tượng bánh răng ⚙️ &rarr; Chọn loại: <strong>Ứng dụng web (Web app)</strong>.</div>
+                              <div>&bull; <strong>Thực thi dưới quyền (Execute as):</strong> Chọn <strong>Tôi (trangiahuy8444@gmail.com)</strong>.</div>
+                              <div>&bull; <strong>Ai có quyền truy cập (Who has access):</strong> Chọn <strong className="text-amber-400">Bất kỳ ai (Anyone)</strong> <em>(Bắt buộc để hệ thống gửi dữ liệu)</em>.</div>
+                              <div>&bull; Bấm <strong>Triển khai</strong> &rarr; Sao chép đường dẫn Web App (có đuôi kết thúc bằng <code className="bg-slate-800 px-1 text-emerald-400 font-mono">/exec</code>).</div>
+                            </div>
+                          </li>
+                          <li>Dán đường link vừa sao chép vào ô <strong>"URL Webhook"</strong> ở trên &rarr; Bấm <strong>"Lưu URL"</strong> &rarr; Bấm <strong>"🧪 Kiểm Tra Kết Nối Ngay"</strong> để kiểm chứng!</li>
                         </ol>
-                        <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 font-mono-code text-[11px] text-slate-300 overflow-x-auto select-all">
-                          {`function doPost(e) {
+
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-[11px] text-slate-400">
+                            <span>Mã nguồn Google Apps Script (Bấm vào để chọn tất cả):</span>
+                            <span className="text-emerald-400 font-mono text-[10px]">Tự động tạo Sheet & Tiêu đề cột chuẩn</span>
+                          </div>
+                          <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 font-mono-code text-[11px] text-slate-300 overflow-x-auto select-all max-h-96">
+                            {`/**
+ * ASIAN SCHOOL LMS - GOOGLE APPS SCRIPT WEBHOOK (BẢN TỰ ĐỘNG PHỤC HỒI 2026)
+ * Tự động tạo Google Sheet, tiêu đề cột, thư mục lưu trữ và hỗ trợ kiểm tra kết nối
+ */
+
+function initSheet() {
+  var ss = getOrCreateSpreadsheet();
+  var sheet = ss.getActiveSheet();
+  setupSheetHeaders(sheet);
+  Logger.log("Đã khởi tạo thành công: " + ss.getUrl());
+}
+
+function getOrCreateSpreadsheet() {
+  var ss;
+  try {
+    ss = SpreadsheetApp.getActiveSpreadsheet();
+  } catch (e) {
+    ss = null;
+  }
+  if (!ss) {
+    var files = DriveApp.getFilesByName("AHS_BangDiem_2026");
+    if (files.hasNext()) {
+      ss = SpreadsheetApp.open(files.next());
+    } else {
+      ss = SpreadsheetApp.create("AHS_BangDiem_2026");
+    }
+  }
+  return ss;
+}
+
+function setupSheetHeaders(sheet) {
+  if (sheet.getLastRow() === 0) {
+    var headers = [
+      "Mã LMS", "Họ và Tên", "Khối", "Lớp", "Mã Đề", 
+      "Điểm TN", "Điểm TL", "Tổng Điểm", "Vi Phạm", 
+      "Thời Gian Làm", "Thời Điểm Nộp"
+    ];
+    sheet.appendRow(headers);
+    sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold").setBackground("#1e293b").setFontColor("#ffffff");
+    sheet.setFrozenRows(1);
+  }
+}
+
+function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    var ss = getOrCreateSpreadsheet();
+    var sheet = ss.getActiveSheet();
+    setupSheetHeaders(sheet);
+
+    // 1. Lệnh kiểm tra kết nối từ Admin
+    if (data.action === 'test_connection') {
+      var t = data.testRow || {};
+      sheet.appendRow([
+        t.studentId || "TEST_LMS",
+        t.fullName || "Kiểm Tra Kết Nối",
+        t.grade || "10",
+        t.studentClass || "10/14",
+        t.examCode || "101",
+        t.mcqPoints || 7.0,
+        t.essayTotal || 3.0,
+        t.finalScore || 10.0,
+        t.violations || 0,
+        t.durationFormatted || "00:01",
+        t.submittedAt || new Date().toISOString()
+      ]);
+      return ContentService.createTextOutput(JSON.stringify({ success: true, message: "Kết nối thành công!" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 2. Đồng bộ từng dòng khi học sinh nộp bài thi
     if (data.action === 'sync_row' && data.submission) {
-      if (sheet.getLastRow() === 0) {
-        sheet.appendRow(["Mã LMS", "Họ và Tên", "Khối", "Lớp", "Mã Đề", "Điểm TN", "Điểm TL", "Tổng Điểm", "Vi Phạm", "Thời Gian Làm", "Thời Điểm Nộp"]);
-      }
       var s = data.submission;
-      sheet.appendRow([s.studentId, s.fullName, s.grade, s.studentClass, s.examCode, s.mcqPoints, s.essayTotal || 0, s.finalScore || s.score, s.violations || 0, s.durationFormatted, s.submittedAt]);
-      return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
+      sheet.appendRow([
+        s.studentId || s.studentCode || "",
+        s.fullName || "",
+        s.grade || "",
+        s.studentClass || "",
+        s.examCode || "",
+        s.mcqPoints !== undefined ? s.mcqPoints : (s.score || 0),
+        s.essayTotal || 0,
+        s.finalScore !== undefined ? s.finalScore : (s.score || 0),
+        s.violations || 0,
+        s.durationFormatted || "45 phút",
+        s.submittedAt || new Date().toISOString()
+      ]);
+      return ContentService.createTextOutput(JSON.stringify({ success: true }))
+        .setMimeType(ContentService.MimeType.JSON);
     }
+
+    // 3. Sao lưu toàn bộ kỳ thi thành tệp JSON vào Google Drive
     if (data.action === 'backup_file') {
-      var folder = DriveApp.createFolder("AHS-LMS-Archive-" + new Date().getFullYear());
-      folder.createFile("Backup_" + Utilities.formatDate(new Date(), "GMT+7", "yyyy_MM_dd_HHmm") + ".json", data.jsonContent, MimeType.PLAIN_TEXT);
-      return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
+      var folders = DriveApp.getFoldersByName("AHS-LMS-Archive");
+      var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder("AHS-LMS-Archive");
+      var fileName = "Backup_AHS_" + Utilities.formatDate(new Date(), "GMT+7", "yyyy_MM_dd_HHmm") + ".json";
+      folder.createFile(fileName, data.jsonContent);
+      return ContentService.createTextOutput(JSON.stringify({ success: true, file: fileName }))
+        .setMimeType(ContentService.MimeType.JSON);
     }
+
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Hành động không xác định" }))
+      .setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.toString() })).setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
   }
 }`}
+                          </div>
                         </div>
                       </div>
                     )}

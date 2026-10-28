@@ -188,8 +188,6 @@
         console.warn('[Firestore] Error attaching live_sessions listener:', e);
       }
     }
-      console.warn('[Firestore] Error attaching live_sessions listener:', e);
-    }
 
     // 3. Đồng bộ Proctor Commands (lệnh giám thị: cộng giờ, thu bài, mở khóa)
     try {

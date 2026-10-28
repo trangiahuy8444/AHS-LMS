@@ -367,35 +367,39 @@
             if (v.count >= 3) {
               setIsSessionLocked(true);
               setLockReason('violation_3_times');
-              window.AsianSchoolStorage.updateLiveSession({
-                sessionId: sid,
-                fullName,
-                studentClass,
-                studentId,
-                grade,
-                mode,
-                examCode: mode === 'exam' ? code : 'Đề cương',
-                violations: v.count,
-                status: 'locked',
-                isLocked: true,
-                lockReason: 'violation_3_times',
-                penaltyPoints: 5
-              });
+              if (mode === 'exam') {
+                window.AsianSchoolStorage.updateLiveSession({
+                  sessionId: sid,
+                  fullName,
+                  studentClass,
+                  studentId,
+                  grade,
+                  mode,
+                  examCode: code,
+                  violations: v.count,
+                  status: 'locked',
+                  isLocked: true,
+                  lockReason: 'violation_3_times',
+                  penaltyPoints: 5
+                });
+              }
             } else {
               setWarningMessage(`Cảnh báo vi phạm lần ${v.count}/3: Em vừa rời khỏi giao diện làm bài hoặc thoát toàn màn hình! Nếu vi phạm đến lần thứ 3, hệ thống sẽ KHÓA BÀI THI và TRỪ 5 ĐIỂM!`);
               setShowWarningModal(true);
-              window.AsianSchoolStorage.updateLiveSession({
-                sessionId: sid,
-                fullName,
-                studentClass,
-                studentId,
-                grade,
-                mode,
-                examCode: mode === 'exam' ? code : 'Đề cương',
-                violations: v.count,
-                status: 'in_progress',
-                isLocked: false
-              });
+              if (mode === 'exam') {
+                window.AsianSchoolStorage.updateLiveSession({
+                  sessionId: sid,
+                  fullName,
+                  studentClass,
+                  studentId,
+                  grade,
+                  mode,
+                  examCode: code,
+                  violations: v.count,
+                  status: 'in_progress',
+                  isLocked: false
+                });
+              }
             }
           }
         });
