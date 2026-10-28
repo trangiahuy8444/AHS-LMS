@@ -483,5 +483,36 @@ test('Kiểm tra Hàm Kiểm tra Kết nối Google Drive Webhook (testGoogleDri
   assert.ok(resEmpty.error.includes('Vui lòng dán URL'));
 });
 
+test('Kiểm tra Cú pháp Đặt Tên Tệp Chụp Màn Hình (Chứa Số Lần Làm Cho Ôn Tập Đề Cương)', (t) => {
+  const testHtml = fs.readFileSync(path.join(__dirname, '../test/index.html'), 'utf8');
+  assert.ok(testHtml.includes("const attemptTag = mode === 'practice' ? `_Lan${scoreResult?.attemptNumber || 1}` : '';"),
+    'handleCaptureScreenshot phải gán attemptTag _LanX khi ở chế độ ôn tập');
+  assert.ok(testHtml.includes("`LMS_${cleanLms}_${cleanName}_Lop_${cleanClass}_Tin${grade}_${modeTag}${attemptTag}.png`"),
+    'Tên file chụp ảnh phải bao gồm attemptTag');
+  assert.ok(testHtml.includes("SỐ LẦN ĐÃ LÀM: LẦN THỨ"),
+    'Thẻ kết quả bài làm phải hiển thị số lần đã làm rõ ràng');
+  assert.ok(!testHtml.includes('overflow-hidden p-6 sm:p-8 space-y-5"'),
+    'Thẻ kết quả bài làm không được có overflow-hidden gây che mất/cắt viền số lần làm');
+});
+
+test('Kiểm tra Thay Thế Toàn Bộ Alert Bằng Dialog & Toast Tĩnh (Không Bị Nhảy Giật)', (t) => {
+  const testHtml = fs.readFileSync(path.join(__dirname, '../test/index.html'), 'utf8');
+  const adminHtml = fs.readFileSync(path.join(__dirname, '../admin/index.html'), 'utf8');
+
+  // Kiểm tra không còn hàm alert(...) trong cả 2 trang
+  const testAlerts = (testHtml.match(/\balert\s*\(/g) || []).length;
+  const adminAlerts = (adminHtml.match(/\balert\s*\(/g) || []).length;
+
+  assert.strictEqual(testAlerts, 0, 'test/index.html không được dùng native alert()');
+  assert.strictEqual(adminAlerts, 0, 'admin/index.html không được dùng native alert()');
+
+  // Kiểm tra hệ thống Dialog và Toast tĩnh (không có animate-bounce)
+  assert.ok(testHtml.includes('customDialog'), 'test/index.html phải có customDialog state');
+  assert.ok(adminHtml.includes('adminToast') && adminHtml.includes('adminDialog'), 'admin/index.html phải có adminToast và adminDialog');
+  assert.ok(!testHtml.includes('animate-bounce'), 'test/index.html không được dùng hiệu ứng nhảy nhảy (bounce)');
+  assert.ok(!adminHtml.includes('animate-bounce'), 'admin/index.html không được dùng hiệu ứng nhảy nhảy (bounce)');
+});
+
+
 
 

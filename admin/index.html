@@ -240,6 +240,23 @@
 
       const fileInputRef = useRef(null);
 
+      // Toast & Dialog Tĩnh (Không nhảy giật, thay thế hoàn toàn alert/confirm)
+      const [adminToast, setAdminToast] = useState(null);
+      const [adminDialog, setAdminDialog] = useState(null);
+      const toastTimerRef = useRef(null);
+
+      const showToast = (message, type = 'success', title = '') => {
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        setAdminToast({ message, type, title });
+        toastTimerRef.current = setTimeout(() => {
+          setAdminToast(null);
+        }, 4000);
+      };
+
+      const showDialog = (title, message, type = 'info', onConfirm = null) => {
+        setAdminDialog({ title, message, type, onConfirm });
+      };
+
       // Auth Check
       useEffect(() => {
         const isAuth = sessionStorage.getItem('asian_school_admin_auth') === 'true';
@@ -299,47 +316,72 @@
       // --- CÁC HÀNH ĐỘNG GIÁM THỊ (PROCTOR ACTIONS) ---
 
       const handleExtendTime = (sessionId, studentName, minutes = 5) => {
-        if (confirm(`Xác nhận GIA HẠN THÊM ${minutes} PHÚT làm bài cho học sinh ${studentName}?`)) {
-          window.AsianSchoolStorage.sendProctorCommand(sessionId, 'extend_time', { minutes });
-          alert(`⏱️ Đã gửi lệnh gia hạn thêm ${minutes} phút thành công!`);
-        }
+        showDialog(
+          'Gia Hạn Thời Gian Làm Bài ⏱️',
+          `Xác nhận GIA HẠN THÊM ${minutes} PHÚT làm bài cho học sinh ${studentName}?`,
+          'info',
+          () => {
+            window.AsianSchoolStorage.sendProctorCommand(sessionId, 'extend_time', { minutes });
+            showToast(`Đã gửi lệnh gia hạn thêm ${minutes} phút cho ${studentName}!`, 'success', 'Gia Hạn Thành Công ⏱️');
+          }
+        );
       };
 
       const handleExtendTimeAll = (minutes = 5) => {
-        if (confirm(`Xác nhận GIA HẠN THÊM ${minutes} PHÚT làm bài cho TOÀN BỘ PHÒNG THI?`)) {
-          window.AsianSchoolStorage.sendProctorCommand('all', 'extend_time', { minutes });
-          alert(`⏱️ Đã gửi lệnh gia hạn thêm ${minutes} phút cho toàn bộ thí sinh đang online!`);
-        }
+        showDialog(
+          'Gia Hạn Toàn Bộ Phòng Thi ⏱️',
+          `Xác nhận GIA HẠN THÊM ${minutes} PHÚT làm bài cho TOÀN BỘ PHÒNG THI ĐANG ONLINE?`,
+          'warning',
+          () => {
+            window.AsianSchoolStorage.sendProctorCommand('all', 'extend_time', { minutes });
+            showToast(`Đã gửi lệnh gia hạn thêm ${minutes} phút cho toàn bộ phòng thi!`, 'success', 'Gia Hạn Toàn Phòng ⏱️');
+          }
+        );
       };
 
       const handleForceSubmit = (sessionId, studentName) => {
-        if (confirm(`CẢNH BÁO: Bạn có chắc chắn muốn CƯỠNG CHẾ THU BÀI của thí sinh ${studentName} ngay bây giờ không?`)) {
-          window.AsianSchoolStorage.sendProctorCommand(sessionId, 'force_submit', { reason: 'Giáo viên thu bài cưỡng chế' });
-          alert(`🛑 Đã gửi lệnh thu bài cưỡng chế tới máy thí sinh ${studentName}!`);
-        }
+        showDialog(
+          'Cưỡng Chế Thu Bài Thi 🛑',
+          `CẢNH BÁO: Thầy có chắc chắn muốn CƯỠNG CHẾ THU BÀI của thí sinh ${studentName} ngay bây giờ không? Màn hình của thí sinh sẽ lập tức nộp bài và khóa lại.`,
+          'warning',
+          () => {
+            window.AsianSchoolStorage.sendProctorCommand(sessionId, 'force_submit', { reason: 'Giáo viên thu bài cưỡng chế' });
+            showToast(`Đã gửi lệnh thu bài cưỡng chế tới máy thí sinh ${studentName}!`, 'warning', 'Lệnh Thu Bài 🛑');
+          }
+        );
       };
 
       const handleLockSession = (sessionId, studentName) => {
-        if (confirm(`Xác nhận KHÓA BÀI THI của thí sinh ${studentName}? Màn hình của học sinh sẽ bị phong tỏa ngay lập tức.`)) {
-          window.AsianSchoolStorage.sendProctorCommand(sessionId, 'lock_session', { reason: 'Giáo viên chủ động khóa bài' });
-          window.AsianSchoolStorage.updateLiveSession({ sessionId, status: 'locked', isLocked: true });
-          alert(`🔒 Đã gửi lệnh khóa bài thi thí sinh ${studentName}!`);
-        }
+        showDialog(
+          'Khóa Bài Thi Thí Sinh 🔒',
+          `Xác nhận KHÓA BÀI THI của thí sinh ${studentName}? Màn hình của học sinh sẽ bị phong tỏa ngay lập tức.`,
+          'warning',
+          () => {
+            window.AsianSchoolStorage.sendProctorCommand(sessionId, 'lock_session', { reason: 'Giáo viên chủ động khóa bài' });
+            window.AsianSchoolStorage.updateLiveSession({ sessionId, status: 'locked', isLocked: true });
+            showToast(`Đã gửi lệnh khóa bài thi thí sinh ${studentName}!`, 'warning', 'Khóa Bài Thi 🔒');
+          }
+        );
       };
 
       const handleUnlockSession = (sessionId, studentName) => {
-        if (confirm(`Xác nhận MỞ KHÓA BÀI THI cho thí sinh ${studentName}? Thí sinh sẽ được tiếp tục làm bài.`)) {
-          window.AsianSchoolStorage.sendProctorCommand(sessionId, 'unlock_session', {});
-          window.AsianSchoolStorage.updateLiveSession({ sessionId, status: 'in_progress', isLocked: false });
-          alert(`🔓 Đã gửi lệnh mở khóa bài thi cho thí sinh ${studentName}!`);
-        }
+        showDialog(
+          'Mở Khóa Bài Thi 🔓',
+          `Xác nhận MỞ KHÓA BÀI THI cho thí sinh ${studentName}? Thí sinh sẽ được tiếp tục làm bài.`,
+          'info',
+          () => {
+            window.AsianSchoolStorage.sendProctorCommand(sessionId, 'unlock_session', {});
+            window.AsianSchoolStorage.updateLiveSession({ sessionId, status: 'in_progress', isLocked: false });
+            showToast(`Đã gửi lệnh mở khóa bài thi cho thí sinh ${studentName}!`, 'success', 'Mở Khóa Thành Công 🔓');
+          }
+        );
       };
 
       const handleSendBroadcast = (e) => {
         e.preventDefault();
         if (!broadcastMsgInput.trim()) return;
         window.AsianSchoolStorage.sendProctorCommand(broadcastTarget, 'broadcast_message', { message: broadcastMsgInput.trim() });
-        alert(`📢 Đã phát thông báo thành công tới ${broadcastTarget === 'all' ? 'Toàn bộ phòng thi' : 'Học sinh'}!`);
+        showToast(`Đã phát thông báo thành công tới ${broadcastTarget === 'all' ? 'Toàn bộ phòng thi' : 'Học sinh'}!`, 'success', 'Phát Thông Báo 📢');
         setBroadcastMsgInput('');
         setShowBroadcastModal(false);
       };
@@ -383,7 +425,7 @@
           setGradingSuccessAlert(true);
           setTimeout(() => setGradingSuccessAlert(false), 2500);
         } else {
-          alert('Lỗi: ' + res.error);
+          showDialog('Lỗi Chấm Điểm', res.error, 'error');
         }
       };
 
@@ -391,7 +433,7 @@
 
       const handleExportCSV = () => {
         if (submissions.length === 0) {
-          alert('Chưa có bài nộp nào để xuất file!');
+          showDialog('Chưa Có Bài Nộp', 'Chưa có bài nộp nào trong hệ thống để xuất tệp CSV.', 'warning');
           return;
         }
         const csvContent = window.AsianSchoolStorage.exportSubmissionsCSV();
@@ -403,6 +445,7 @@
         link.click();
         URL.revokeObjectURL(url);
         setHasDownloadedBackup(true);
+        showToast('Đã tải xuống tệp bảng điểm CSV thành công!', 'success', 'Xuất File CSV');
       };
 
       const handleExportJSON = () => {
@@ -415,6 +458,7 @@
         link.click();
         URL.revokeObjectURL(url);
         setHasDownloadedBackup(true);
+        showToast('Đã tải xuống tệp sao lưu JSON thành công!', 'success', 'Sao Lưu JSON');
       };
 
       const handleImportJSON = (e) => {
@@ -425,9 +469,9 @@
           const res = window.AsianSchoolStorage.importSubmissionsJSON(event.target.result);
           if (res.success) {
             setSubmissions(window.AsianSchoolStorage.getSubmissions());
-            alert(`✅ ĐÃ HỢP NHẤT DỮ LIỆU THÀNH CÔNG!\n\nThêm mới ${res.added} bài nộp vào hệ thống.\nTổng số bài hiện tại: ${res.count} bài.`);
+            showDialog('✅ Hợp Nhất Dữ Liệu Thành Công', `Đã thêm mới ${res.added} bài nộp vào hệ thống.\nTổng số bài hiện tại: ${res.count} bài.`, 'success');
           } else {
-            alert('❌ LỖI KHI NHẬP TỆP: ' + res.error);
+            showDialog('❌ Lỗi Khi Nhập Tệp', res.error, 'error');
           }
         };
         reader.readAsText(file);
@@ -435,24 +479,29 @@
       };
 
       const handleClearAllData = () => {
-        if (confirm('CẢNH BÁO NGUY HIỂM: Bạn có chắc chắn muốn XÓA TOÀN BỘ dữ liệu bài thi và lịch sử làm bài không? Hành động này không thể hoàn tác!')) {
-          localStorage.removeItem('asian_school_submissions_v1');
-          localStorage.removeItem('asian_school_live_sessions_v1');
-          setSubmissions([]);
-          setLiveSessions([]);
-          alert('Đã xóa trắng toàn bộ dữ liệu bài làm.');
-        }
+        showDialog(
+          'CẢNH BÁO NGUY HIỂM: XÓA TRẮNG DỮ LIỆU',
+          'Thầy có chắc chắn muốn XÓA TOÀN BỘ dữ liệu bài thi và lịch sử làm bài không? Hành động này sẽ xóa sạch dữ liệu trên máy tính này và KHÔNG THỂ HOÀN TÁC!',
+          'error',
+          () => {
+            localStorage.removeItem('asian_school_submissions_v1');
+            localStorage.removeItem('asian_school_live_sessions_v1');
+            setSubmissions([]);
+            setLiveSessions([]);
+            showToast('Đã xóa trắng toàn bộ dữ liệu bài làm trên máy.', 'warning', 'Xóa Dữ Liệu');
+          }
+        );
       };
 
       // Đổi mật khẩu admin
       const handleChangeAdminPassword = async (e) => {
         e.preventDefault();
         if (!newAdminPassword || newAdminPassword.length < 4) {
-          alert('Mật khẩu quản trị mới phải có ít nhất 4 ký tự!');
+          showDialog('Mật Khẩu Quá Ngắn', 'Mật khẩu quản trị mới phải có ít nhất 4 ký tự!', 'warning');
           return;
         }
         if (newAdminPassword !== confirmAdminPassword) {
-          alert('Mật khẩu xác nhận không khớp!');
+          showDialog('Xác Nhận Không Khớp', 'Mật khẩu xác nhận không khớp với mật khẩu mới!', 'error');
           return;
         }
         const newHash = await sha256(newAdminPassword);
@@ -494,7 +543,7 @@
 
       const handleTestGoogleDrive = async () => {
         if (!googleDriveUrl.trim()) {
-          alert('Vui lòng dán URL Webhook Google Drive trước khi bấm kiểm tra!');
+          showDialog('Thiếu URL Webhook', 'Vui lòng dán URL Webhook Google Drive trước khi bấm kiểm tra!', 'warning');
           return;
         }
         setIsTestingDrive(true);
@@ -517,7 +566,7 @@
 
       const handleSyncAllGoogleDrive = async () => {
         if (!googleDriveUrl.trim()) {
-          alert('Vui lòng nhập URL Webhook Google Drive trước khi thực hiện đồng bộ!');
+          showDialog('Thiếu URL Webhook', 'Vui lòng nhập URL Webhook Google Drive trước khi thực hiện đồng bộ!', 'warning');
           return;
         }
         setIsSyncingDrive(true);
@@ -534,17 +583,16 @@
       };
 
       const handlePurgeExamData = () => {
-        if (!hasDownloadedBackup) {
-          if (!confirm('CHÚ Ý: Thầy chưa tải bản sao lưu (CSV/JSON) hoặc đồng bộ lên Google Drive trong phiên này!\n\nThầy có chắc chắn muốn xóa không? Khuyến nghị Thầy nên bấm nút "1. Tải Về Trọn Bộ Hồ Sơ Điểm" trước khi xóa.')) {
-            return;
+        showDialog(
+          'Xác Nhận Dọn Dẹp Kỳ Thi Cũ 🗑️',
+          'Hành động này sẽ dọn dẹp các bài thi cũ sau 2-3 tuần để chuẩn bị cho đợt thi mới.\n\nKhuyến nghị: Thầy đã tải bản sao lưu (CSV/JSON) hoặc đồng bộ lên Google Drive trước khi dọn dẹp.\n\nThầy có chắc chắn muốn dọn dẹp dữ liệu cũ ngay bây giờ không?',
+          'warning',
+          () => {
+            const res = window.AsianSchoolStorage.purgeOldExamSubmissions({ purgeAll: true });
+            setSubmissions(window.AsianSchoolStorage.getSubmissions());
+            showDialog('✅ Đã Dọn Dẹp Kỳ Thi Thành Công', `Đã xóa an toàn ${res.deletedCount} bài thi cũ.\nHệ thống đã sẵn sàng cho đợt thi mới!`, 'success');
           }
-        }
-        const confirmText = prompt('XÁC NHẬN DỌN DẸP KỲ THI CŨ:\n\nNhập chữ "XOA" vào ô bên dưới để xác nhận dọn dẹp các bài thi cũ sau 2-3 tuần:');
-        if (confirmText === 'XOA' || confirmText === 'xoa') {
-          const res = window.AsianSchoolStorage.purgeOldExamSubmissions({ purgeAll: true });
-          setSubmissions(window.AsianSchoolStorage.getSubmissions());
-          alert(`✅ ĐÃ DỌN DẸP KỲ THI THÀNH CÔNG!\n\nĐã xóa ${res.deletedCount} bài thi cũ.\nHệ thống đã sẵn sàng cho đợt thi mới.`);
-        }
+        );
       };
 
       // Filtered submissions
@@ -1131,9 +1179,10 @@
                           </button>
                         </div>
                       </div>
-                    );})
-                  )}
-                </div>
+                    );
+                  });
+                })()}
+              </div>
               </div>
             )}
 
@@ -2350,7 +2399,7 @@ function doPost(e) {
                           handleExportCSV();
                           handleExportJSON();
                           setHasDownloadedBackup(true);
-                          alert('✅ ĐÃ TẢI XUỐNG BẢN SAO LƯU THÀNH CÔNG!\n\nTệp Excel CSV và tệp sao lưu JSON đã được lưu vào máy tính của Thầy.\nBây giờ Thầy có thể an tâm thực hiện Bước 2 nếu muốn dọn dẹp kỳ thi.');
+                          showToast('Tệp Excel CSV và tệp sao lưu JSON đã được lưu vào máy tính của Thầy. Thầy có thể an tâm dọn dẹp nếu muốn!', 'success', 'Sao Lưu Hoàn Tất 📥');
                         }}
                         className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow transition flex items-center space-x-1.5"
                       >
@@ -2706,6 +2755,99 @@ function doPost(e) {
                     </button>
                   </div>
                 </form>
+              </div>
+            </div>
+          )}
+
+          {/* TOAST THÔNG BÁO TĨNH (GÓC PHẢI TRÊN, KHÔNG NHẢY GIẬT) */}
+          {adminToast && (
+            <div className="fixed top-6 right-6 z-50 max-w-sm w-full bg-slate-900 text-slate-100 rounded-2xl border-2 border-slate-700 shadow-2xl p-4 flex items-start space-x-3">
+              <div className={`p-2 rounded-xl text-base font-black shrink-0 ${
+                adminToast.type === 'success' ? 'bg-emerald-950 text-emerald-400 border border-emerald-700' :
+                adminToast.type === 'error' ? 'bg-rose-950 text-rose-400 border border-rose-700' :
+                adminToast.type === 'warning' ? 'bg-amber-950 text-amber-400 border border-amber-700' :
+                'bg-blue-950 text-blue-400 border border-blue-700'
+              }`}>
+                {adminToast.type === 'success' ? '✓' :
+                 adminToast.type === 'error' ? '✕' :
+                 adminToast.type === 'warning' ? '⚠️' : 'ℹ️'}
+              </div>
+              <div className="flex-1 min-w-0">
+                {adminToast.title && (
+                  <h4 className="text-xs font-black text-white uppercase tracking-wide">
+                    {adminToast.title}
+                  </h4>
+                )}
+                <p className="text-xs text-slate-300 font-medium whitespace-pre-line mt-0.5">
+                  {adminToast.message}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAdminToast(null)}
+                className="text-slate-400 hover:text-white text-base font-bold ml-1"
+              >
+                ×
+              </button>
+            </div>
+          )}
+
+          {/* DIALOG XÁC NHẬN / THÔNG BÁO TĨNH (GIỮA MÀN HÌNH, KHÔNG GIẬT NẢY) */}
+          {adminDialog && (
+            <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-[2px] flex items-center justify-center p-4">
+              <div className="bg-slate-900 text-slate-100 rounded-3xl shadow-2xl max-w-md w-full border-2 border-slate-700 p-6 space-y-4">
+                <div className="flex items-start space-x-3">
+                  <div className={`p-2.5 rounded-2xl text-lg font-black shrink-0 ${
+                    adminDialog.type === 'success' ? 'bg-emerald-950 text-emerald-400 border border-emerald-700' :
+                    adminDialog.type === 'error' ? 'bg-rose-950 text-rose-400 border border-rose-700' :
+                    adminDialog.type === 'warning' ? 'bg-amber-950 text-amber-400 border border-amber-700' :
+                    'bg-blue-950 text-blue-400 border border-blue-700'
+                  }`}>
+                    {adminDialog.type === 'success' ? '✓' :
+                     adminDialog.type === 'error' ? '✕' :
+                     adminDialog.type === 'warning' ? '⚠️' : 'ℹ️'}
+                  </div>
+                  <div className="space-y-1 flex-1">
+                    <h3 className="font-black text-white text-base leading-tight">
+                      {adminDialog.title}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-300 whitespace-pre-line leading-relaxed font-medium">
+                      {adminDialog.message}
+                    </p>
+                  </div>
+                </div>
+                <div className="pt-2 flex justify-end space-x-2">
+                  {adminDialog.onConfirm ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setAdminDialog(null)}
+                        className="px-4 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 font-bold text-xs"
+                      >
+                        Hủy bỏ
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const fn = adminDialog.onConfirm;
+                          setAdminDialog(null);
+                          if (fn) fn();
+                        }}
+                        className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs shadow-md"
+                      >
+                        Xác nhận
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setAdminDialog(null)}
+                      className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-black text-sm rounded-2xl shadow-md transition"
+                    >
+                      ĐÃ HIỂU
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}
