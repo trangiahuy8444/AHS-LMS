@@ -174,8 +174,21 @@ test('Hàng chờ ôn tập: trang quản trị đẩy lên Google Sheets rồi 
 
   const sent = [];
   const realFetch = global.fetch;
-  global.fetch = async (url, opts) => { sent.push(JSON.parse(opts.body)); return {}; };
+  // Giả lập Apps Script: chỉ nhận token 'bi-mat'
+  global.fetch = async (url, opts) => {
+    const body = JSON.parse(opts.body);
+    sent.push(body);
+    const ok = body.token === 'bi-mat';
+    return { status: 200, text: async () => JSON.stringify(ok ? { success: true } : { success: false, error: 'Token xác thực không hợp lệ' }) };
+  };
   try {
+    storage.saveConfig({ googleDriveWebhookUrl: 'https://script.google.com/macros/s/X/exec', googleDriveWebhookToken: 'sai' });
+    assert.strictEqual(await storage.processPracticeQueue([row], id => deleted.push(id)), 0, 'Sai token: Apps Script từ chối');
+    assert.deepStrictEqual(deleted, [], 'Sai token: KHÔNG xóa khỏi hàng chờ (không mất điểm)');
+    const test = await storage.testGoogleDriveConnection();
+    assert.strictEqual(test.success, false, 'Nút kiểm tra phải báo lỗi khi sai token');
+    assert.match(test.error, /Token xác thực không hợp lệ/);
+    sent.length = 0;
     storage.saveConfig({ googleDriveWebhookUrl: 'https://script.google.com/macros/s/X/exec', googleDriveWebhookToken: 'bi-mat' });
     assert.strictEqual(await storage.processPracticeQueue([row], id => deleted.push(id)), 1);
     assert.strictEqual(await storage.processPracticeQueue([row], id => deleted.push(id)), 0, 'Không gửi trùng dòng đã đẩy');

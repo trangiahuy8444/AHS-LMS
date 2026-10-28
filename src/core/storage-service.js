@@ -770,6 +770,26 @@
 
     // --- KẾT NỐI GOOGLE DRIVE (WEBHOOK & APPS SCRIPT) ---
 
+    // Gửi tới Web App Apps Script và ĐỌC phản hồi { success, error } (Apps Script trả CORS cho yêu cầu text/plain).
+    // Trước đây gửi không đọc phản hồi nên mọi yêu cầu đều bị coi là thành công, kể cả khi sai token.
+    async postToWebhook(url, payload) {
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+        const text = await res.text();
+        let data = null;
+        try { data = JSON.parse(text); } catch (e) { /* không phải JSON */ }
+        if (!data) return { success: false, error: `Webhook trả về dữ liệu không đọc được (HTTP ${res.status}). Kiểm tra bản triển khai Web App (quyền "Bất kỳ ai").` };
+        if (data.success !== true) return { success: false, error: data.error || 'Webhook từ chối yêu cầu.', data };
+        return { success: true, data };
+      } catch (err) {
+        return { success: false, error: 'Không kết nối được Webhook: ' + (err.message || 'lỗi mạng') };
+      }
+    }
+
     async testGoogleDriveConnection(testUrl, testToken) {
       const cfg = this.getConfig();
       const url = (testUrl !== undefined ? testUrl : (cfg.googleDriveWebhookUrl || '')).trim();
@@ -797,17 +817,13 @@
           }
         };
 
-        await fetch(url, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(payload)
-        });
-
-        this.logAudit('Kiểm tra Webhook', 'Đã gửi gói tin thử nghiệm test_connection lên Google Webhook');
+        const res = await this.postToWebhook(url, payload);
+        this.logAudit('Kiểm tra Webhook', res.success ? 'Webhook xác nhận kết nối và token hợp lệ' : 'Webhook từ chối: ' + res.error);
+        if (!res.success) return { success: false, error: '❌ ' + res.error };
+        const name = res.data && res.data.spreadsheetName ? ` (Sheet: ${res.data.spreadsheetName})` : '';
         return {
           success: true,
-          message: 'Đã phát tín hiệu kiểm tra thành công! Hãy mở file Google Sheets của Thầy: dòng điểm mẫu "Kiểm Tra Kết Nối Webhook" sẽ xuất hiện ngay.'
+          message: `✅ Apps Script xác nhận kết nối thành công và token hợp lệ${name}. Kiểm tra kết nối không thêm dòng nào vào Sheet.`
         };
       } catch (err) {
         return {
@@ -843,13 +859,9 @@
           submission: formattedSub,
           syncedAt: new Date().toISOString()
         };
-        await fetch(url, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(payload)
-        });
-        return { success: true };
+        const res = await this.postToWebhook(url, payload);
+        if (!res.success) console.warn('Google Drive row sync warning:', res.error);
+        return res;
       } catch (err) {
         console.warn('Google Drive row sync warning:', err);
         return { success: false, error: err.message };
@@ -938,14 +950,9 @@
           timestamp: new Date().toISOString()
         };
 
-        await fetch(url, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(payload)
-        });
-
-        this.logAudit('Đồng bộ Google Drive', `Đã phát lệnh sao lưu ${examSubs.length} bài thi lên Google Drive`);
+        const res = await this.postToWebhook(url, payload);
+        if (!res.success) return { success: false, error: res.error };
+        this.logAudit('Đồng bộ Google Drive', `Đã sao lưu ${examSubs.length} bài thi lên Google Drive (${(res.data && res.data.file) || 'tệp JSON'})`);
         return { success: true, count: examSubs.length };
       } catch (err) {
         return { success: false, error: err.message };

@@ -232,6 +232,12 @@ export function useAdminController() {
   const { handleUploadExamBank, attemptDocRef, describeAttempt, handleLookupAttempt, handleGrantAttempt, handleSaveMaxAttempts, handleToggleExamBankLock, handleToggleExamCode } = createExamBankActions(s);
   const { handleSaveExamConfig, handleSaveGoogleDriveUrl, handleTestGoogleDrive, handleSyncAllGoogleDrive, handlePurgeExamData } = createSettingsActions(s);
 
+  // Ô URL/token Google Drive hiện đúng giá trị đã lưu (nạp từ exam_secrets/drive sau khi trang mở)
+  useEffect(() => {
+    setGoogleDriveUrl(config.googleDriveWebhookUrl || '');
+    setGoogleDriveToken(config.googleDriveWebhookToken || '');
+  }, [config.googleDriveWebhookUrl, config.googleDriveWebhookToken]);
+
   // Auth Check
   useEffect(() => {
     // Chỉ tài khoản Firebase Auth có custom claim teacher mới vào được bảng điều khiển
