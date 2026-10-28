@@ -54,7 +54,7 @@ export default function BroadcastModal() {
             {[
               'Còn 10 phút, các em kiểm tra kỹ lại bài!',
               'Còn 5 phút nữa sẽ hết giờ làm bài!',
-              'Chú ý không mở tab khác, tránh bị trừ điểm!'
+              'Chú ý không mở tab khác, vi phạm 3 lần bài sẽ bị khóa!'
             ].map((m, mIdx) => (
               <button
                 key={mIdx}
