@@ -138,3 +138,63 @@ test('Trang quản trị tự chấm bài thi chính thức học sinh gửi lê
   assert.strictEqual(subs.find(s => s.id === 'g10_A3_1').autoGradedAt, undefined);
   assert.strictEqual(storage.autoGradeExamSubmissions({ 10: { '102': tfExam } }), 0, 'Không chấm lại bài đã chấm');
 });
+
+test('saveConfig không đẩy mật khẩu, URL/token webhook lên exam_config công khai', () => {
+  const storage = require('../src/core/storage-service.js');
+  const writes = [];
+  const fakeDb = {
+    collection: (c) => ({ doc: (d) => ({ set: (data) => { writes.push({ path: `${c}/${d}`, data }); return Promise.resolve(); } }) })
+  };
+  global.window = { firebaseDb: fakeDb };
+  try {
+    storage.saveConfig({ googleDriveWebhookUrl: 'https://script.google.com/macros/s/X/exec', googleDriveWebhookToken: 'bi-mat', examPassword: 'pw' });
+  } finally {
+    delete global.window;
+  }
+  const pub = writes.find(w => w.path === 'exam_config/global_config').data;
+  ['examPassword', 'adminPasswordHash', 'googleDriveWebhookUrl', 'googleDriveWebhookToken'].forEach(k => {
+    assert.ok(!(k in pub), `exam_config không được chứa ${k}`);
+  });
+  const drive = writes.find(w => w.path === 'exam_secrets/drive');
+  assert.deepStrictEqual(drive.data, { googleDriveWebhookUrl: 'https://script.google.com/macros/s/X/exec', googleDriveWebhookToken: 'bi-mat' });
+  assert.ok(writes.some(w => w.path === 'exam_secrets/room'));
+});
+
+test('Hàng chờ ôn tập: trang quản trị đẩy lên Google Sheets rồi mới xóa; chưa có webhook thì giữ lại', async () => {
+  const storage = require('../src/core/storage-service.js');
+  const row = { ...storage.toPracticeQueueRow({ id: 'practice-1', studentId: 'HS01', fullName: 'A', studentClass: '9/20', grade: 9, score: 7.5, finalScore: 7.5, attemptNumber: 2 }), uid: 'u1' };
+  assert.strictEqual(row.mode, 'practice');
+  assert.strictEqual(row.grade, 9);
+
+  const deleted = [];
+  storage.saveConfig({ googleDriveWebhookUrl: '', googleDriveWebhookToken: '' });
+  assert.strictEqual(await storage.processPracticeQueue([row], id => deleted.push(id)), 0);
+  assert.deepStrictEqual(deleted, [], 'Chưa cấu hình webhook: không xóa khỏi hàng chờ');
+  assert.ok(storage.getPracticeSubmissions().some(s => s.id === 'practice-1'), 'Vẫn vào bảng điểm ôn tập của trang quản trị');
+
+  const sent = [];
+  const realFetch = global.fetch;
+  global.fetch = async (url, opts) => { sent.push(JSON.parse(opts.body)); return {}; };
+  try {
+    storage.saveConfig({ googleDriveWebhookUrl: 'https://script.google.com/macros/s/X/exec', googleDriveWebhookToken: 'bi-mat' });
+    assert.strictEqual(await storage.processPracticeQueue([row], id => deleted.push(id)), 1);
+    assert.strictEqual(await storage.processPracticeQueue([row], id => deleted.push(id)), 0, 'Không gửi trùng dòng đã đẩy');
+  } finally {
+    global.fetch = realFetch;
+  }
+  assert.deepStrictEqual(deleted, ['practice-1']);
+  assert.strictEqual(sent.length, 1);
+  assert.strictEqual(sent[0].token, 'bi-mat');
+  assert.strictEqual(sent[0].submission.studentId, 'HS01');
+});
+
+test('Cổng học sinh không gửi thẳng lên webhook; rules có hàng chờ practice_results', () => {
+  const src = fs.readFileSync(path.join(__dirname, '../src/core/storage-service.js'), 'utf8');
+  const practiceBranch = src.slice(src.indexOf("if (subData.mode === 'practice') {"), src.indexOf('// 2. NẾU LÀ BÀI THI CHÍNH THỨC'));
+  assert.ok(practiceBranch.includes('this.queuePracticeResult(transientDoc)'));
+  assert.ok(!practiceBranch.includes('syncRowToGoogleDrive'), 'Máy học sinh không gọi webhook');
+  const rules = fs.readFileSync(path.join(__dirname, '../firestore.rules'), 'utf8');
+  const block = rules.slice(rules.indexOf('match /practice_results/'), rules.indexOf('match /live_sessions/'));
+  assert.match(block, /allow read, delete: if isTeacher\(\);/);
+  assert.match(block, /d\.uid == request\.auth\.uid/);
+});

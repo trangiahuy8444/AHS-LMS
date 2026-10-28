@@ -202,6 +202,29 @@ service cloud.firestore {
       allow create: if signedIn() && validSubmission(request.resource.data);
     }
 
+    // Hàng chờ điểm ôn tập: học sinh ghi dòng của mình, trang quản trị đẩy lên Google Sheets rồi xóa.
+    // Không có trường nào của bài thi chính thức; giới hạn kiểu và độ dài để không dùng làm kho chứa tùy ý.
+    match /practice_results/{rowId} {
+      function validPracticeRow(d) {
+        return d.keys().hasOnly(['id', 'uid', 'mode', 'studentId', 'fullName', 'studentClass', 'grade', 'attemptNumber',
+                                 'score', 'finalScore', 'mcqPoints', 'tfPoints', 'correctCount', 'totalQuestions',
+                                 'violations', 'durationSeconds', 'durationFormatted', 'submittedAt'])
+          && d.id == rowId && rowId.size() <= 80
+          && d.uid == request.auth.uid
+          && d.mode == 'practice'
+          && d.grade in [8, 9, 10]
+          && d.studentId is string && d.studentId.size() <= 30
+          && d.fullName is string && d.fullName.size() <= 80
+          && d.studentClass is string && d.studentClass.size() <= 10
+          && d.score is number && d.score >= 0 && d.score <= 10
+          && d.finalScore is number && d.finalScore >= 0 && d.finalScore <= 10
+          && d.durationFormatted is string && d.durationFormatted.size() <= 40
+          && d.submittedAt is string && d.submittedAt.size() <= 40;
+      }
+      allow create: if signedIn() && validPracticeRow(request.resource.data);
+      allow read, delete: if isTeacher();
+    }
+
     // Phiên giám sát trực tiếp
     match /live_sessions/{sessionId} {
       allow read: if isTeacher() || (signedIn() && resource.data.uid == request.auth.uid);

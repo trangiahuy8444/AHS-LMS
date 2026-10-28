@@ -12,6 +12,9 @@
   const PROCTOR_CMD_KEY = 'asian_school_proctor_commands_v1';
   const AUDIT_LOG_KEY = 'asian_school_audit_log_v1';
 
+  // Trường cấu hình chỉ giáo viên được xem: không bao giờ đẩy lên exam_config (học sinh đọc được)
+  const PRIVATE_CONFIG_KEYS = ['examPassword', 'adminPasswordHash', 'googleDriveWebhookUrl', 'googleDriveWebhookToken'];
+
   const DEFAULT_CONFIG = {
     // Chế độ phân bổ mã đề: 'random' | 'class_assigned' | 'fixed'
     codeAllocationMode: 'class_assigned',
@@ -122,19 +125,27 @@
       if (typeof window !== 'undefined' && window.firebaseDb) {
         try {
           if (typeof window.firebaseDb.collection === 'function') {
-            // Không đẩy mật khẩu lên exam_config (học sinh đọc được); mật khẩu phòng thi đi vào exam_secrets/room
-            const { examPassword, adminPasswordHash, ...publicConfig } = merged;
+            // exam_config học sinh đọc được: không đẩy mật khẩu, URL/token webhook lên đó.
+            // Mật khẩu phòng thi -> exam_secrets/room; URL/token webhook -> exam_secrets/drive (chỉ giáo viên đọc)
+            const publicConfig = { ...merged };
+            PRIVATE_CONFIG_KEYS.forEach(k => { delete publicConfig[k]; });
             const fieldValue = typeof firebase !== 'undefined' && firebase.firestore && firebase.firestore.FieldValue;
             if (fieldValue) {
-              // Xóa hẳn các trường mật khẩu cũ còn sót trên bản cấu hình công khai
-              publicConfig.examPassword = fieldValue.delete();
-              publicConfig.adminPasswordHash = fieldValue.delete();
+              // Xóa hẳn các trường bí mật cũ còn sót trên bản cấu hình công khai
+              PRIVATE_CONFIG_KEYS.forEach(k => { publicConfig[k] = fieldValue.delete(); });
             }
             window.firebaseDb.collection('exam_config').doc('global_config').set(publicConfig, { merge: true })
               .catch(e => console.warn('Firestore config save err', e));
             if (newConfig && newConfig.examPassword !== undefined) {
               window.firebaseDb.collection('exam_secrets').doc('room').set({ examPassword: newConfig.examPassword }, { merge: true })
                 .catch(e => console.warn('Firestore secret save err', e));
+            }
+            const drive = {};
+            if (newConfig && newConfig.googleDriveWebhookUrl !== undefined) drive.googleDriveWebhookUrl = newConfig.googleDriveWebhookUrl;
+            if (newConfig && newConfig.googleDriveWebhookToken !== undefined) drive.googleDriveWebhookToken = newConfig.googleDriveWebhookToken;
+            if (Object.keys(drive).length) {
+              window.firebaseDb.collection('exam_secrets').doc('drive').set(drive, { merge: true })
+                .catch(e => console.warn('Firestore drive secret save err', e));
             }
           }
         } catch (e) { /* local fallback */ }
@@ -427,8 +438,9 @@
         };
         // Lưu vào kho kết quả ôn tập đề cương riêng biệt
         this.savePracticeSubmission(transientDoc);
-        // Tự động lưu điểm ôn tập lên Google Drive Webhook
-        this.syncRowToGoogleDrive(transientDoc);
+        // Gửi vào hàng chờ practice_results; trang quản trị đẩy lên Google Sheets rồi xóa khỏi hàng chờ
+        // (máy học sinh không giữ URL/token webhook)
+        this.queuePracticeResult(transientDoc);
         // Trả về bản ghi để học sinh xem kết quả và tải ảnh minh chứng
         return transientDoc;
       }
@@ -842,6 +854,68 @@
         console.warn('Google Drive row sync warning:', err);
         return { success: false, error: err.message };
       }
+    }
+
+    // Dòng điểm ôn tập gọn để gửi qua hàng chờ (khớp các trường firestore.rules cho phép ở practice_results)
+    toPracticeQueueRow(doc) {
+      const num = (v) => (typeof v === 'number' && isFinite(v) ? v : 0);
+      const text = (v, n) => String(v === undefined || v === null ? '' : v).slice(0, n);
+      return {
+        id: text(doc.id, 80),
+        mode: 'practice',
+        studentId: text(doc.studentId || doc.studentCode, 30),
+        fullName: text(doc.fullName, 80),
+        studentClass: text(doc.studentClass, 10),
+        grade: num(Number(doc.grade)),
+        attemptNumber: num(doc.attemptNumber) || 1,
+        score: num(typeof doc.score === 'number' ? doc.score : parseFloat(doc.score)),
+        finalScore: num(typeof doc.finalScore === 'number' ? doc.finalScore : parseFloat(doc.finalScore)),
+        mcqPoints: num(doc.mcqPoints),
+        tfPoints: num(doc.tfPoints),
+        correctCount: num(doc.correctCount),
+        totalQuestions: num(doc.totalQuestions),
+        violations: num(doc.violations),
+        durationSeconds: num(doc.durationSeconds),
+        durationFormatted: text(doc.durationFormatted, 40),
+        submittedAt: text(doc.submittedAt || new Date().toISOString(), 40)
+      };
+    }
+
+    queuePracticeResult(doc) {
+      if (typeof window === 'undefined' || !window.firebaseDb || typeof window.firebaseDb.collection !== 'function') return false;
+      const uid = window.AsianSchoolAuth && window.AsianSchoolAuth.uid ? window.AsianSchoolAuth.uid() : null;
+      if (!uid) return false;
+      const row = { ...this.toPracticeQueueRow(doc), uid };
+      window.firebaseDb.collection('practice_results').doc(row.id).set(row)
+        .catch(e => console.warn('Firestore practice queue err', e));
+      return true;
+    }
+
+    // Trang quản trị: nhận điểm ôn tập từ hàng chờ, lưu vào bảng điểm ôn tập, đẩy lên Google Sheets, rồi xóa khỏi hàng chờ.
+    // Chưa cấu hình webhook thì giữ nguyên hàng chờ để đẩy sau. Trả về số dòng đã đẩy.
+    async processPracticeQueue(rows, deleteRow) {
+      const cfg = this.getConfig();
+      const hasWebhook = (cfg.googleDriveWebhookUrl || '').trim().startsWith('http');
+      this._practiceQueueSeen = this._practiceQueueSeen || new Set();
+      const known = new Set(this.getPracticeSubmissions().map(s => s.id));
+      let pushed = 0;
+      for (const row of rows || []) {
+        if (!row || !row.id) continue;
+        if (!known.has(row.id)) {
+          this.savePracticeSubmission({ ...row, isPracticeOnly: true, isGraded: true, penaltyPoints: 0 });
+          known.add(row.id);
+        }
+        if (!hasWebhook || this._practiceQueueSeen.has(row.id)) continue;
+        this._practiceQueueSeen.add(row.id);
+        const res = await this.syncRowToGoogleDrive(row);
+        if (res && res.success) {
+          pushed++;
+          if (typeof deleteRow === 'function') await Promise.resolve(deleteRow(row.id)).catch(() => {});
+        } else {
+          this._practiceQueueSeen.delete(row.id);
+        }
+      }
+      return pushed;
     }
 
     async syncAllToGoogleDrive() {

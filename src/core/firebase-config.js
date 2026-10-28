@@ -285,6 +285,57 @@
       },
       (error) => console.warn('[Firestore] Lắng nghe exam_secrets thất bại:', error.message)
     );
+
+    // URL/token webhook Google Drive: chỉ giáo viên giữ (học sinh không còn gửi thẳng lên Sheets)
+    db.collection('exam_secrets').doc('drive').onSnapshot(
+      (doc) => {
+        if (!doc || !doc.exists || !storage) return;
+        const d = doc.data();
+        const merged = {
+          ...storage.getConfig(),
+          googleDriveWebhookUrl: d.googleDriveWebhookUrl || '',
+          googleDriveWebhookToken: d.googleDriveWebhookToken || ''
+        };
+        localStorage.setItem('asian_school_exam_config_v1', JSON.stringify(merged));
+        storage.notify(storage.configListeners, merged);
+      },
+      (error) => console.warn('[Firestore] Lắng nghe exam_secrets/drive thất bại:', error.message)
+    );
+    migrateDriveSecret();
+
+    // Hàng chờ điểm ôn tập: trang quản trị đẩy lên Google Sheets rồi xóa
+    db.collection('practice_results').onSnapshot(
+      (snapshot) => {
+        if (!storage) return;
+        const rows = [];
+        snapshot.forEach((doc) => rows.push({ ...doc.data(), id: doc.id }));
+        storage.processPracticeQueue(rows, (id) => db.collection('practice_results').doc(id).delete());
+      },
+      (error) => console.warn('[Firestore] Lắng nghe practice_results thất bại:', error.message)
+    );
+  }
+
+  // Bản cũ lưu URL/token webhook trong exam_config công khai: chuyển sang exam_secrets/drive rồi xóa khỏi exam_config
+  async function migrateDriveSecret() {
+    try {
+      const cfgRef = db.collection('exam_config').doc('global_config');
+      const snap = await cfgRef.get();
+      const d = snap.exists ? snap.data() : {};
+      if (d.googleDriveWebhookUrl === undefined && d.googleDriveWebhookToken === undefined) return;
+      const secretRef = db.collection('exam_secrets').doc('drive');
+      const secret = await secretRef.get();
+      if (!secret.exists || !secret.data().googleDriveWebhookUrl) {
+        await secretRef.set({
+          googleDriveWebhookUrl: d.googleDriveWebhookUrl || '',
+          googleDriveWebhookToken: d.googleDriveWebhookToken || ''
+        }, { merge: true });
+      }
+      const FieldValue = firebase.firestore.FieldValue;
+      await cfgRef.update({ googleDriveWebhookUrl: FieldValue.delete(), googleDriveWebhookToken: FieldValue.delete() });
+      console.log('[Firebase] Đã chuyển URL/token webhook sang exam_secrets/drive.');
+    } catch (e) {
+      console.warn('[Firebase] Chuyển URL/token webhook thất bại:', e.message);
+    }
   }
 
   // Xác thực: học sinh đăng nhập ẩn danh; giáo viên đăng nhập Google.
