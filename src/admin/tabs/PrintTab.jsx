@@ -13,6 +13,72 @@ export default function PrintTab() {
     handleDeletePracticeSubmission
   } = useAdmin();
 
+  // 1. Lọc và gom nhóm bài nộp ôn tập: Duy nhất (unique) 1 học sinh / 1 mã LMS trong lớp
+  // Lấy kết quả cao nhất (bestScore), đếm tổng số lần làm (totalAttempts)
+  const uniquePracticeSubs = useMemo(() => {
+    const classSubs = (practiceSubs || []).filter(s => s.studentClass === printClass);
+    const map = new Map();
+    classSubs.forEach(sub => {
+      const key = String(sub.studentId || '').trim();
+      if (!key) return;
+      const pts = sub.finalScore !== undefined ? sub.finalScore : (sub.score !== undefined ? sub.score : 0);
+      const existing = map.get(key);
+      if (!existing) {
+        map.set(key, {
+          ...sub,
+          bestScore: pts,
+          totalAttempts: sub.totalAttempts || sub.attemptNumber || 1,
+          allIds: [sub.id]
+        });
+      } else {
+        const existScore = existing.bestScore;
+        const totalAttempts = Math.max(existing.totalAttempts || 1, sub.totalAttempts || sub.attemptNumber || 1, (existing.totalAttempts || 1) + 1);
+        const allIds = [...existing.allIds, sub.id];
+        if (pts >= existScore) {
+          map.set(key, {
+            ...sub,
+            bestScore: pts,
+            totalAttempts,
+            allIds
+          });
+        } else {
+          existing.totalAttempts = totalAttempts;
+          existing.allIds = allIds;
+        }
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => (a.studentId || '').localeCompare(b.studentId || '', undefined, { numeric: true }));
+  }, [practiceSubs, printClass]);
+
+  // 2. Lọc và gom nhóm bài nộp thi chính thức: Duy nhất 1 học sinh / 1 mã LMS trong lớp
+  const uniqueExamSubs = useMemo(() => {
+    const classSubs = (submissions || []).filter(s => s.studentClass === printClass);
+    const map = new Map();
+    classSubs.forEach(sub => {
+      const key = String(sub.studentId || '').trim();
+      if (!key) return;
+      if (!map.has(key)) {
+        map.set(key, sub);
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => (a.studentId || '').localeCompare(b.studentId || '', undefined, { numeric: true }));
+  }, [submissions, printClass]);
+
+  // 3. Tự động đổi tên file xuất bản in / PDF theo cú pháp tên lớp của Asian School
+  const handlePrint = () => {
+    const originalTitle = document.title;
+    const safeClass = (printClass || 'CHUA_CHON').replace(/[^a-zA-Z0-9]/g, '_');
+    const docTitle = printType === 'practice'
+      ? `BANG_DIEM_ON_TAP_LOP_${safeClass}`
+      : `BANG_DIEM_THI_GK1_LOP_${safeClass}`;
+
+    document.title = docTitle;
+    window.print();
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 1500);
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-white p-5 rounded-3xl border-2 border-slate-200/80 flex flex-wrap items-center justify-between gap-4 shadow-sm no-print print:hidden">
@@ -73,7 +139,7 @@ export default function PrintTab() {
           )}
           <button
             type="button"
-            onClick={() => window.print()}
+            onClick={handlePrint}
             className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow transition flex items-center space-x-2"
           >
             <span>🖨️</span>
@@ -129,14 +195,14 @@ export default function PrintTab() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-300">
-                {submissions.filter(s => s.studentClass === printClass).length === 0 ? (
+                {uniqueExamSubs.length === 0 ? (
                   <tr>
                     <td colSpan="10" className="py-8 text-center text-slate-500 italic">
                       Chưa có dữ liệu bài nộp nào của Lớp {printClass}.
                     </td>
                   </tr>
                 ) : (
-                  submissions.filter(s => s.studentClass === printClass).map((sub, idx) => {
+                  uniqueExamSubs.map((sub, idx) => {
                     const autoScore = sub.mcqPoints !== undefined ? sub.mcqPoints : (sub.score !== undefined ? sub.score : 0);
                     const essayScore = sub.isGraded ? (sub.essayTotal || 0) : 0;
                     const finalScore = sub.finalScore !== undefined ? sub.finalScore : (autoScore + essayScore);
@@ -169,7 +235,8 @@ export default function PrintTab() {
             {/* KHỐI KÝ TÊN */}
             <div className="pt-8 flex justify-between items-end text-xs text-slate-800">
               <div>
-                <p>Số lượng bài đã chấm: <strong>{submissions.filter(s => s.studentClass === printClass && s.isGraded).length}</strong> bài</p>
+                <p>Số lượng học sinh nộp bài: <strong>{uniqueExamSubs.length}</strong> học sinh</p>
+                <p>Số lượng bài đã chấm: <strong>{uniqueExamSubs.filter(s => s.isGraded).length}</strong> bài</p>
               </div>
               <div className="text-center space-y-12">
                 <p className="italic">Thành phố Hồ Chí Minh, ngày ...... tháng ...... năm 2026</p>
@@ -200,7 +267,7 @@ export default function PrintTab() {
                   <th className="py-2.5 px-3 border-r border-slate-400">Họ và Tên Học Sinh</th>
                   <th className="py-2.5 px-3 border-r border-slate-400 text-center">Số Lần Làm</th>
                   <th className="py-2.5 px-3 border-r border-slate-400 text-center">Thời Gian Làm</th>
-                  <th className="py-2.5 px-3 border-r border-slate-400 text-center">Điểm Đạt</th>
+                  <th className="py-2.5 px-3 border-r border-slate-400 text-center">Điểm Đạt (Cao Nhất)</th>
                   <th className="py-2.5 px-3 border-r border-slate-400 text-center">Đúng/Tổng</th>
                   <th className="py-2.5 px-3 border-r border-slate-400 text-center">Thời Điểm Nộp</th>
                   <th className="py-2.5 px-3 border-r border-slate-400 text-center">Đánh Giá (≥ 6.0)</th>
@@ -209,23 +276,24 @@ export default function PrintTab() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-300">
-                {practiceSubs.filter(s => s.studentClass === printClass).length === 0 ? (
+                {uniquePracticeSubs.length === 0 ? (
                   <tr>
                     <td colSpan="11" className="py-8 text-center text-slate-500 italic">
                       Chưa có dữ liệu bài làm ôn tập đề cương nào của Lớp {printClass}.
                     </td>
                   </tr>
                 ) : (
-                  practiceSubs.filter(s => s.studentClass === printClass).map((sub, idx) => {
-                    const pts = sub.finalScore !== undefined ? sub.finalScore : (sub.score !== undefined ? sub.score : 0);
+                  uniquePracticeSubs.map((sub, idx) => {
+                    const pts = sub.bestScore !== undefined ? sub.bestScore : (sub.finalScore !== undefined ? sub.finalScore : (sub.score || 0));
                     const isPass = pts >= 6.0;
+                    const attempts = sub.totalAttempts || sub.attemptNumber || 1;
                     return (
                       <tr key={idx} className="text-slate-900">
                         <td className="py-2 px-3 border-r border-slate-300 text-center font-mono-code">{idx + 1}</td>
                         <td className="py-2 px-3 border-r border-slate-300 font-mono-code font-bold text-blue-900">{sub.studentId || '—'}</td>
                         <td className="py-2 px-3 border-r border-slate-300 font-bold">{sub.fullName}</td>
                         <td className="py-2 px-3 border-r border-slate-300 text-center font-mono-code font-bold text-amber-900">
-                          Lần {sub.attemptNumber || 1}
+                          {attempts} lượt
                         </td>
                         <td className="py-2 px-3 border-r border-slate-300 text-center font-mono-code">{sub.durationFormatted || 'N/A'}</td>
                         <td className="py-2 px-3 border-r border-slate-300 text-center font-black text-sm text-red-600">{pts}</td>
@@ -243,13 +311,19 @@ export default function PrintTab() {
                           )}
                         </td>
                         <td className="py-2 px-3 border-r border-slate-300 text-slate-700 italic">
-                          {sub.attemptNumber >= 5 && isPass ? 'Đủ điều kiện dự thi GK1' : `Đã hoàn thành lần ${sub.attemptNumber || 1}`}
+                          {attempts >= 5 && isPass ? 'Đủ điều kiện dự thi GK1' : `Đã rèn luyện ${attempts} lượt`}
                         </td>
                         <td className="py-2 px-3 text-center print:hidden no-print">
                           <button
                             type="button"
-                            onClick={() => handleDeletePracticeSubmission(sub.id, sub.fullName || sub.studentId)}
-                            title="Xóa lượt làm bài này"
+                            onClick={() => {
+                              if (sub.allIds && sub.allIds.length > 0) {
+                                sub.allIds.forEach(id => handleDeletePracticeSubmission(id, sub.fullName || sub.studentId));
+                              } else {
+                                handleDeletePracticeSubmission(sub.id, sub.fullName || sub.studentId);
+                              }
+                            }}
+                            title="Xóa toàn bộ lượt làm của học sinh này"
                             className="p-1 hover:bg-rose-100 text-rose-600 rounded transition"
                           >
                             🗑️
@@ -265,8 +339,8 @@ export default function PrintTab() {
             {/* KHỐI KÝ TÊN */}
             <div className="pt-8 flex justify-between items-end text-xs text-slate-800">
               <div>
-                <p>Tổng số lượt nộp ôn tập: <strong>{practiceSubs.filter(s => s.studentClass === printClass).length}</strong> lượt</p>
-                <p>Số lượt đạt chuẩn (≥ 6.0đ): <strong>{practiceSubs.filter(s => s.studentClass === printClass && (s.finalScore >= 6.0 || s.score >= 6.0)).length}</strong> lượt</p>
+                <p>Tổng số học sinh ôn tập: <strong>{uniquePracticeSubs.length}</strong> học sinh</p>
+                <p>Số học sinh đạt chuẩn (≥ 6.0đ): <strong>{uniquePracticeSubs.filter(s => (s.bestScore >= 6.0 || s.finalScore >= 6.0 || s.score >= 6.0)).length}</strong> học sinh</p>
               </div>
               <div className="text-center space-y-12">
                 <p className="italic">Thành phố Hồ Chí Minh, ngày ...... tháng ...... năm 2026</p>

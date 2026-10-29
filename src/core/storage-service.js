@@ -46,6 +46,9 @@
     tfScoringPolicy: 'coefficient',
     // Số lượt làm bài thi chính thức tối đa cho mỗi mã LMS (giáo viên cấp thêm lượt cho từng học sinh trong tab Bài nộp)
     maxExamAttempts: 1,
+    // Khóa màn hình khi vi phạm an toàn bài thi (chuyển tab, thoát toàn màn hình 3 lần)
+    lockOnExamViolation: true, // Thi chính thức: Mặc định KHÓA sau 3 lần vi phạm
+    lockOnPracticeViolation: false, // Ôn tập đề cương: Mặc định KHÔNG KHÓA (chỉ cảnh báo vi phạm rèn luyện)
     
     // Cấu hình Google Drive Webhook & Vòng đời lưu trữ (Retention)
     googleDriveWebhookUrl: '', // URL Web App Google Apps Script kết nối Google Drive / Sheets
@@ -358,7 +361,49 @@
     savePracticeSubmission(subDoc) {
       if (!subDoc) return null;
       const list = this.getPracticeSubmissions();
-      list.unshift(subDoc);
+      const sId = String(subDoc.studentId || '').trim();
+      const sClass = subDoc.studentClass;
+      const sGrade = Number(subDoc.grade);
+
+      // Cập nhật duy nhất (unique) theo Mã LMS trong từng lớp học
+      const idx = list.findIndex(s =>
+        String(s.studentId || '').trim() === sId &&
+        s.studentClass === sClass &&
+        Number(s.grade) === sGrade
+      );
+
+      if (idx >= 0) {
+        const existing = list[idx];
+        const newScore = subDoc.finalScore !== undefined ? subDoc.finalScore : (subDoc.score || 0);
+        const oldScore = existing.finalScore !== undefined ? existing.finalScore : (existing.score || 0);
+        const isBetter = newScore >= oldScore;
+        const totalAttempts = Math.max((existing.attemptNumber || 1), (existing.totalAttempts || 1)) + 1;
+
+        const merged = {
+          ...existing,
+          ...(isBetter ? subDoc : {}),
+          id: existing.id || subDoc.id,
+          attemptNumber: totalAttempts,
+          totalAttempts,
+          score: Math.max(oldScore, newScore),
+          finalScore: Math.max(oldScore, newScore),
+          lastSubmittedAt: subDoc.submittedAt || new Date().toISOString(),
+          submittedAt: isBetter ? (subDoc.submittedAt || new Date().toISOString()) : existing.submittedAt,
+          durationFormatted: isBetter ? subDoc.durationFormatted : existing.durationFormatted,
+          correctCount: isBetter ? subDoc.correctCount : existing.correctCount,
+          totalQuestions: isBetter ? subDoc.totalQuestions : existing.totalQuestions,
+          fullName: subDoc.fullName || existing.fullName
+        };
+        list[idx] = merged;
+      } else {
+        const newRecord = {
+          ...subDoc,
+          attemptNumber: subDoc.attemptNumber || 1,
+          totalAttempts: subDoc.attemptNumber || 1
+        };
+        list.unshift(newRecord);
+      }
+
       // Giới hạn lưu tối đa 500 bài ôn tập gần nhất để tối ưu bộ nhớ
       const trimmed = list.slice(0, 500);
       localStorage.setItem(PRACTICE_SUBMISSIONS_KEY, JSON.stringify(trimmed));

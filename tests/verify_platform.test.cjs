@@ -689,6 +689,52 @@ test('Kiểm tra Thích Ứng Đa Thiết Bị & Widget Thời Gian Trực Tiế
   assert.ok(adminHtml.includes('xl:grid-cols-4'), 'Lưới giám sát Tab 1 phải hỗ trợ responsive 4 cột trên laptop');
 });
 
+test('Kiểm tra Bật/Tắt Khóa Vi Phạm & Lưu Unique Mã LMS & Đặt Tên Bản In Theo Lớp', (t) => {
+  const cfg = storage.getConfig();
+  assert.strictEqual(cfg.lockOnExamViolation, true, 'Thi chính thức mặc định khóa vi phạm');
+  assert.strictEqual(cfg.lockOnPracticeViolation, false, 'Ôn tập đề cương mặc định KHÔNG khóa vi phạm');
+
+  // Kiểm tra lưu duy nhất mã LMS trong ôn tập
+  const testSub1 = {
+    id: 'p_sub_101',
+    studentId: 'HS8899',
+    studentClass: '8/19',
+    grade: 8,
+    fullName: 'Trần Văn A',
+    score: 5.5,
+    finalScore: 5.5,
+    attemptNumber: 1
+  };
+  storage.savePracticeSubmission(testSub1);
+
+  const testSub2 = {
+    id: 'p_sub_102',
+    studentId: 'HS8899',
+    studentClass: '8/19',
+    grade: 8,
+    fullName: 'Trần Văn A',
+    score: 8.5,
+    finalScore: 8.5,
+    attemptNumber: 1
+  };
+  storage.savePracticeSubmission(testSub2);
+
+  const subs = storage.getPracticeSubmissions().filter(s => s.studentId === 'HS8899');
+  assert.strictEqual(subs.length, 1, 'Mỗi mã LMS chỉ lưu 1 bản ghi duy nhất trong bảng điểm');
+  assert.strictEqual(subs[0].finalScore, 8.5, 'Điểm lưu lại phải là điểm cao nhất');
+  assert.strictEqual(subs[0].totalAttempts, 2, 'Tổng số lượt làm phải được cộng dồn');
+
+  // Dọn dẹp
+  storage.deletePracticeSubmission(subs[0].id);
+
+  // Kiểm tra giao diện cấu hình admin có 2 công tắc
+  const adminHtml = readPageSource('admin');
+  assert.ok(adminHtml.includes('lockOnExamViolation'), 'Admin phải có switch lockOnExamViolation');
+  assert.ok(adminHtml.includes('lockOnPracticeViolation'), 'Admin phải có switch lockOnPracticeViolation');
+  assert.ok(adminHtml.includes('BANG_DIEM_ON_TAP_LOP_'), 'PrintTab phải có cú pháp đặt tên file theo lớp cho ôn tập');
+  assert.ok(adminHtml.includes('BANG_DIEM_THI_GK1_LOP_'), 'PrintTab phải có cú pháp đặt tên file theo lớp cho thi GK1');
+});
+
 
 
 

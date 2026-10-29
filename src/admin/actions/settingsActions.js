@@ -3,6 +3,7 @@
 export function createSettingsActions(s) {
   const { setSubmissions, setConfig, setConfigSavedNotice, examDurationMinutes,
     practiceDurationMinutes, shuffleQuestions, shuffleOptions, requireAllQuestionsAnswered,
+    lockOnExamViolation, lockOnPracticeViolation,
     googleDriveUrl, googleDriveToken, setIsSyncingDrive, setDriveSyncNotice, setIsTestingDrive,
     setDriveTestMessage, setHasDownloadedBackup, showDialog } = s;
 
@@ -15,7 +16,9 @@ export function createSettingsActions(s) {
       practiceDurationMinutes: parseInt(practiceDurationMinutes, 10) || 0,
       shuffleQuestions: !!shuffleQuestions,
       shuffleOptions: !!shuffleOptions,
-      requireAllQuestionsAnswered: !!requireAllQuestionsAnswered
+      requireAllQuestionsAnswered: !!requireAllQuestionsAnswered,
+      lockOnExamViolation: lockOnExamViolation !== false,
+      lockOnPracticeViolation: !!lockOnPracticeViolation
     });
     setConfig(updated);
     setConfigSavedNotice('Đã lưu cấu hình thời gian, quy chế và chế độ trộn đề thành công!');

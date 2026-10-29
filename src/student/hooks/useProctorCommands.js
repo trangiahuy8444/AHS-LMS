@@ -6,7 +6,7 @@ import { clearPracticeLock } from '../actions/startActions.js';
 export function useProctorCommands(s) {
   const { grade, mode, examState, setExamState, fullName, studentClass, studentId, sessionId,
     assignedCode, setActiveQuestionIdx, setPracticeAnswers, violations, setViolations,
-    setBroadcastNotice, setScoreResult, showDialog, setIsSessionLocked, setIsProctorUnlocked,
+    setBroadcastNotice, setScoreResult, showDialog, isSessionLockedRef, setIsSessionLocked, setIsProctorUnlocked,
     setLockReason, config, setPracticeSet, setOfficialExam, isSessionLocked, setTotalViolations } = s;
 
   // Lệnh giám thị chạy trong setInterval: luôn gọi hàm của lần render mới nhất (bài làm mới nhất khi thu bài)
@@ -47,16 +47,21 @@ export function useProctorCommands(s) {
             title: 'Thông Báo Phòng Thi Từ Thầy Trần Gia Huy 📢',
             message: cmd.payload?.message || 'Các em chú ý thời gian làm bài!'
           });
-        } else if (mode === 'exam' && (cmd.command === 'unlock_session' || cmd.command === 'lock_session')) {
-          // Bài thi chính thức: khóa/mở khóa theo exam_attempts trên máy chủ (effect bên dưới), không tin lệnh trong trình duyệt
         } else if (cmd.command === 'unlock_session') {
-          setIsProctorUnlocked(true);
-          if (window.AsianSchoolAntiCheat) {
-            if (window.AsianSchoolAntiCheat.setLocked) window.AsianSchoolAntiCheat.setLocked(true);
-            window.AsianSchoolAntiCheat.resetViolations();
+          // Lệnh mở khóa: nếu thi chính thức, bỏ qua lệnh mở khóa hàng loạt 'all' không có đích danh
+          const isTargeted = cmd.targetSessionId === sessionId ||
+            (cmd.payload && (cmd.payload.sessionId === sessionId || (cmd.payload.studentId && cmd.payload.studentId === studentId)));
+          const allowAll = mode === 'practice' && cmd.targetSessionId === 'all';
+          if (isTargeted || allowAll) {
+            clearPracticeLock();
+            setIsProctorUnlocked(true);
+            if (window.AsianSchoolAntiCheat) {
+              if (window.AsianSchoolAntiCheat.setLocked) window.AsianSchoolAntiCheat.setLocked(true);
+              window.AsianSchoolAntiCheat.resetViolations();
+            }
           }
-          // Màn hình khóa tự chuyển sang "đã duyệt mở khóa" kèm nút vào lại (không mở thêm hộp thông báo đè lên nút)
         } else if (cmd.command === 'lock_session') {
+          if (isSessionLockedRef) isSessionLockedRef.current = true;
           setIsSessionLocked(true);
           setIsProctorUnlocked(false);
           setLockReason('proctor_lock');
@@ -71,7 +76,7 @@ export function useProctorCommands(s) {
     const interval = setInterval(checkCommands, 2000);
     checkCommands();
     return () => clearInterval(interval);
-  }, [examState, sessionId]);
+  }, [examState, sessionId, mode, studentId]);
 
   // Kênh dự phòng: Lắng nghe trạng thái live_sessions trực tiếp (từ Firestore và LocalStorage)
   // Khi giáo viên bấm Xác Nhận Mở Khóa trên bảng điều khiển proctor, học sinh nhận được ngay lập tức
@@ -82,8 +87,9 @@ export function useProctorCommands(s) {
     let unsubStorage = null;
     if (window.AsianSchoolStorage && window.AsianSchoolStorage.onLiveSessionsChange) {
       unsubStorage = window.AsianSchoolStorage.onLiveSessionsChange((sessions) => {
-        const my = (sessions || []).find(s => s.sessionId === sessionId);
-        if (my && my.isLocked === false && latest.current.isSessionLocked) {
+        const my = (sessions || []).find(s => s.sessionId === sessionId || (studentId && s.studentId === studentId));
+        if (my && my.isLocked === false && (latest.current.isSessionLocked || isSessionLockedRef?.current)) {
+          clearPracticeLock();
           setIsProctorUnlocked(true);
           if (window.AsianSchoolAntiCheat) {
             if (window.AsianSchoolAntiCheat.setLocked) window.AsianSchoolAntiCheat.setLocked(true);
@@ -100,7 +106,8 @@ export function useProctorCommands(s) {
         unsubFirestore = window.firebaseDb.collection('live_sessions').doc(sessionId).onSnapshot((doc) => {
           if (!doc || !doc.exists) return;
           const data = doc.data();
-          if (data && data.isLocked === false && latest.current.isSessionLocked) {
+          if (data && data.isLocked === false && (latest.current.isSessionLocked || isSessionLockedRef?.current)) {
+            clearPracticeLock();
             setIsProctorUnlocked(true);
             if (window.AsianSchoolAntiCheat) {
               if (window.AsianSchoolAntiCheat.setLocked) window.AsianSchoolAntiCheat.setLocked(true);
@@ -117,7 +124,7 @@ export function useProctorCommands(s) {
       if (unsubStorage) unsubStorage();
       if (unsubFirestore) unsubFirestore();
     };
-  }, [examState, sessionId]);
+  }, [examState, sessionId, studentId]);
 
   // Bài thi chính thức: trạng thái khóa do máy chủ quyết định (exam_attempts.locked; chỉ giáo viên đặt lại false).
   // Chỉ mở khóa khi thấy máy chủ chuyển khóa -> mở, nên ghi lệnh giả vào localStorage hay tải lại trang không thoát được.
@@ -132,11 +139,20 @@ export function useProctorCommands(s) {
       // Chỉ tin trạng thái MỞ khi máy chủ đã xác nhận (không mở khóa dựa trên dữ liệu ghi tạm hay cache)
       if (!locked && !meta.fromServer) return;
       if (locked && prevLocked !== true) {
+        if (isSessionLockedRef) isSessionLockedRef.current = true;
         setIsSessionLocked(true);
         setIsProctorUnlocked(false);
         setLockReason(r => r || a.lockReason || 'proctor_lock');
-      } else if (!locked && prevLocked === true) {
+        if (window.AsianSchoolAntiCheat && window.AsianSchoolAntiCheat.setLocked) {
+          window.AsianSchoolAntiCheat.setLocked(true);
+        }
+      } else if (!locked && (prevLocked === true || isSessionLocked || isSessionLockedRef?.current)) {
+        clearPracticeLock();
         setIsProctorUnlocked(true);
+        if (window.AsianSchoolAntiCheat) {
+          if (window.AsianSchoolAntiCheat.setLocked) window.AsianSchoolAntiCheat.setLocked(true);
+          window.AsianSchoolAntiCheat.resetViolations();
+        }
         // Màn hình khóa tự chuyển sang "đã duyệt mở khóa" kèm nút vào lại (không mở thêm hộp thông báo đè lên nút)
         // Vào lại khi đang bị khóa thì chưa có đề: tải đề sau khi được mở khóa (đã có đề thì giữ nguyên thứ tự câu)
         if (window.AsianSchoolCloud.loadExam && setOfficialExam) {
@@ -151,7 +167,8 @@ export function useProctorCommands(s) {
   }, [mode, examState, grade, studentId]);
 
   const handleStudentResumeFromLock = async () => {
-    if (mode === 'practice') clearPracticeLock();
+    clearPracticeLock();
+    if (isSessionLockedRef) isSessionLockedRef.current = false;
     setIsSessionLocked(false);
     setIsProctorUnlocked(false);
     setLockReason(null);
@@ -164,7 +181,7 @@ export function useProctorCommands(s) {
         if (window.AsianSchoolAntiCheat && window.AsianSchoolAntiCheat.setLocked) {
           window.AsianSchoolAntiCheat.setLocked(false);
         }
-      }, 600);
+      }, 800);
     }
     if (window.AsianSchoolStorage) {
       window.AsianSchoolStorage.updateLiveSession({

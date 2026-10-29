@@ -66,6 +66,8 @@ export function useStudentController() {
 
   // Lock State & Time Tracking
   const [isSessionLocked, setIsSessionLocked] = useState(false);
+  const isSessionLockedRef = useRef(false);
+  isSessionLockedRef.current = isSessionLocked;
   const [isProctorUnlocked, setIsProctorUnlocked] = useState(false);
   const [lockReason, setLockReason] = useState(null); // 'violation_3_times' | 'proctor_lock'
   const [examStartTime, setExamStartTime] = useState(null);
@@ -367,6 +369,7 @@ export function useStudentController() {
     setCustomDialog,
     showDialog,
     isSessionLocked,
+    isSessionLockedRef,
     setIsSessionLocked,
     isProctorUnlocked,
     setIsProctorUnlocked,

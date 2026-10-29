@@ -80,9 +80,31 @@ export function createProctorActions(s) {
       `Xác nhận MỞ KHÓA BÀI THI cho thí sinh ${studentName}? Thí sinh sẽ được tiếp tục làm bài.`,
       'info',
       async () => {
-        if (!(await setServerLock(sessionId, false))) return;
-        window.AsianSchoolStorage.sendProctorCommand(sessionId, 'unlock_session', {});
-        window.AsianSchoolStorage.updateLiveSession({ sessionId, status: 'in_progress', isLocked: false });
+        const live = window.AsianSchoolStorage.getLiveSessions().find(x => x.sessionId === sessionId);
+        const studentId = live ? live.studentId : null;
+        const grade = live ? live.grade : null;
+        const mode = live ? live.mode : null;
+
+        try {
+          await setServerLock(sessionId, false);
+        } catch (e) {
+          console.warn('Lỗi ghi khóa lên máy chủ:', e);
+        }
+
+        // Gửi lệnh mở khóa trực tiếp qua proctor commands (cả sessionId và studentId để bao phủ khi tải lại trang)
+        window.AsianSchoolStorage.sendProctorCommand(sessionId, 'unlock_session', { sessionId, studentId, grade });
+        if (studentId) {
+          window.AsianSchoolStorage.sendProctorCommand('all', 'unlock_session', { sessionId, studentId, grade });
+        }
+
+        // Cập nhật live_sessions để mở khóa trên giao diện và đặt lại số vi phạm dưới ngưỡng khóa
+        window.AsianSchoolStorage.updateLiveSession({
+          sessionId,
+          status: mode === 'practice' ? 'practicing' : 'in_progress',
+          isLocked: false,
+          violations: Math.min(live?.violations || 0, 2)
+        });
+
         showToast(`Đã gửi lệnh mở khóa bài thi cho thí sinh ${studentName}!`, 'success', 'Mở Khóa Thành Công 🔓');
       }
     );

@@ -6,6 +6,7 @@ export default function ExamTimingCard() {
   const { examDurationMinutes, setExamDurationMinutes, practiceDurationMinutes,
     setPracticeDurationMinutes, shuffleQuestions, setShuffleQuestions, shuffleOptions,
     setShuffleOptions, requireAllQuestionsAnswered, setRequireAllQuestionsAnswered,
+    lockOnExamViolation, setLockOnExamViolation, lockOnPracticeViolation, setLockOnPracticeViolation,
     handleSaveExamConfig } = useAdmin();
 
   return (
@@ -113,6 +114,40 @@ export default function ExamTimingCard() {
               className="sr-only peer"
             />
             <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+          </label>
+        </div>
+
+        {/* Khóa màn hình khi vi phạm (Thi chính thức) */}
+        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex items-center justify-between">
+          <div>
+            <span className="text-xs font-bold text-slate-900 block">🔒 Khóa Vi Phạm (Thi Chính Thức)</span>
+            <p className="text-[11px] text-slate-500 mt-0.5">Tự động phong tỏa màn hình sau 3 lần vi phạm chuyển tab / thoát toàn màn hình (Mặc định: BẬT)</p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={lockOnExamViolation}
+              onChange={e => setLockOnExamViolation(e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+          </label>
+        </div>
+
+        {/* Khóa màn hình khi vi phạm (Ôn tập đề cương) */}
+        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex items-center justify-between">
+          <div>
+            <span className="text-xs font-bold text-slate-900 block">📖 Khóa Vi Phạm (Ôn Tập Đề Cương)</span>
+            <p className="text-[11px] text-slate-500 mt-0.5">Mặc định TẮT (chỉ cảnh báo nhắc nhở, không khóa màn hình để học sinh tự do rèn luyện)</p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={lockOnPracticeViolation}
+              onChange={e => setLockOnPracticeViolation(e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
           </label>
         </div>
       </div>

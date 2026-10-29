@@ -26,7 +26,7 @@ export function createStartActions(s) {
     setAssignedCode, setOfficialExam, setIsContactingServer, submittingExamRef,
     setActiveQuestionIdx, examPasswordInput, setPracticeAnswers, setScoreResult, setTimeLeftStr, setSecondsLeft,
     violations, setViolations, setTotalViolations, setShowWarningModal, setWarningMessage, showDialog,
-    setIsSessionLocked, setIsProctorUnlocked, lockReason, setLockReason, setExamStartTime,
+    isSessionLockedRef, setIsSessionLocked, setIsProctorUnlocked, lockReason, setLockReason, setExamStartTime,
     setElapsedSeconds, config, setPracticeSet, handleSubmitPractice, handleSubmitExam } = s;
 
   // Bắt đầu làm bài
@@ -119,9 +119,21 @@ export function createStartActions(s) {
 
     setSessionId(sid);
     setActiveQuestionIdx(0);
+
+    // Xác định cấu hình khóa màn hình vi phạm
+    const shouldLock = mode === 'practice'
+      ? Boolean(config && config.lockOnPracticeViolation)
+      : (config?.lockOnExamViolation !== false);
+
+    // Nếu là ôn tập mà chế độ mặc định không khóa vi phạm: dọn dẹp khóa cũ trên máy nếu có
+    if (mode === 'practice' && !shouldLock) {
+      clearPracticeLock();
+    }
+
     // Ôn tập: khóa lưu trên máy (tải lại trang vẫn khóa, chờ giám thị); bài thi chính thức khóa trên máy chủ
-    const practiceLock = mode === 'practice' ? readPracticeLock(grade, studentId) : null;
+    const practiceLock = (mode === 'practice' && shouldLock) ? readPracticeLock(grade, studentId) : null;
     const resumeLocked = !!(serverStart && serverStart.locked) || !!practiceLock;
+    if (isSessionLockedRef) isSessionLockedRef.current = resumeLocked;
     setIsSessionLocked(resumeLocked);
     setIsProctorUnlocked(false);
     setLockReason(resumeLocked ? ((serverStart && serverStart.lockReason) || 'violation_3_times') : null);
@@ -141,20 +153,22 @@ export function createStartActions(s) {
       mode,
       onViolation: (v) => {
         // NẾU BÀI ĐANG BỊ KHÓA: Tuyệt đối không ghi nhận thêm vi phạm khi đang ở màn hình khóa
-        if (s.isSessionLocked) return;
+        if (isSessionLockedRef?.current || (window.AsianSchoolAntiCheat && window.AsianSchoolAntiCheat.isLocked)) return;
 
         setViolations(v.count);
         totalViolations += 1;
         setTotalViolations(totalViolations);
-        if (mode === 'practice' && v.count >= 3) savePracticeLock(grade, studentId, totalViolations);
-        if (mode === 'exam' && window.AsianSchoolCloud && window.AsianSchoolCloud.reportViolation) {
-          window.AsianSchoolCloud.reportViolation({ grade, studentId, lock: v.count >= 3 });
-        }
-        if (v.count >= 3) {
+
+        if (v.count >= 3 && shouldLock) {
+          if (mode === 'practice') savePracticeLock(grade, studentId, totalViolations);
+          if (mode === 'exam' && window.AsianSchoolCloud && window.AsianSchoolCloud.reportViolation) {
+            window.AsianSchoolCloud.reportViolation({ grade, studentId, lock: true });
+          }
           // Khóa AntiCheat lại để không bắn thêm vi phạm khi đang ở màn hình khóa
           if (window.AsianSchoolAntiCheat && window.AsianSchoolAntiCheat.setLocked) {
             window.AsianSchoolAntiCheat.setLocked(true);
           }
+          if (isSessionLockedRef) isSessionLockedRef.current = true;
           // Cảnh báo lần 1–2 không còn ý nghĩa khi đã khóa (tránh hiện lại sau khi mở khóa)
           setShowWarningModal(false);
           setIsSessionLocked(true);
@@ -175,7 +189,13 @@ export function createStartActions(s) {
             penaltyPoints: 0
           });
         } else {
-          setWarningMessage(`Cảnh báo vi phạm lần ${v.count}/3: Em vừa rời khỏi giao diện làm bài hoặc thoát toàn màn hình! Nếu vi phạm đến lần thứ 3, hệ thống sẽ KHÓA BÀI THI và giám thị ghi nhận vi phạm!`);
+          if (mode === 'exam' && window.AsianSchoolCloud && window.AsianSchoolCloud.reportViolation) {
+            window.AsianSchoolCloud.reportViolation({ grade, studentId, lock: false });
+          }
+          const warningMsg = (v.count >= 3 && !shouldLock)
+            ? `Cảnh báo vi phạm lần ${v.count}: Em vừa rời giao diện làm bài hoặc thoát toàn màn hình! Vì đang ở chế độ ôn tập rèn luyện, hệ thống chỉ nhắc nhở cảnh báo (không khóa màn hình). Em hãy tập trung làm bài!`
+            : `Cảnh báo vi phạm lần ${v.count}/3: Em vừa rời khỏi giao diện làm bài hoặc thoát toàn màn hình! ${shouldLock ? 'Nếu vi phạm đến lần thứ 3, hệ thống sẽ KHÓA BÀI THI và giám thị ghi nhận vi phạm!' : 'Em hãy giữ nguyên toàn màn hình để rèn luyện tốt nhất!'}`;
+          setWarningMessage(warningMsg);
           setShowWarningModal(true);
           window.AsianSchoolStorage.updateLiveSession({
             sessionId: sid,
@@ -192,6 +212,10 @@ export function createStartActions(s) {
         }
       }
     });
+
+    if (resumeLocked && window.AsianSchoolAntiCheat && window.AsianSchoolAntiCheat.setLocked) {
+      window.AsianSchoolAntiCheat.setLocked(true);
+    }
 
     // Cấu hình thời gian làm bài từ Admin
     const examDur = serverStart ? serverStart.durationMinutes : (config.examDurationMinutes || 45);

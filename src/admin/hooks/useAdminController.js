@@ -72,12 +72,14 @@ export function useAdminController() {
   const [attemptStatus, setAttemptStatus] = useState('');
   const [configSavedNotice, setConfigSavedNotice] = useState('');
 
-  // Thời gian làm bài & Xáo trộn đề
+  // Thời gian làm bài & Xáo trộn đề & Khóa vi phạm
   const [examDurationMinutes, setExamDurationMinutes] = useState(config.examDurationMinutes || 45);
   const [practiceDurationMinutes, setPracticeDurationMinutes] = useState(config.practiceDurationMinutes || 0);
   const [shuffleQuestions, setShuffleQuestions] = useState(config.shuffleQuestions !== false);
   const [shuffleOptions, setShuffleOptions] = useState(config.shuffleOptions !== false);
   const [requireAllQuestionsAnswered, setRequireAllQuestionsAnswered] = useState(config.requireAllQuestionsAnswered || false);
+  const [lockOnExamViolation, setLockOnExamViolation] = useState(config.lockOnExamViolation !== false);
+  const [lockOnPracticeViolation, setLockOnPracticeViolation] = useState(Boolean(config.lockOnPracticeViolation));
 
   // Google Drive & Retention States
   const [googleDriveUrl, setGoogleDriveUrl] = useState(config.googleDriveWebhookUrl || '');
@@ -199,6 +201,10 @@ export function useAdminController() {
     setShuffleOptions,
     requireAllQuestionsAnswered,
     setRequireAllQuestionsAnswered,
+    lockOnExamViolation,
+    setLockOnExamViolation,
+    lockOnPracticeViolation,
+    setLockOnPracticeViolation,
     googleDriveUrl,
     setGoogleDriveUrl,
     googleDriveToken,
