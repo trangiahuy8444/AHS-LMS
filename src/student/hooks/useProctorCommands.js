@@ -6,7 +6,7 @@ export function useProctorCommands(s) {
   const { grade, mode, examState, setExamState, fullName, studentClass, studentId, sessionId,
     assignedCode, setActiveQuestionIdx, setPracticeAnswers, violations, setViolations,
     setBroadcastNotice, setScoreResult, showDialog, setIsSessionLocked, setIsProctorUnlocked,
-    setLockReason, config, setPracticeSet, handleSubmitExam } = s;
+    setLockReason, config, setPracticeSet, handleSubmitExam, setOfficialExam } = s;
 
   // Lắng nghe lệnh giám thị thời gian thực từ Admin (Gia hạn giờ, Thu bài, Thông báo)
   useEffect(() => {
@@ -35,6 +35,8 @@ export function useProctorCommands(s) {
             title: 'Thông Báo Phòng Thi Từ Thầy Trần Gia Huy 📢',
             message: cmd.payload?.message || 'Các em chú ý thời gian làm bài!'
           });
+        } else if (mode === 'exam' && (cmd.command === 'unlock_session' || cmd.command === 'lock_session')) {
+          // Bài thi chính thức: khóa/mở khóa theo exam_attempts trên máy chủ (effect bên dưới), không tin lệnh trong trình duyệt
         } else if (cmd.command === 'unlock_session') {
           setIsProctorUnlocked(true);
           setBroadcastNotice({
@@ -56,6 +58,37 @@ export function useProctorCommands(s) {
     return () => clearInterval(interval);
   }, [examState, sessionId]);
 
+  // Bài thi chính thức: trạng thái khóa do máy chủ quyết định (exam_attempts.locked; chỉ giáo viên đặt lại false).
+  // Chỉ mở khóa khi thấy máy chủ chuyển khóa -> mở, nên ghi lệnh giả vào localStorage hay tải lại trang không thoát được.
+  useEffect(() => {
+    if (mode !== 'exam' || examState !== 'in_progress' || !studentId) return;
+    if (!window.AsianSchoolCloud || !window.AsianSchoolCloud.watchAttempt) return;
+    let prevLocked;
+    const unsub = window.AsianSchoolCloud.watchAttempt({ grade, studentId }, (a) => {
+      const locked = a.locked === true;
+      if (locked && prevLocked !== true) {
+        setIsSessionLocked(true);
+        setIsProctorUnlocked(false);
+        setLockReason(r => r || a.lockReason || 'proctor_lock');
+      } else if (!locked && prevLocked === true) {
+        setIsProctorUnlocked(true);
+        setBroadcastNotice({
+          type: 'success',
+          title: 'Giáo Viên Đã Xác Nhận Mở Khóa Bài Thi 🔓',
+          message: 'Thầy Trần Gia Huy đã xác nhận mở khóa bài thi của em. Em hãy bấm nút "VÀO LẠI TOÀN MÀN HÌNH" trên màn hình để tiếp tục làm bài!'
+        });
+        // Vào lại khi đang bị khóa thì chưa có đề: tải đề sau khi được mở khóa (đã có đề thì giữ nguyên thứ tự câu)
+        if (window.AsianSchoolCloud.loadExam && setOfficialExam) {
+          window.AsianSchoolCloud.loadExam({ grade, examCode: a.examCode })
+            .then(exam => setOfficialExam(prev => prev || exam))
+            .catch(e => console.warn('Tải đề sau khi mở khóa thất bại:', e.message));
+        }
+      }
+      prevLocked = locked;
+    });
+    return unsub;
+  }, [mode, examState, grade, studentId]);
+
   const handleStudentResumeFromLock = async () => {
     setIsSessionLocked(false);
     setIsProctorUnlocked(false);
@@ -74,7 +107,7 @@ export function useProctorCommands(s) {
         grade,
         mode,
         examCode: assignedCode,
-        violations: 0,
+        // Không ghi violations: tổng số vi phạm giữ nguyên để giáo viên ghi nhận
         status: mode === 'exam' ? 'in_progress' : 'practicing',
         isLocked: false
       });

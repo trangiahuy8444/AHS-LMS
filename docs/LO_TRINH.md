@@ -21,6 +21,10 @@
 
 ## Cần thầy xác nhận ngay
 
+- [ ] Dán `firestore.rules` mới (khóa bài trên máy chủ) lên Firebase Console **cùng lúc** với lần push mã tương ứng, ngoài giờ thi
+- [ ] **Đề xuất (agent bảo mật):** siết `live_sessions` (hasOnly, kích thước, id theo uid), chặn nộp quá giờ (cộng giờ ghi lên máy chủ), chặn làm bài thay (giáo viên bật cho phép nhận lại lượt), dọn dữ liệu học sinh trong localStorage máy dùng chung
+- [ ] **Cần quyết định:** làm tròn điểm đến 1 chữ số thập phân theo TT 22/2021 (hiện làm tròn 2 chữ số)
+
 - [ ] Bản `firestore.rules` hiện tại đã dán lên Firebase Console chưa? (Nếu chưa, các bảo vệ ở commit `98dc055`, `aa48472` chưa có hiệu lực.)
 - [ ] Đã chạy thử một ca thi thật (ít nhất 1 lớp) trên bản Vite chưa?
 

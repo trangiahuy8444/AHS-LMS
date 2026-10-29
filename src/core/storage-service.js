@@ -1105,9 +1105,12 @@
 
     sendProctorCommand(targetSessionId, command, payload = {}) {
       const list = this.getProctorCommandsRaw();
+      // uid của học sinh nhận lệnh (firestore.rules chỉ cho học sinh đọc lệnh có targetUid là mình hoặc 'all')
+      const target = targetSessionId === 'all' ? null : this.getLiveSessions().find(x => x.sessionId === targetSessionId);
       const cmdObj = {
         cmdId: 'cmd-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
         targetSessionId, // 'all' hoặc sessionId cụ thể
+        targetUid: targetSessionId === 'all' ? 'all' : ((target && target.uid) || 'khong_ro'),
         command, // 'extend_time' | 'force_submit' | 'unlock_session' | 'broadcast_message'
         payload,
         createdAt: Date.now(),

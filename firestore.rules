@@ -120,14 +120,31 @@ service cloud.firestore {
         return resource.data.uid == request.auth.uid
           && resource.data.submitted == true
           && resource.data.attemptsUsed < allowedAttempts(resource.data)
-          && d.diff(resource.data).affectedKeys().hasOnly(['attemptsUsed', 'submitted', 'startedAt', 'examCode', 'submittedAt'])
+          && d.diff(resource.data).affectedKeys().hasOnly(['attemptsUsed', 'submitted', 'startedAt', 'examCode', 'submittedAt',
+                                                           'violations', 'locked', 'lockCount', 'lockReason'])
           && d.attemptsUsed == resource.data.attemptsUsed + 1
+          && d.get('violations', 0) == 0 && d.get('locked', false) == false && d.get('lockCount', 0) == 0
+          && !('lockReason' in d)
           && d.submitted == false
           && d.startedAt == request.time
           && !('submittedAt' in d)
           && classOpen(resource.data.studentClass)
           && codeAllowed(resource.data.grade, resource.data.studentClass, d.examCode)
           && roomPasswordOk();
+      }
+
+      // Ghi vi phạm chống gian lận: số vi phạm và số lần khóa chỉ TĂNG; học sinh chỉ được khóa (false -> true),
+      // không được tự mở khóa. Chỉ giáo viên đặt locked = false (nhánh isTeacher()).
+      function reportViolation() {
+        let d = request.resource.data;
+        let o = resource.data;
+        return o.uid == request.auth.uid
+          && o.submitted == false
+          && d.diff(o).affectedKeys().hasOnly(['violations', 'locked', 'lockCount'])
+          && d.get('violations', 0) is int && d.get('violations', 0) >= o.get('violations', 0) && d.get('violations', 0) < 1000
+          && d.get('lockCount', 0) is int && d.get('lockCount', 0) >= o.get('lockCount', 0) && d.get('lockCount', 0) < 1000
+          && d.get('locked', false) is bool
+          && (d.get('locked', false) == true || o.get('locked', false) == false);
       }
 
       // Nộp bài: chỉ cùng lúc tạo bài nộp submissions/<attemptId>_<lượt>
@@ -142,7 +159,7 @@ service cloud.firestore {
 
       allow read: if isTeacher() || (signedIn() && resource.data.uid == request.auth.uid);
       allow create: if signedIn() && validNewAttempt(request.resource.data);
-      allow update: if isTeacher() || (signedIn() && (takeover() || retake() || submit()));
+      allow update: if isTeacher() || (signedIn() && (takeover() || retake() || submit() || reportViolation()));
       allow delete: if isTeacher();
     }
 
@@ -162,7 +179,8 @@ service cloud.firestore {
       function sessionAllows() {
         let s = get(/databases/$(database)/documents/exam_sessions/$(request.auth.uid)).data;
         let a = get(/databases/$(database)/documents/exam_attempts/$(s.attemptId)).data;
-        return s.examDocId == docId && a.uid == request.auth.uid && a.submitted == false;
+        // Lượt đang bị khóa thì không đọc được đề (tải lại trang không thoát được khóa)
+        return s.examDocId == docId && a.uid == request.auth.uid && a.submitted == false && a.get('locked', false) == false;
       }
       allow get: if isTeacher() || (signedIn() && sessionAllows());
       allow list: if isTeacher();
@@ -194,7 +212,7 @@ service cloud.firestore {
           && d.serverSubmittedAt == request.time
           && d.mode == 'exam'
           && d.answers is map
-          && d.violations is int && d.violations >= 0 && d.violations < 100
+          && d.violations is int && d.violations == a.get('violations', 0)
           && d.sessionId is string && d.submittedAt is string
           && d.isGraded == false && d.essayScores == {} && d.essayTotal == 0 && d.teacherFeedback == '';
       }
@@ -235,8 +253,9 @@ service cloud.firestore {
     }
 
     // Lệnh giám thị (cộng giờ, mở khóa, thu bài): học sinh chỉ đọc
+    // Học sinh chỉ đọc lệnh gửi cho mình (targetUid) hoặc cả phòng ('all'); truy vấn phía học sinh lọc theo targetUid
     match /proctor_commands/{cmdId} {
-      allow read: if signedIn();
+      allow read: if isTeacher() || (signedIn() && resource.data.get('targetUid', '') in [request.auth.uid, 'all']);
       allow write: if isTeacher();
     }
 

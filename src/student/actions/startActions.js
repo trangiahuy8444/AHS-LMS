@@ -60,7 +60,8 @@ export function createStartActions(s) {
         return;
       }
       setIsContactingServer(false);
-      setOfficialExam(serverStart.exam);
+      // Lượt đang bị khóa (tải lại trang khi bị khóa): chưa có đề, chờ giáo viên mở khóa trên máy chủ
+      setOfficialExam(serverStart.exam || null);
       submittingExamRef.current = false;
     }
 
@@ -75,9 +76,13 @@ export function createStartActions(s) {
 
     setSessionId(sid);
     setActiveQuestionIdx(0);
-    setIsSessionLocked(false);
+    const resumeLocked = !!(serverStart && serverStart.locked);
+    setIsSessionLocked(resumeLocked);
     setIsProctorUnlocked(false);
-    setLockReason(null);
+    setLockReason(resumeLocked ? serverStart.lockReason : null);
+    setViolations(0);
+    // Tổng vi phạm của lượt (không đặt lại khi mở khóa); bài thi chính thức lấy số chuẩn trên exam_attempts
+    let totalViolations = serverStart ? (serverStart.violations || 0) : 0;
     setExamStartTime(serverStart ? new Date(serverStart.startedAtMs) : new Date());
     setElapsedSeconds(0);
 
@@ -90,6 +95,10 @@ export function createStartActions(s) {
       mode,
       onViolation: (v) => {
         setViolations(v.count);
+        totalViolations += 1;
+        if (mode === 'exam' && window.AsianSchoolCloud && window.AsianSchoolCloud.reportViolation) {
+          window.AsianSchoolCloud.reportViolation({ grade, studentId, lock: v.count >= 3 });
+        }
         if (v.count >= 3) {
           setIsSessionLocked(true);
           setIsProctorUnlocked(false);
@@ -102,7 +111,7 @@ export function createStartActions(s) {
             grade,
             mode,
             examCode: code || (mode === 'practice' ? 'DE_CUONG' : '101'),
-            violations: v.count,
+            violations: totalViolations,
             status: 'locked',
             isLocked: true,
             lockReason: 'violation_3_times',
@@ -119,7 +128,7 @@ export function createStartActions(s) {
             grade,
             mode,
             examCode: code || (mode === 'practice' ? 'DE_CUONG' : '101'),
-            violations: v.count,
+            violations: totalViolations,
             status: mode === 'exam' ? 'in_progress' : 'practicing',
             isLocked: false
           });
@@ -152,8 +161,8 @@ export function createStartActions(s) {
               grade,
               mode: 'exam',
               examCode: code,
-              violations,
-              status: 'in_progress',
+              // Nhịp tim không ghi trạng thái khóa (tránh ghi đè 'locked'); số vi phạm là tổng hiện tại
+              violations: totalViolations,
               timeLeft: fmt
             });
           }
@@ -178,8 +187,9 @@ export function createStartActions(s) {
         grade,
         mode: 'exam',
         examCode: code,
-        violations: 0,
-        status: 'in_progress',
+        violations: totalViolations,
+        status: resumeLocked ? 'locked' : 'in_progress',
+        isLocked: resumeLocked,
         timeLeft: `${examDur}:00`
       });
     } else {
@@ -199,8 +209,7 @@ export function createStartActions(s) {
                 grade,
                 mode: 'practice',
                 examCode: 'DE_CUONG',
-                violations,
-                status: 'practicing',
+                violations: totalViolations,
                 timeLeft: fmt
               });
             }

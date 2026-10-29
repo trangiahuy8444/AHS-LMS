@@ -214,3 +214,26 @@ test('Cổng học sinh không gửi thẳng lên webhook; rules có hàng chờ
   assert.match(block, /allow read, delete: if isTeacher\(\);/);
   assert.match(block, /d\.uid == request\.auth\.uid/);
 });
+
+test('firestore.rules: khóa bài và số vi phạm nằm trên máy chủ', () => {
+  const rules = fs.readFileSync(path.join(__dirname, '../firestore.rules'), 'utf8');
+  const fn = (name) => rules.slice(rules.indexOf(`function ${name}()`), rules.indexOf('\n      }', rules.indexOf(`function ${name}()`)));
+  const rv = fn('reportViolation');
+  assert.match(rv, /hasOnly\(\['violations', 'locked', 'lockCount'\]\)/, 'Học sinh chỉ ghi được 3 trường vi phạm');
+  assert.match(rv, /d\.get\('violations', 0\) >= o\.get\('violations', 0\)/, 'Số vi phạm chỉ tăng');
+  assert.match(rv, /d\.get\('locked', false\) == true \|\| o\.get\('locked', false\) == false/, 'Học sinh không tự mở khóa');
+  assert.match(rules, /takeover\(\) \|\| retake\(\) \|\| submit\(\) \|\| reportViolation\(\)/);
+  assert.match(fn('sessionAllows'), /a\.get\('locked', false\) == false/, 'Đang khóa thì không đọc được đề');
+  assert.match(rules, /d\.violations == a\.get\('violations', 0\)/, 'Bài nộp phải khớp số vi phạm trên lượt thi');
+  const pc = rules.slice(rules.indexOf('match /proctor_commands/'), rules.indexOf('\n    }', rules.indexOf('match /proctor_commands/')));
+  assert.match(pc, /resource\.data\.get\('targetUid', ''\) in \[request\.auth\.uid, 'all'\]/, 'Học sinh chỉ đọc lệnh gửi cho mình');
+});
+
+test('Lệnh giám thị ghi targetUid của học sinh nhận lệnh', () => {
+  const storage = require('../src/core/storage-service.js');
+  storage.updateLiveSession({ sessionId: 'sess-uid-test', uid: 'uid-hs-1', fullName: 'A', mode: 'exam' });
+  assert.strictEqual(storage.sendProctorCommand('sess-uid-test', 'extend_time', { minutes: 5 }).targetUid, 'uid-hs-1');
+  assert.strictEqual(storage.sendProctorCommand('all', 'broadcast_message', { message: 'x' }).targetUid, 'all');
+  assert.strictEqual(storage.sendProctorCommand('sess-khong-co', 'force_submit', {}).targetUid, 'khong_ro');
+  storage.removeLiveSession('sess-uid-test');
+});

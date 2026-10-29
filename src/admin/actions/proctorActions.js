@@ -6,6 +6,20 @@ export function createProctorActions(s) {
 
   // --- CÁC HÀNH ĐỘNG GIÁM THỊ (PROCTOR ACTIONS) ---
 
+  // Bài thi chính thức: trạng thái khóa nằm trên exam_attempts (máy chủ), học sinh không tự mở được.
+  // Ôn tập: chỉ khóa trên trình duyệt qua lệnh giám thị như trước.
+  const setServerLock = async (sessionId, locked) => {
+    const live = window.AsianSchoolStorage.getLiveSessions().find(x => x.sessionId === sessionId);
+    if (!live || live.mode !== 'exam' || !live.studentId || !window.AsianSchoolCloud) return true;
+    try {
+      await window.AsianSchoolCloud.setAttemptLock({ grade: live.grade, studentId: live.studentId, locked });
+      return true;
+    } catch (e) {
+      showDialog('Chưa Ghi Được Lên Máy Chủ', `Không cập nhật được trạng thái khóa của lượt thi: ${e.message}`, 'error');
+      return false;
+    }
+  };
+
   const handleExtendTime = (sessionId, studentName, minutes = 5) => {
     showDialog(
       'Gia Hạn Thời Gian Làm Bài ⏱️',
@@ -47,7 +61,8 @@ export function createProctorActions(s) {
       'Khóa Bài Thi Thí Sinh 🔒',
       `Xác nhận KHÓA BÀI THI của thí sinh ${studentName}? Màn hình của học sinh sẽ bị phong tỏa ngay lập tức.`,
       'warning',
-      () => {
+      async () => {
+        await setServerLock(sessionId, true);
         window.AsianSchoolStorage.sendProctorCommand(sessionId, 'lock_session', { reason: 'Giáo viên chủ động khóa bài' });
         window.AsianSchoolStorage.updateLiveSession({ sessionId, status: 'locked', isLocked: true });
         showToast(`Đã gửi lệnh khóa bài thi thí sinh ${studentName}!`, 'warning', 'Khóa Bài Thi 🔒');
@@ -60,7 +75,8 @@ export function createProctorActions(s) {
       'Mở Khóa Bài Thi 🔓',
       `Xác nhận MỞ KHÓA BÀI THI cho thí sinh ${studentName}? Thí sinh sẽ được tiếp tục làm bài.`,
       'info',
-      () => {
+      async () => {
+        if (!(await setServerLock(sessionId, false))) return;
         window.AsianSchoolStorage.sendProctorCommand(sessionId, 'unlock_session', {});
         window.AsianSchoolStorage.updateLiveSession({ sessionId, status: 'in_progress', isLocked: false });
         showToast(`Đã gửi lệnh mở khóa bài thi cho thí sinh ${studentName}!`, 'success', 'Mở Khóa Thành Công 🔓');

@@ -192,9 +192,14 @@
       }
     }
 
-    // 3. Đồng bộ Proctor Commands (lệnh giám thị: cộng giờ, thu bài, mở khóa)
+    // 3. Đồng bộ Proctor Commands (lệnh giám thị: cộng giờ, thu bài, thông báo).
+    // Học sinh chỉ đọc lệnh gửi cho uid của mình hoặc cả phòng (firestore.rules kiểm tra targetUid).
     try {
-      db.collection('proctor_commands').onSnapshot(
+      const uid = auth && auth.currentUser ? auth.currentUser.uid : null;
+      const cmdQuery = isStudentPortal
+        ? db.collection('proctor_commands').where('targetUid', 'in', [uid || '-', 'all'])
+        : db.collection('proctor_commands');
+      cmdQuery.onSnapshot(
         (snapshot) => {
           if (!snapshot) return;
           const cloudCmds = [];
@@ -469,7 +474,11 @@
           submitted: false,
           startedAt: FieldValue.serverTimestamp(),
           examCode: code,
-          submittedAt: FieldValue.delete()
+          submittedAt: FieldValue.delete(),
+          violations: 0,
+          locked: false,
+          lockCount: 0,
+          lockReason: FieldValue.delete()
         });
       } catch (e) {
         throw denied;
@@ -480,14 +489,59 @@
 
     const examDocId = `g${grade}_${attempt.examCode}`;
     await db.collection('exam_sessions').doc(uid).set({ attemptId, examDocId });
-    const examSnap = await db.collection('exam_public').doc(examDocId).get({ source: 'server' });
-    if (!examSnap.exists) throw new Error(`Không tìm thấy mã đề ${attempt.examCode} Khối ${grade}. Em báo Thầy/Cô giám thị.`);
-    return {
+    const base = {
       examCode: attempt.examCode,
-      exam: examSnap.data().exam,
       durationMinutes: cfg.examDurationMinutes || 45,
-      startedAtMs: toMillis(attempt.startedAt) || Date.now()
+      startedAtMs: toMillis(attempt.startedAt) || Date.now(),
+      violations: attempt.violations || 0
     };
+    // Tải lại trang khi đang bị khóa: vẫn khóa, chưa được đọc đề cho tới khi giáo viên mở khóa
+    if (attempt.locked) {
+      return { ...base, exam: null, locked: true, lockReason: attempt.lockReason || 'violation_3_times' };
+    }
+    const exam = await loadExam({ grade, examCode: attempt.examCode });
+    return { ...base, exam, locked: false };
+  }
+
+  async function loadExam({ grade, examCode }) {
+    const examSnap = await db.collection('exam_public').doc(`g${Number(grade)}_${examCode}`).get({ source: 'server' });
+    if (!examSnap.exists) throw new Error(`Không tìm thấy mã đề ${examCode} Khối ${grade}. Em báo Thầy/Cô giám thị.`);
+    return examSnap.data().exam;
+  }
+
+  function attemptRefFor(grade, studentId) {
+    return db.collection('exam_attempts').doc(`g${Number(grade)}_${lmsKey(studentId)}`);
+  }
+
+  // Ghi vi phạm lên lượt thi: số vi phạm chỉ tăng; lock = true khi đủ 3 lần (rules không cho học sinh tự mở khóa)
+  function reportViolation({ grade, studentId, lock }) {
+    if (!db || !auth || !auth.currentUser) return Promise.resolve(false);
+    const FieldValue = firebase.firestore.FieldValue;
+    const update = { violations: FieldValue.increment(1) };
+    if (lock) {
+      update.locked = true;
+      update.lockCount = FieldValue.increment(1);
+    }
+    return attemptRefFor(grade, studentId).update(update)
+      .then(() => true)
+      .catch((e) => { console.warn('[Firestore] Ghi vi phạm thất bại:', e.message); return false; });
+  }
+
+  // Theo dõi lượt thi của chính mình: trạng thái khóa do máy chủ quyết định
+  function watchAttempt({ grade, studentId }, cb) {
+    if (!db) return () => {};
+    return attemptRefFor(grade, studentId).onSnapshot(
+      (snap) => { if (snap.exists) cb(snap.data()); },
+      (e) => console.warn('[Firestore] Theo dõi lượt thi thất bại:', e.message)
+    );
+  }
+
+  // Giáo viên khóa / mở khóa lượt thi (chỉ isTeacher() được đặt locked = false)
+  function setAttemptLock({ grade, studentId, locked }) {
+    const FieldValue = firebase.firestore.FieldValue;
+    return attemptRefFor(grade, studentId).update(locked
+      ? { locked: true, lockReason: 'proctor_lock', lockCount: FieldValue.increment(1) }
+      : { locked: false, lockReason: FieldValue.delete() });
   }
 
   async function submitExam(data) {
@@ -506,7 +560,8 @@
     const subId = `${attemptId}_${a.attemptsUsed}`;
     // Bỏ giá trị undefined (Firestore không nhận) và tách khỏi state React
     const answers = JSON.parse(JSON.stringify(data.answers || { mcq: {}, tf: {}, essay: {} }));
-    const violations = Math.max(0, Math.min(99, parseInt(data.violations, 10) || 0));
+    // Số vi phạm là số máy chủ đã ghi trên lượt thi (rules bắt bài nộp khớp với exam_attempts.violations)
+    const violations = Number.isInteger(a.violations) ? a.violations : 0;
     const submittedAt = new Date().toISOString();
 
     if (!a.submitted) {
@@ -583,7 +638,7 @@
       }
     };
 
-    window.AsianSchoolCloud = { startExam, submitExam };
+    window.AsianSchoolCloud = { startExam, submitExam, loadExam, reportViolation, watchAttempt, setAttemptLock };
 
     const pathname = (window.location && window.location.pathname) || '';
     const isStudentPortal = pathname.includes('/test');
