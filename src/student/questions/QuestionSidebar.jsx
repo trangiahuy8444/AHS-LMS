@@ -21,7 +21,11 @@ export default function QuestionSidebar() {
             <span>{mode === 'exam' ? timeLeftStr : (config.practiceDurationMinutes > 0 ? timeLeftStr : formatElapsed(elapsedSeconds))}</span>
           </div>
           <div className="flex items-center justify-between text-[11px] text-slate-600 font-semibold pt-1 border-t border-blue-100">
-            <span>Bắt đầu: {examStartTime ? examStartTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Vừa xong'}</span>
+            <span>Bắt đầu: {(() => {
+              if (!examStartTime) return 'Vừa xong';
+              const d = examStartTime instanceof Date ? examStartTime : new Date(examStartTime);
+              return !isNaN(d.getTime()) ? d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Vừa xong';
+            })()}</span>
             <span className="text-emerald-700 font-bold">Đã làm: {formatElapsed(elapsedSeconds)}</span>
           </div>
         </div>

@@ -24,13 +24,15 @@ export function clearPracticeLock() {
 export function createStartActions(s) {
   const { grade, mode, setExamState, fullName, studentClass, studentId, sessionId, setSessionId,
     setAssignedCode, setOfficialExam, setIsContactingServer, submittingExamRef,
-    setActiveQuestionIdx, examPasswordInput, setPracticeAnswers, setTimeLeftStr, setSecondsLeft,
+    setActiveQuestionIdx, examPasswordInput, setPracticeAnswers, setScoreResult, setTimeLeftStr, setSecondsLeft,
     violations, setViolations, setTotalViolations, setShowWarningModal, setWarningMessage, showDialog,
     setIsSessionLocked, setIsProctorUnlocked, lockReason, setLockReason, setExamStartTime,
     setElapsedSeconds, config, setPracticeSet, handleSubmitPractice, handleSubmitExam } = s;
 
   // Bắt đầu làm bài
   const handleStart = async () => {
+    // Reset kết quả cũ nếu có
+    if (setScoreResult) setScoreResult(null);
     // Chuẩn hóa họ tên và mã LMS (bỏ "-", khoảng trắng; viết hoa) để giáo viên đối chiếu dễ; dùng cho cả phiên
     const N = window.AsianSchoolNormalize;
     const fullName = N ? N.normalizeStudentName(s.fullName) : String(s.fullName || '').trim();

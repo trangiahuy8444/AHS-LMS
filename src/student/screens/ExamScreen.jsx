@@ -51,7 +51,14 @@ export default function ExamScreen() {
         {(() => {
           const activeList = mode === 'practice' ? practiceItems : examItems;
           const currentItem = activeList[activeQuestionIdx] || activeList[0];
-          if (!currentItem) return null;
+          if (!currentItem) {
+            return (
+              <div className="bg-white border-2 border-slate-200 p-8 rounded-2xl text-center space-y-3">
+                <div className="animate-spin text-3xl inline-block">🔄</div>
+                <p className="text-slate-600 font-bold text-sm">Đang tải bộ câu hỏi, vui lòng chờ trong giây lát...</p>
+              </div>
+            );
+          }
           const progressPct = ((activeQuestionIdx + 1) / activeList.length) * 100;
 
           return (

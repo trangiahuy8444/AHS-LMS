@@ -183,41 +183,18 @@ export function useProctorCommands(s) {
   };
 
   const handleRestartPractice = () => {
-    // Sinh một bộ câu hỏi ngẫu nhiên mới cho lần ôn tập kế tiếp
-    const currentData = grade === 8 ? window.EXAM_DATA_G8 : (grade === 9 ? window.EXAM_DATA_G9 : window.EXAM_DATA_G10);
-    if (typeof window !== 'undefined' && window.AsianSchoolStorage && window.AsianSchoolStorage.generatePracticeSet) {
-      setPracticeSet(window.AsianSchoolStorage.generatePracticeSet(grade, currentData, config));
-    }
-    setPracticeAnswers({ mcq: {}, tf: {}, essay: {} });
-    setScoreResult(null);
-    setViolations(0);
-    if (setTotalViolations) setTotalViolations(0);
-    setActiveQuestionIdx(0);
+    // Xóa khóa ôn tập cũ nếu có để lượt mới hoàn toàn sạch sẽ
+    if (mode === 'practice') clearPracticeLock();
+    if (setScoreResult) setScoreResult(null);
 
-    // Kích hoạt lại toàn màn hình nếu có hỗ trợ
-    try {
-      if (window.AsianSchoolAntiCheat && window.AsianSchoolAntiCheat.requestFullscreen) {
-        window.AsianSchoolAntiCheat.requestFullscreen().catch(() => {});
+    // Kích hoạt lại lượt ôn tập mới đầy đủ: sinh bộ câu hỏi mới, hẹn giờ, bật chống gian lận và vào bài làm
+    if (fullName && studentId && s.handleStart) {
+      try {
+        s.handleStart();
+      } catch (err) {
+        console.error('Lỗi khởi động lượt ôn tập mới:', err);
+        setExamState('entry');
       }
-    } catch { /* ignore */ }
-
-    // Nếu học sinh đã có đầy đủ tên và mã LMS, vào thẳng bài làm mới ngay lập tức không cần nhập lại
-    if (fullName && studentId) {
-      if (s.setExamStartTime) s.setExamStartTime(Date.now());
-      if (s.setElapsedSeconds) s.setElapsedSeconds(0);
-      if (sessionId && window.AsianSchoolStorage) {
-        window.AsianSchoolStorage.updateLiveSession({
-          sessionId,
-          fullName,
-          studentClass,
-          studentId,
-          grade,
-          mode: 'practice',
-          status: 'practicing',
-          isLocked: false
-        });
-      }
-      setExamState('in_progress');
     } else {
       setExamState('entry');
     }

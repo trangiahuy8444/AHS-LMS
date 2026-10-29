@@ -15,7 +15,7 @@ export default function PrintTab() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white p-5 rounded-3xl border-2 border-slate-200/80 flex flex-wrap items-center justify-between gap-4 shadow-sm">
+      <div className="bg-white p-5 rounded-3xl border-2 border-slate-200/80 flex flex-wrap items-center justify-between gap-4 shadow-sm no-print print:hidden">
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center space-x-2">
             <span className="text-xs font-bold text-slate-700 uppercase">Mẫu Bảng Điểm:</span>
@@ -83,7 +83,7 @@ export default function PrintTab() {
       </div>
 
       {/* BẢN XEM TRƯỚC BẢNG ĐIỂM (PREVIEW) */}
-      <div className="bg-white text-slate-900 rounded-3xl p-8 border border-slate-300 shadow-2xl space-y-6 font-sans">
+      <div className="bg-white text-slate-900 rounded-3xl p-8 border border-slate-300 shadow-2xl space-y-6 font-sans print:shadow-none print:border-none print:p-0 print:rounded-none">
         
         {/* TIÊU ĐỀ TRƯỜNG ASIAN SCHOOL */}
         <div className="flex justify-between items-start border-b-2 border-slate-900 pb-4">
@@ -205,7 +205,7 @@ export default function PrintTab() {
                   <th className="py-2.5 px-3 border-r border-slate-400 text-center">Thời Điểm Nộp</th>
                   <th className="py-2.5 px-3 border-r border-slate-400 text-center">Đánh Giá (≥ 6.0)</th>
                   <th className="py-2.5 px-3 border-r border-slate-400">Ghi Chú Tiến Độ</th>
-                  <th className="py-2.5 px-3 text-center print:hidden w-12">Xóa</th>
+                  <th className="py-2.5 px-3 text-center print:hidden no-print w-12">Xóa</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-300">
@@ -245,7 +245,7 @@ export default function PrintTab() {
                         <td className="py-2 px-3 border-r border-slate-300 text-slate-700 italic">
                           {sub.attemptNumber >= 5 && isPass ? 'Đủ điều kiện dự thi GK1' : `Đã hoàn thành lần ${sub.attemptNumber || 1}`}
                         </td>
-                        <td className="py-2 px-3 text-center print:hidden">
+                        <td className="py-2 px-3 text-center print:hidden no-print">
                           <button
                             type="button"
                             onClick={() => handleDeletePracticeSubmission(sub.id, sub.fullName || sub.studentId)}

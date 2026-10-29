@@ -165,7 +165,7 @@ function AdminApp() {
           </div>
         </header>
 
-        <main className="max-w-7xl mx-auto px-4 py-6 flex-1 w-full no-print">
+        <main className="max-w-7xl mx-auto px-4 py-6 flex-1 w-full print:max-w-none print:p-0 print:m-0">
         
           {/* TAB 1: GIÁM SÁT TRỰC TIẾP & ĐIỀU KHIỂN GIÁM THỊ */}
           {activeTab === 'live' && <LiveTab />}
