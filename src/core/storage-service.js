@@ -1113,7 +1113,7 @@
       const cmdObj = {
         cmdId: 'cmd-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
         targetSessionId, // 'all' hoặc sessionId cụ thể
-        targetUid: targetSessionId === 'all' ? 'all' : ((target && target.uid) || 'khong_ro'),
+        targetUid: targetSessionId === 'all' ? 'all' : ((target && target.uid) || (command === 'unlock_session' ? 'all' : 'khong_ro')),
         command, // 'extend_time' | 'force_submit' | 'unlock_session' | 'broadcast_message'
         payload,
         createdAt: Date.now(),

@@ -138,6 +138,9 @@ export function createStartActions(s) {
     window.AsianSchoolAntiCheat.start({
       mode,
       onViolation: (v) => {
+        // NẾU BÀI ĐANG BỊ KHÓA: Tuyệt đối không ghi nhận thêm vi phạm khi đang ở màn hình khóa
+        if (s.isSessionLocked) return;
+
         setViolations(v.count);
         totalViolations += 1;
         setTotalViolations(totalViolations);
@@ -146,6 +149,10 @@ export function createStartActions(s) {
           window.AsianSchoolCloud.reportViolation({ grade, studentId, lock: v.count >= 3 });
         }
         if (v.count >= 3) {
+          // Khóa AntiCheat lại để không bắn thêm vi phạm khi đang ở màn hình khóa
+          if (window.AsianSchoolAntiCheat && window.AsianSchoolAntiCheat.setLocked) {
+            window.AsianSchoolAntiCheat.setLocked(true);
+          }
           // Cảnh báo lần 1–2 không còn ý nghĩa khi đã khóa (tránh hiện lại sau khi mở khóa)
           setShowWarningModal(false);
           setIsSessionLocked(true);

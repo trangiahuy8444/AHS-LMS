@@ -12,6 +12,7 @@
       this.listeners = [];
       this.onViolationCallback = null;
       this.isSubmitting = false;
+      this.isLocked = false;
 
       this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
       this.handleBlur = this.handleBlur.bind(this);
@@ -23,6 +24,7 @@
     start({ onViolation, allowCopyPaste = false } = {}) {
       if (this.enabled) return;
       this.enabled = true;
+      this.isLocked = false;
       this.violationCount = 0;
       this.isSubmitting = false;
       this.onViolationCallback = onViolation;
@@ -56,12 +58,16 @@
       this.isSubmitting = val;
     }
 
+    setLocked(val) {
+      this.isLocked = !!val;
+    }
+
     resetViolations() {
       this.violationCount = 0;
     }
 
     triggerViolation(reason, details = {}) {
-      if (!this.enabled || this.isSubmitting) return;
+      if (!this.enabled || this.isSubmitting || this.isLocked) return;
       this.violationCount++;
       const payload = {
         count: this.violationCount,

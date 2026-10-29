@@ -51,19 +51,72 @@ export function useProctorCommands(s) {
           // Bài thi chính thức: khóa/mở khóa theo exam_attempts trên máy chủ (effect bên dưới), không tin lệnh trong trình duyệt
         } else if (cmd.command === 'unlock_session') {
           setIsProctorUnlocked(true);
+          if (window.AsianSchoolAntiCheat) {
+            if (window.AsianSchoolAntiCheat.setLocked) window.AsianSchoolAntiCheat.setLocked(true);
+            window.AsianSchoolAntiCheat.resetViolations();
+          }
           // Màn hình khóa tự chuyển sang "đã duyệt mở khóa" kèm nút vào lại (không mở thêm hộp thông báo đè lên nút)
         } else if (cmd.command === 'lock_session') {
           setIsSessionLocked(true);
           setIsProctorUnlocked(false);
           setLockReason('proctor_lock');
+          if (window.AsianSchoolAntiCheat && window.AsianSchoolAntiCheat.setLocked) {
+            window.AsianSchoolAntiCheat.setLocked(true);
+          }
         }
         window.AsianSchoolStorage.consumeProctorCommand(cmd.cmdId, sessionId);
       });
     };
 
-    const interval = setInterval(checkCommands, 2500);
+    const interval = setInterval(checkCommands, 2000);
     checkCommands();
     return () => clearInterval(interval);
+  }, [examState, sessionId]);
+
+  // Kênh dự phòng: Lắng nghe trạng thái live_sessions trực tiếp (từ Firestore và LocalStorage)
+  // Khi giáo viên bấm Xác Nhận Mở Khóa trên bảng điều khiển proctor, học sinh nhận được ngay lập tức
+  useEffect(() => {
+    if (examState !== 'in_progress' || !sessionId) return;
+
+    // 1. Lắng nghe qua AsianSchoolStorage listener
+    let unsubStorage = null;
+    if (window.AsianSchoolStorage && window.AsianSchoolStorage.onLiveSessionsChange) {
+      unsubStorage = window.AsianSchoolStorage.onLiveSessionsChange((sessions) => {
+        const my = (sessions || []).find(s => s.sessionId === sessionId);
+        if (my && my.isLocked === false && latest.current.isSessionLocked) {
+          setIsProctorUnlocked(true);
+          if (window.AsianSchoolAntiCheat) {
+            if (window.AsianSchoolAntiCheat.setLocked) window.AsianSchoolAntiCheat.setLocked(true);
+            window.AsianSchoolAntiCheat.resetViolations();
+          }
+        }
+      });
+    }
+
+    // 2. Lắng nghe qua Firestore document live_sessions/{sessionId}
+    let unsubFirestore = null;
+    if (typeof window !== 'undefined' && window.firebaseDb && typeof window.firebaseDb.collection === 'function') {
+      try {
+        unsubFirestore = window.firebaseDb.collection('live_sessions').doc(sessionId).onSnapshot((doc) => {
+          if (!doc || !doc.exists) return;
+          const data = doc.data();
+          if (data && data.isLocked === false && latest.current.isSessionLocked) {
+            setIsProctorUnlocked(true);
+            if (window.AsianSchoolAntiCheat) {
+              if (window.AsianSchoolAntiCheat.setLocked) window.AsianSchoolAntiCheat.setLocked(true);
+              window.AsianSchoolAntiCheat.resetViolations();
+            }
+          }
+        }, (err) => {
+          console.warn('[useProctorCommands] live_session snapshot error:', err.message);
+        });
+      } catch (e) { /* ignore */ }
+    }
+
+    return () => {
+      if (unsubStorage) unsubStorage();
+      if (unsubFirestore) unsubFirestore();
+    };
   }, [examState, sessionId]);
 
   // Bài thi chính thức: trạng thái khóa do máy chủ quyết định (exam_attempts.locked; chỉ giáo viên đặt lại false).
@@ -106,6 +159,12 @@ export function useProctorCommands(s) {
     if (window.AsianSchoolAntiCheat) {
       window.AsianSchoolAntiCheat.resetViolations();
       await window.AsianSchoolAntiCheat.requestFullscreen().catch(() => {});
+      // Trì hoãn bật lại giám sát chống gian lận để trình duyệt hoàn tất chuyển đổi toàn màn hình
+      setTimeout(() => {
+        if (window.AsianSchoolAntiCheat && window.AsianSchoolAntiCheat.setLocked) {
+          window.AsianSchoolAntiCheat.setLocked(false);
+        }
+      }, 600);
     }
     if (window.AsianSchoolStorage) {
       window.AsianSchoolStorage.updateLiveSession({

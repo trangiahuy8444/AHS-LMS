@@ -236,13 +236,19 @@ export default function LiveSessionList() {
                                 {userPracticeSubs.slice(0, 4).map((p, idx) => {
                                   const pScore = p.finalScore !== undefined ? p.finalScore : (p.score !== undefined ? p.score : 0);
                                   const pMax = p.maxScore !== undefined ? p.maxScore : (g === 10 ? 7.75 : 7);
+                                  const pViolations = p.violations || 0;
                                   return (
                                     <div key={p.id || idx} className="flex items-center justify-between text-[11px] bg-slate-50 px-2 py-1 rounded-lg border border-slate-200/60">
-                                      <span className="text-slate-600 font-semibold">
-                                        Ôn tập Lần {p.attemptNumber || (userPracticeSubs.length - idx)}:
+                                      <span className="text-slate-600 font-semibold truncate max-w-[85px]">
+                                        Lần {p.attemptNumber || (userPracticeSubs.length - idx)}:
                                       </span>
                                       <span className="font-mono-code font-black text-red-600">
                                         {pScore} / {pMax}đ
+                                      </span>
+                                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                        pViolations > 0 ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'text-slate-400'
+                                      }`}>
+                                        {pViolations > 0 ? `⚠️ ${pViolations} VP` : '0 VP'}
                                       </span>
                                       <span className="text-slate-400 text-[10px] font-mono-code">
                                         {p.submittedAt ? new Date(p.submittedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : ''}
@@ -251,19 +257,27 @@ export default function LiveSessionList() {
                                   );
                                 })}
 
-                                {userOfficialSubs.map((sub, idx) => (
-                                  <div key={sub.id || idx} className="flex items-center justify-between text-[11px] bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200">
-                                    <span className="text-emerald-800 font-bold">
-                                      Bài thi ({sub.examCode || '101'}):
-                                    </span>
-                                    <span className="font-mono-code font-black text-emerald-900">
-                                      {sub.isGraded ? `${sub.finalScore}đ` : `TN: ${sub.mcqPoints}đ`}
-                                    </span>
-                                    <span className="text-emerald-600 text-[10px] font-mono-code">
-                                      {sub.isGraded ? 'Đã chấm' : 'Chờ chấm'}
-                                    </span>
-                                  </div>
-                                ))}
+                                {userOfficialSubs.map((sub, idx) => {
+                                  const subViolations = sub.violations || 0;
+                                  return (
+                                    <div key={sub.id || idx} className="flex items-center justify-between text-[11px] bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200">
+                                      <span className="text-emerald-800 font-bold truncate max-w-[85px]">
+                                        Thi ({sub.examCode || '101'}):
+                                      </span>
+                                      <span className="font-mono-code font-black text-emerald-900">
+                                        {sub.isGraded ? `${sub.finalScore}đ` : `TN: ${sub.mcqPoints}đ`}
+                                      </span>
+                                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                        subViolations > 0 ? 'bg-red-100 text-red-900 border border-red-300' : 'text-emerald-700'
+                                      }`}>
+                                        {subViolations > 0 ? `⚠️ ${subViolations} VP` : '0 VP'}
+                                      </span>
+                                      <span className="text-emerald-600 text-[10px] font-mono-code">
+                                        {sub.isGraded ? 'Đã chấm' : 'Chờ chấm'}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             )}
                           </div>
