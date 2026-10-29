@@ -733,6 +733,8 @@ test('Kiểm tra Bật/Tắt Khóa Vi Phạm & Lưu Unique Mã LMS & Đặt Tên
   assert.ok(adminHtml.includes('lockOnPracticeViolation'), 'Admin phải có switch lockOnPracticeViolation');
   assert.ok(adminHtml.includes('BANG_DIEM_ON_TAP_LOP_'), 'PrintTab phải có cú pháp đặt tên file theo lớp cho ôn tập');
   assert.ok(adminHtml.includes('BANG_DIEM_THI_GK1_LOP_'), 'PrintTab phải có cú pháp đặt tên file theo lớp cho thi GK1');
+  assert.ok(adminHtml.includes('BANG_DIEM_THI_CK1_LOP_'), 'PrintTab phải có cú pháp đặt tên file theo lớp cho thi CK1');
+  assert.ok(adminHtml.includes('BẢNG TỔNG HỢP ĐIỂM KIỂM TRA ĐÁNH GIÁ CUỐI HỌC KỲ 1'), 'PrintTab phải có tiêu đề in Cuối HK1');
 });
 
 

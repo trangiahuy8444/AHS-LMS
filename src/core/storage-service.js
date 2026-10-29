@@ -34,6 +34,7 @@
     },
     examDurationMinutes: 45,
     practiceDurationMinutes: 0, // 0 = Không giới hạn thời gian (Tự do), hoặc 15, 30, 45 phút
+    examPeriod: 'midterm', // 'midterm' (Thi Giữa HK1) | 'final' (Thi Cuối HK1)
     shuffleQuestions: true, // Bật/Tắt trộn thứ tự câu hỏi
     shuffleOptions: true, // Bật/Tắt xáo trộn vị trí 4 phương án A/B/C/D
     requireAllQuestionsAnswered: false, // Bật/Tắt bắt buộc làm hết tất cả câu hỏi (không được bỏ trống khi nộp)
@@ -716,7 +717,7 @@
           `"${(s.fullName || '').replace(/"/g, '""')}"`,
           `"${(s.studentClass || '').replace(/"/g, '""')}"`,
           s.grade || '',
-          s.mode === 'exam' ? 'Thi Giữa HK1' : 'Ôn Tập Đề Cương',
+          s.mode === 'exam' ? ((s.examPeriod === 'final' || this.getConfig().examPeriod === 'final') ? 'Thi Cuối HK1' : 'Thi Giữa HK1') : 'Ôn Tập Đề Cương',
           `"${(s.examCode || '').replace(/"/g, '""')}"`,
           `"${(s.durationFormatted || '45 phút').replace(/"/g, '""')}"`,
           autoScore,

@@ -8,6 +8,8 @@ export default function PrintTab() {
     setPrintClass,
     printType,
     setPrintType,
+    printPeriod,
+    setPrintPeriod,
     practiceSubs,
     handleClearPracticeClass,
     handleDeletePracticeSubmission
@@ -70,7 +72,9 @@ export default function PrintTab() {
     const safeClass = (printClass || 'CHUA_CHON').replace(/[^a-zA-Z0-9]/g, '_');
     const docTitle = printType === 'practice'
       ? `BANG_DIEM_ON_TAP_LOP_${safeClass}`
-      : `BANG_DIEM_THI_GK1_LOP_${safeClass}`;
+      : (printPeriod === 'final'
+          ? `BANG_DIEM_THI_CK1_LOP_${safeClass}`
+          : `BANG_DIEM_THI_GK1_LOP_${safeClass}`);
 
     document.title = docTitle;
     window.print();
@@ -88,14 +92,31 @@ export default function PrintTab() {
             <div className="inline-flex rounded-xl p-1 bg-slate-100 border border-slate-200 text-xs font-bold">
               <button
                 type="button"
-                onClick={() => setPrintType('exam')}
+                onClick={() => {
+                  setPrintType('exam');
+                  if (setPrintPeriod) setPrintPeriod('midterm');
+                }}
                 className={`px-3 py-1.5 rounded-lg transition ${
-                  printType === 'exam'
+                  printType === 'exam' && printPeriod !== 'final'
                     ? 'bg-blue-600 text-white shadow'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                📝 Thi Chính Thức
+                📝 Thi Giữa HK1
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPrintType('exam');
+                  if (setPrintPeriod) setPrintPeriod('final');
+                }}
+                className={`px-3 py-1.5 rounded-lg transition ${
+                  printType === 'exam' && printPeriod === 'final'
+                    ? 'bg-indigo-600 text-white shadow'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                🎓 Thi Cuối HK1
               </button>
               <button
                 type="button"
@@ -171,7 +192,9 @@ export default function PrintTab() {
           <>
             <div className="text-center space-y-1">
               <h2 className="text-lg font-black uppercase tracking-tight text-slate-950">
-                BẢNG TỔNG HỢP ĐIỂM KIỂM TRA ĐÁNH GIÁ GIỮA HỌC KỲ 1
+                {printPeriod === 'final'
+                  ? 'BẢNG TỔNG HỢP ĐIỂM KIỂM TRA ĐÁNH GIÁ CUỐI HỌC KỲ 1'
+                  : 'BẢNG TỔNG HỢP ĐIỂM KIỂM TRA ĐÁNH GIÁ GIỮA HỌC KỲ 1'}
               </h2>
               <p className="text-xs font-semibold text-slate-700">
                 Thời lượng làm bài: 45 phút • Lớp học: {printClass} • Giáo viên phụ trách: Thầy Trần Gia Huy

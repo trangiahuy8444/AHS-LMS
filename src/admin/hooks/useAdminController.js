@@ -50,6 +50,7 @@ export function useAdminController() {
   // Print Gradebook Tab State
   const [printClass, setPrintClass] = useState('8/19');
   const [printType, setPrintType] = useState('exam'); // 'exam' | 'practice'
+  const [printPeriod, setPrintPeriod] = useState(config.examPeriod || 'midterm'); // 'midterm' | 'final'
   const [practiceSubs, setPracticeSubs] = useState([]);
 
   // Danh sách lớp theo khối
@@ -73,6 +74,7 @@ export function useAdminController() {
   const [configSavedNotice, setConfigSavedNotice] = useState('');
 
   // Thời gian làm bài & Xáo trộn đề & Khóa vi phạm
+  const [examPeriod, setExamPeriod] = useState(config.examPeriod || 'midterm'); // 'midterm' (Giữa HK1) | 'final' (Cuối HK1)
   const [examDurationMinutes, setExamDurationMinutes] = useState(config.examDurationMinutes || 45);
   const [practiceDurationMinutes, setPracticeDurationMinutes] = useState(config.practiceDurationMinutes || 0);
   const [shuffleQuestions, setShuffleQuestions] = useState(config.shuffleQuestions !== false);
@@ -171,6 +173,8 @@ export function useAdminController() {
     setPrintClass,
     printType,
     setPrintType,
+    printPeriod,
+    setPrintPeriod,
     practiceSubs,
     setPracticeSubs,
     ALL_CLASSES_BY_GRADE,
@@ -191,6 +195,8 @@ export function useAdminController() {
     setAttemptStatus,
     configSavedNotice,
     setConfigSavedNotice,
+    examPeriod,
+    setExamPeriod,
     examDurationMinutes,
     setExamDurationMinutes,
     practiceDurationMinutes,

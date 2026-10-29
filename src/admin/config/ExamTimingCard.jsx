@@ -3,7 +3,7 @@ import { useAdmin } from '../AdminContext.js';
 
 // 1. CẤU HÌNH THỜI GIAN & CHẾ ĐỘ TRỘN ĐỀ THI
 export default function ExamTimingCard() {
-  const { examDurationMinutes, setExamDurationMinutes, practiceDurationMinutes,
+  const { examPeriod, setExamPeriod, examDurationMinutes, setExamDurationMinutes, practiceDurationMinutes,
     setPracticeDurationMinutes, shuffleQuestions, setShuffleQuestions, shuffleOptions,
     setShuffleOptions, requireAllQuestionsAnswered, setRequireAllQuestionsAnswered,
     lockOnExamViolation, setLockOnExamViolation, lockOnPracticeViolation, setLockOnPracticeViolation,
@@ -14,15 +14,58 @@ export default function ExamTimingCard() {
       <div className="flex items-center justify-between border-b border-slate-100 pb-3">
         <h3 className="font-black text-sm text-blue-950 uppercase tracking-wider flex items-center space-x-2">
           <span>🎛️</span>
-          <span>CẤU HÌNH THỜI GIAN & CHẾ ĐỘ TRỘN ĐỀ</span>
+          <span>CẤU HÌNH THỜI GIAN, ĐỢT THI & CHẾ ĐỘ TRỘN ĐỀ</span>
         </h3>
         <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-100 text-blue-900 border border-blue-200">
           Thời Gian Thực
         </span>
       </div>
       <p className="text-xs text-slate-500 font-medium">
-        Tùy chỉnh thời gian làm bài kiểm tra chính thức, thời gian ôn tập đề cương và bật/tắt xáo trộn câu hỏi, phương án.
+        Tùy chỉnh đợt kiểm tra đánh giá (Giữa HK1 / Cuối HK1), thời gian làm bài, thời gian ôn tập và quy chế phòng thi.
       </p>
+
+      {/* Chọn đợt thi Giữa HK1 vs Cuối HK1 */}
+      <div className="p-4 bg-blue-50/70 border-2 border-blue-200/80 rounded-2xl space-y-2">
+        <label className="block text-xs font-black text-blue-950 uppercase tracking-wider">
+          📅 Đợt Kiểm Tra Đánh Giá Chính Thức:
+        </label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => setExamPeriod('midterm')}
+            className={`p-3 rounded-xl border-2 text-left font-bold text-xs transition flex items-center space-x-3 ${
+              examPeriod === 'midterm'
+                ? 'bg-blue-600 border-blue-700 text-white shadow'
+                : 'bg-white border-slate-200 text-slate-700 hover:border-blue-400'
+            }`}
+          >
+            <span className="text-xl">📝</span>
+            <div>
+              <div className="font-black">Kiểm Tra Giữa Học Kỳ 1</div>
+              <div className={`text-[10px] ${examPeriod === 'midterm' ? 'text-blue-100' : 'text-slate-400'}`}>
+                Mã đợt: GK1 • Bảng điểm: BANG_DIEM_THI_GK1
+              </div>
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => setExamPeriod('final')}
+            className={`p-3 rounded-xl border-2 text-left font-bold text-xs transition flex items-center space-x-3 ${
+              examPeriod === 'final'
+                ? 'bg-indigo-600 border-indigo-700 text-white shadow'
+                : 'bg-white border-slate-200 text-slate-700 hover:border-indigo-400'
+            }`}
+          >
+            <span className="text-xl">🎓</span>
+            <div>
+              <div className="font-black">Kiểm Tra Cuối Học Kỳ 1</div>
+              <div className={`text-[10px] ${examPeriod === 'final' ? 'text-indigo-100' : 'text-slate-400'}`}>
+                Mã đợt: CK1 • Bảng điểm: BANG_DIEM_THI_CK1
+              </div>
+            </div>
+          </button>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
         {/* Thời gian thi chính thức */}

@@ -1,7 +1,7 @@
 // Cấu hình thời gian, trộn đề, Google Drive và vòng đời dữ liệu
 // s: state của Cổng Quản Trị (xem hooks/useAdminController.js)
 export function createSettingsActions(s) {
-  const { setSubmissions, setConfig, setConfigSavedNotice, examDurationMinutes,
+  const { setSubmissions, setConfig, setConfigSavedNotice, examPeriod, examDurationMinutes,
     practiceDurationMinutes, shuffleQuestions, shuffleOptions, requireAllQuestionsAnswered,
     lockOnExamViolation, lockOnPracticeViolation,
     googleDriveUrl, googleDriveToken, setIsSyncingDrive, setDriveSyncNotice, setIsTestingDrive,
@@ -12,6 +12,7 @@ export function createSettingsActions(s) {
   const handleSaveExamConfig = (e) => {
     if (e && e.preventDefault) e.preventDefault();
     const updated = window.AsianSchoolStorage.saveConfig({
+      examPeriod: examPeriod || 'midterm',
       examDurationMinutes: parseInt(examDurationMinutes, 10) || 45,
       practiceDurationMinutes: parseInt(practiceDurationMinutes, 10) || 0,
       shuffleQuestions: !!shuffleQuestions,

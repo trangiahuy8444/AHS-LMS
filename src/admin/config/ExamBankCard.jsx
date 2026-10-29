@@ -3,15 +3,24 @@ import { useAdmin } from '../AdminContext.js';
 
 // 2. TÀI KHOẢN GIÁO VIÊN & KHO MÃ ĐỀ CHÍNH THỨC
 export default function ExamBankCard() {
-  const { teacherEmail, config, examBankStatus, handleLogout, handleUploadExamBank,
+  const { teacherEmail, config, examBankStatus, examPeriod, handleLogout, handleUploadExamBank,
     handleToggleExamBankLock, handleToggleExamCode } = useAdmin();
 
   return (
     <div className="bg-white p-6 rounded-3xl border-2 border-slate-200/80 shadow-sm space-y-4">
-      <h3 className="font-black text-sm text-blue-950 uppercase tracking-wider border-b border-slate-100 pb-3 flex items-center space-x-2">
-        <span>🛡️</span>
-        <span>TÀI KHOẢN GIÁO VIÊN & KHO MÃ ĐỀ CHÍNH THỨC</span>
-      </h3>
+      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 className="font-black text-sm text-blue-950 uppercase tracking-wider flex items-center space-x-2">
+          <span>🛡️</span>
+          <span>TÀI KHOẢN GIÁO VIÊN & KHO MÃ ĐỀ CHÍNH THỨC</span>
+        </h3>
+        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+          examPeriod === 'final'
+            ? 'bg-indigo-100 text-indigo-900 border-indigo-200'
+            : 'bg-blue-100 text-blue-900 border-blue-200'
+        }`}>
+          {examPeriod === 'final' ? '🎓 Đợt Thi: Cuối HK1' : '📝 Đợt Thi: Giữa HK1'}
+        </span>
+      </div>
       <p className="text-xs text-slate-600">
         Đang đăng nhập: <strong>{teacherEmail}</strong>
       </p>
@@ -24,10 +33,18 @@ export default function ExamBankCard() {
       </button>
 
       <div className="border-t border-slate-100 pt-4 space-y-3">
-        <p className="text-xs text-slate-500 font-medium">
-          Mã đề kèm đáp án chỉ lưu trên Firestore (exam_bank), không nằm trong mã nguồn công khai.
-          Chọn tệp JSON dạng {'{ "grade": 9, "officialExams": { "101": {...} } }'}, ví dụ tệp do scripts/tach_ma_de_chinh_thuc.cjs tạo ra.
-        </p>
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 space-y-1">
+          <p className="font-bold flex items-center space-x-1">
+            <span>ℹ️</span>
+            <span>Cấu trúc nạp ngân hàng 4 mã đề chính thức (Khối 8, 9, 10):</span>
+          </p>
+          <p className="text-[11px] text-amber-800">
+            Hỗ trợ nạp 4 mã đề (101, 102, 103, 104) cho cả Giữa HK1 và Cuối HK1. Tệp JSON mẫu:
+            <code className="block mt-1 font-mono-code bg-white p-1.5 rounded-lg border border-amber-200 text-slate-800">
+              {'{ "grade": 8, "period": "final", "officialExams": { "101": {...}, "102": {...}, "103": {...}, "104": {...} } }'}
+            </code>
+          </p>
+        </div>
         <button
           type="button"
           onClick={handleToggleExamBankLock}
