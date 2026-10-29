@@ -226,7 +226,17 @@ export function useAdminController() {
     showDialog,
   };
   const { handleExtendTime, handleExtendTimeAll, handleForceSubmit, handleLockSession, handleUnlockSession, handleSendBroadcast } = createProctorActions(s);
-  const { handleSetClassMode, handleQuickStartExam, handleCloseAllExams, handleRemoveCandidate, handleClearClassSessions, handleCleanStaleSessions, handleDeleteSubmission } = createClassAccessActions(s);
+  const {
+    handleSetClassMode,
+    handleQuickStartExam,
+    handleCloseAllExams,
+    handleRemoveCandidate,
+    handleClearClassSessions,
+    handleCleanStaleSessions,
+    handleDeleteSubmission,
+    handleClearPracticeClass,
+    handleDeletePracticeSubmission
+  } = createClassAccessActions(s);
   const { openGradingModal, handleSaveGrading } = createGradingActions(s);
   const { handleExportCSV, handleExportJSON, handleImportJSON, handleClearAllData } = createExportActions(s);
   const { handleUploadExamBank, attemptDocRef, describeAttempt, handleLookupAttempt, handleGrantAttempt, handleSaveMaxAttempts, handleToggleExamBankLock, handleToggleExamCode } = createExamBankActions(s);
@@ -406,6 +416,8 @@ export function useAdminController() {
     handleClearClassSessions,
     handleCleanStaleSessions,
     handleDeleteSubmission,
+    handleClearPracticeClass,
+    handleDeletePracticeSubmission,
     openGradingModal,
     handleSaveGrading,
     handleExportCSV,

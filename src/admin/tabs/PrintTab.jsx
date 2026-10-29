@@ -2,7 +2,16 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAdmin } from '../AdminContext.js';
 
 export default function PrintTab() {
-  const { submissions, printClass, setPrintClass, printType, setPrintType, practiceSubs } = useAdmin();
+  const {
+    submissions,
+    printClass,
+    setPrintClass,
+    printType,
+    setPrintType,
+    practiceSubs,
+    handleClearPracticeClass,
+    handleDeletePracticeSubmission
+  } = useAdmin();
 
   return (
     <div className="space-y-6">
@@ -50,14 +59,27 @@ export default function PrintTab() {
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => window.print()}
-          className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow transition flex items-center space-x-2"
-        >
-          <span>🖨️</span>
-          <span>Xác Nhận In Bảng Điểm A4 Ngang</span>
-        </button>
+        <div className="flex items-center space-x-2">
+          {printType === 'practice' && (
+            <button
+              type="button"
+              onClick={() => handleClearPracticeClass(printClass)}
+              className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold text-xs rounded-xl shadow-sm transition flex items-center space-x-1.5"
+              title={`Xóa toàn bộ dữ liệu ôn tập của Lớp ${printClass}`}
+            >
+              <span>🗑️</span>
+              <span>Xóa Bảng Điểm Lớp {printClass}</span>
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow transition flex items-center space-x-2"
+          >
+            <span>🖨️</span>
+            <span>Xác Nhận In Bảng Điểm A4 Ngang</span>
+          </button>
+        </div>
       </div>
 
       {/* BẢN XEM TRƯỚC BẢNG ĐIỂM (PREVIEW) */}
@@ -178,17 +200,18 @@ export default function PrintTab() {
                   <th className="py-2.5 px-3 border-r border-slate-400">Họ và Tên Học Sinh</th>
                   <th className="py-2.5 px-3 border-r border-slate-400 text-center">Số Lần Làm</th>
                   <th className="py-2.5 px-3 border-r border-slate-400 text-center">Thời Gian Làm</th>
-                  <th className="py-2.5 px-3 border-r border-slate-400 text-center">Điểm Đạt (/10)</th>
+                  <th className="py-2.5 px-3 border-r border-slate-400 text-center">Điểm Đạt</th>
                   <th className="py-2.5 px-3 border-r border-slate-400 text-center">Đúng/Tổng</th>
                   <th className="py-2.5 px-3 border-r border-slate-400 text-center">Thời Điểm Nộp</th>
                   <th className="py-2.5 px-3 border-r border-slate-400 text-center">Đánh Giá (≥ 6.0)</th>
-                  <th className="py-2.5 px-3">Ghi Chú Tiến Độ</th>
+                  <th className="py-2.5 px-3 border-r border-slate-400">Ghi Chú Tiến Độ</th>
+                  <th className="py-2.5 px-3 text-center print:hidden w-12">Xóa</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-300">
                 {practiceSubs.filter(s => s.studentClass === printClass).length === 0 ? (
                   <tr>
-                    <td colSpan="10" className="py-8 text-center text-slate-500 italic">
+                    <td colSpan="11" className="py-8 text-center text-slate-500 italic">
                       Chưa có dữ liệu bài làm ôn tập đề cương nào của Lớp {printClass}.
                     </td>
                   </tr>
@@ -219,8 +242,18 @@ export default function PrintTab() {
                             <span className="text-amber-700 font-semibold">Cần rèn thêm</span>
                           )}
                         </td>
-                        <td className="py-2 px-3 text-slate-700 italic">
+                        <td className="py-2 px-3 border-r border-slate-300 text-slate-700 italic">
                           {sub.attemptNumber >= 5 && isPass ? 'Đủ điều kiện dự thi GK1' : `Đã hoàn thành lần ${sub.attemptNumber || 1}`}
+                        </td>
+                        <td className="py-2 px-3 text-center print:hidden">
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePracticeSubmission(sub.id, sub.fullName || sub.studentId)}
+                            title="Xóa lượt làm bài này"
+                            className="p-1 hover:bg-rose-100 text-rose-600 rounded transition"
+                          >
+                            🗑️
+                          </button>
                         </td>
                       </tr>
                     );

@@ -1,7 +1,7 @@
 // Xuất CSV, sao lưu và hợp nhất dữ liệu
 // s: state của Cổng Quản Trị (xem hooks/useAdminController.js)
 export function createExportActions(s) {
-  const { setLiveSessions, submissions, setSubmissions, setHasDownloadedBackup, showToast,
+  const { setLiveSessions, submissions, setSubmissions, setPracticeSubs, setHasDownloadedBackup, showToast,
     showDialog } = s;
 
   // --- XUẤT CSV & SAO LƯU ---
@@ -56,14 +56,21 @@ export function createExportActions(s) {
   const handleClearAllData = () => {
     showDialog(
       'CẢNH BÁO NGUY HIỂM: XÓA TRẮNG DỮ LIỆU',
-      'Thầy có chắc chắn muốn XÓA TOÀN BỘ dữ liệu bài thi và lịch sử làm bài không? Hành động này sẽ xóa sạch dữ liệu trên máy tính này và KHÔNG THỂ HOÀN TÁC!',
+      'Thầy có chắc chắn muốn XÓA TOÀN BỘ dữ liệu bài thi chính thức, kết quả ôn tập đề cương và phiên giám sát không? Hành động này sẽ xóa sạch dữ liệu trên máy tính này và KHÔNG THỂ HOÀN TÁC!',
       'error',
       () => {
         localStorage.removeItem('asian_school_submissions_v1');
         localStorage.removeItem('asian_school_live_sessions_v1');
+        localStorage.removeItem('asian_school_practice_subs_v1');
         setSubmissions([]);
         setLiveSessions([]);
-        showToast('Đã xóa trắng toàn bộ dữ liệu bài làm trên máy.', 'warning', 'Xóa Dữ Liệu');
+        if (setPracticeSubs) setPracticeSubs([]);
+        if (window.AsianSchoolStorage) {
+          window.AsianSchoolStorage.notify(window.AsianSchoolStorage.submissionListeners, []);
+          window.AsianSchoolStorage.notify(window.AsianSchoolStorage.liveListeners, []);
+          window.AsianSchoolStorage.notify(window.AsianSchoolStorage.practiceSubmissionListeners, []);
+        }
+        showToast('Đã xóa trắng toàn bộ dữ liệu bài làm và kết quả ôn tập trên máy.', 'warning', 'Xóa Dữ Liệu');
       }
     );
   };

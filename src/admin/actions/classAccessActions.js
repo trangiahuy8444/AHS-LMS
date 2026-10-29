@@ -1,7 +1,7 @@
 // Điều phối ca thi theo từng lớp
 // s: state của Cổng Quản Trị (xem hooks/useAdminController.js)
 export function createClassAccessActions(s) {
-  const { setLiveSessions, setSubmissions, setConfig, showToast, showDialog } = s;
+  const { setLiveSessions, setSubmissions, setPracticeSubs, setConfig, showToast, showDialog } = s;
 
   // --- ĐIỀU PHỐI CA THI THEO TỪNG LỚP HỌC (CLASS ACCESS CONTROL) ---
 
@@ -70,15 +70,16 @@ export function createClassAccessActions(s) {
   };
 
   const handleDeleteSubmission = (subId, studentName, examCode) => {
+    const displayName = (studentName && studentName !== 'undefined') ? studentName : (examCode || 'học sinh');
     showDialog(
       'Xác Nhận Xóa Bài Nộp 🗑️',
-      `CẢNH BÁO: Thầy có chắc chắn muốn XÓA bài nộp của học sinh ${studentName} (${examCode}) không? Dữ liệu này sẽ bị xóa khỏi hệ thống.`,
+      `CẢNH BÁO: Thầy có chắc chắn muốn XÓA bài nộp của ${displayName} (${examCode || 'Bài thi'}) không? Dữ liệu này sẽ bị xóa khỏi hệ thống.`,
       'error',
       () => {
         const res = window.AsianSchoolStorage.deleteSubmission(subId);
         if (res.success) {
           setSubmissions(window.AsianSchoolStorage.getSubmissions());
-          showToast(`Đã xóa bài nộp của ${studentName}!`, 'success', 'Xóa Bài Nộp');
+          showToast(`Đã xóa bài nộp của ${displayName}!`, 'success', 'Xóa Bài Nộp');
         } else {
           showDialog('Lỗi Xóa Bài Nộp', res.error, 'error');
         }
@@ -86,5 +87,46 @@ export function createClassAccessActions(s) {
     );
   };
 
-  return { handleSetClassMode, handleQuickStartExam, handleCloseAllExams, handleRemoveCandidate, handleClearClassSessions, handleCleanStaleSessions, handleDeleteSubmission };
+  const handleClearPracticeClass = (cls) => {
+    showDialog(
+      `Xóa Bảng Điểm Ôn Tập Lớp ${cls} 🗑️`,
+      `Thầy có chắc chắn muốn XÓA TOÀN BỘ kết quả ôn tập đề cương của Lớp ${cls} không?\n\n(Hành động này giúp làm sạch bảng điểm cho đợt ôn tập mới của lớp, không ảnh hưởng đến các lớp khác).`,
+      'warning',
+      () => {
+        if (window.AsianSchoolStorage && window.AsianSchoolStorage.clearPracticeSubmissionsByClass) {
+          window.AsianSchoolStorage.clearPracticeSubmissionsByClass(cls);
+          if (setPracticeSubs) setPracticeSubs(window.AsianSchoolStorage.getPracticeSubmissions());
+          showToast(`Đã xóa toàn bộ kết quả ôn tập của Lớp ${cls}!`, 'success', `Lớp ${cls}`);
+        }
+      }
+    );
+  };
+
+  const handleDeletePracticeSubmission = (subId, studentName) => {
+    const displayName = (studentName && studentName !== 'undefined') ? studentName : 'lượt ôn tập này';
+    showDialog(
+      'Xác Nhận Xóa Lượt Ôn Tập 🗑️',
+      `Thầy có chắc chắn muốn xóa lượt nộp ôn tập của ${displayName} không?`,
+      'error',
+      () => {
+        if (window.AsianSchoolStorage && window.AsianSchoolStorage.deletePracticeSubmission) {
+          window.AsianSchoolStorage.deletePracticeSubmission(subId);
+          if (setPracticeSubs) setPracticeSubs(window.AsianSchoolStorage.getPracticeSubmissions());
+          showToast(`Đã xóa lượt ôn tập của ${displayName}!`, 'success', 'Xóa Lượt Ôn Tập');
+        }
+      }
+    );
+  };
+
+  return {
+    handleSetClassMode,
+    handleQuickStartExam,
+    handleCloseAllExams,
+    handleRemoveCandidate,
+    handleClearClassSessions,
+    handleCleanStaleSessions,
+    handleDeleteSubmission,
+    handleClearPracticeClass,
+    handleDeletePracticeSubmission
+  };
 }

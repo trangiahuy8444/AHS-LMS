@@ -230,7 +230,7 @@ export default function SubmissionsTab() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleDeleteSubmission(sub.id, sub.fullName, sub.examCode || 'Bài thi')}
+                            onClick={() => handleDeleteSubmission(sub.id, sub.fullName || sub.studentName || sub.studentId, sub.examCode || 'Bài thi')}
                             title="Xóa bài nộp này khỏi hệ thống"
                             className="p-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl text-xs font-bold transition flex items-center justify-center"
                           >
