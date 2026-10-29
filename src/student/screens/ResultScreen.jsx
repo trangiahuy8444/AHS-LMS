@@ -10,8 +10,10 @@ export default function ResultScreen() {
   if (!(examState === 'submitted' && scoreResult)) return null;
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-    
+    // Màn hình rộng: thẻ kết quả + nút ở cột trái (cố định khi cuộn), xem lại bài làm ở cột phải
+    <div className="grid grid-cols-1 xl:grid-cols-[620px_minmax(0,1fr)] gap-6 items-start">
+      <div className="space-y-6 xl:sticky xl:top-24">
+
       {/* THẺ KẾT QUẢ BÀI LÀM — ĐƯỢC THIẾT KẾ ĐỂ CHỤP ẢNH NỘP LÊN LMS */}
       <ResultCard />
 
@@ -45,9 +47,12 @@ export default function ResultScreen() {
           </button>
         )}
       </div>
+      </div>
 
       {/* PHẦN ĐÁNH GIÁ ĐÚNG/SAI & MỞ ĐÁP ÁN TỰ LUẬN CHO HỌC SINH */}
-      <AnswerReview />
+      <div className="min-w-0">
+        <AnswerReview />
+      </div>
 
     </div>
   );

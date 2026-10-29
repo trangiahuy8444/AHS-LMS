@@ -10,7 +10,14 @@ export default function LiveSessionList() {
   return (
     <div className="space-y-6">
       {(() => {
-        const filteredLive = liveSessions.filter(s => {
+        // Mỗi mã LMS (theo khối) chỉ hiện thẻ có nhịp tim mới nhất; thẻ cũ là phiên đã tải lại / đổi máy
+        const latestByStudent = new Map();
+        liveSessions.forEach(s => {
+          const key = s.studentId ? `${s.grade}|${String(s.studentId).trim().toUpperCase()}` : s.sessionId;
+          const prev = latestByStudent.get(key);
+          if (!prev || (s.lastPing || 0) > (prev.lastPing || 0)) latestByStudent.set(key, s);
+        });
+        const filteredLive = Array.from(latestByStudent.values()).filter(s => {
           if (liveFilter === 'exam') return s.mode === 'exam';
           if (liveFilter === 'practice') return s.mode === 'practice';
           return true;
@@ -36,7 +43,7 @@ export default function LiveSessionList() {
 
         return Object.keys(classGroups).sort().map(cls => {
           const sessionsInClass = classGroups[cls];
-          const lockedCount = sessionsInClass.filter(s => s.status === 'locked' || s.isLocked || (s.violations >= 3)).length;
+          const lockedCount = sessionsInClass.filter(s => s.isLocked === true || s.status === 'locked').length;
           const examCount = sessionsInClass.filter(s => s.mode === 'exam').length;
           const practiceCount = sessionsInClass.filter(s => s.mode === 'practice').length;
 
@@ -102,7 +109,7 @@ export default function LiveSessionList() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {sessionsInClass.map(session => {
-                  const isLocked = session.status === 'locked' || session.isLocked || (session.violations >= 3);
+                  const isLocked = session.isLocked === true || session.status === 'locked';
                   const isPractice = session.mode === 'practice';
                   return (
                     <div
@@ -176,7 +183,7 @@ export default function LiveSessionList() {
 
                       <div className="flex items-center justify-between text-xs pt-0.5">
                         <span className={session.violations > 0 ? 'text-red-600 font-bold' : 'text-slate-500'}>
-                          Vi phạm: <strong className="text-xs">{session.violations || 0}</strong> lần {session.violations >= 3 && <span className="text-red-600 font-extrabold">(bị khóa)</span>}
+                          Vi phạm: <strong className="text-xs">{session.violations || 0}</strong> lần {session.violations >= 3 && <span className="text-red-600 font-extrabold">(đã từng bị khóa)</span>}
                         </span>
                         {session.status === 'submitted' && (
                           <span className="text-emerald-700 font-black text-xs">
@@ -207,13 +214,10 @@ export default function LiveSessionList() {
                         </button>
 
                         {isLocked ? (
-                          <button
-                            type="button"
-                            onClick={() => handleUnlockSession(session.sessionId, session.fullName)}
-                            className="p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold transition text-center"
-                          >
-                            🔓 Mở Khóa
-                          </button>
+                          // Nút mở khóa nằm ở khung đỏ phía trên (chỉ một nút)
+                          <span className="p-1.5 rounded-lg bg-red-50 text-red-700 border border-red-200 text-center">
+                            🔒 Đang khóa
+                          </span>
                         ) : (
                           <button
                             type="button"

@@ -39,6 +39,8 @@ export function useStudentController() {
   const [timeLeftStr, setTimeLeftStr] = useState('45:00');
   const [secondsLeft, setSecondsLeft] = useState(45 * 60);
   const [violations, setViolations] = useState(0);
+  // Tổng vi phạm của phiên/lượt: KHÔNG đặt lại khi giám thị mở khóa (giáo viên dùng để ghi sổ)
+  const [totalViolations, setTotalViolations] = useState(0);
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [warningMessage, setWarningMessage] = useState('');
   const [broadcastNotice, setBroadcastNotice] = useState(null);
@@ -325,6 +327,8 @@ export function useStudentController() {
     secondsLeft,
     setSecondsLeft,
     violations,
+    totalViolations,
+    setTotalViolations,
     setViolations,
     showWarningModal,
     setShowWarningModal,

@@ -34,7 +34,7 @@ function App() {
         <StudentHeader />
 
         {/* NỘI DUNG CHÍNH */}
-        <main className="max-w-6xl mx-auto px-4 py-6 sm:py-8">
+        <main className="max-w-7xl mx-auto px-4 py-6 sm:py-8">
         
           {/* 1. MÀN HÌNH CHỌN CHẾ ĐỘ & ĐĂNG KÝ VÀO PHÒNG LÀM BÀI */}
           <EntryScreen />

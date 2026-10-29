@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { clearPracticeLock } from '../actions/startActions.js';
 
 // Lắng nghe lệnh giám thị thời gian thực: gia hạn giờ, thu bài, khóa/mở khóa, thông báo.
 // Trả về hàm cho nút "VÀO LẠI TOÀN MÀN HÌNH" (sau khi giám thị mở khóa) và "Làm lại bài ôn tập".
@@ -6,16 +7,26 @@ export function useProctorCommands(s) {
   const { grade, mode, examState, setExamState, fullName, studentClass, studentId, sessionId,
     assignedCode, setActiveQuestionIdx, setPracticeAnswers, violations, setViolations,
     setBroadcastNotice, setScoreResult, showDialog, setIsSessionLocked, setIsProctorUnlocked,
-    setLockReason, config, setPracticeSet, handleSubmitExam, setOfficialExam, isSessionLocked } = s;
+    setLockReason, config, setPracticeSet, setOfficialExam, isSessionLocked, setTotalViolations } = s;
+
+  // Lệnh giám thị chạy trong setInterval: luôn gọi hàm của lần render mới nhất (bài làm mới nhất khi thu bài)
+  const latest = useRef(s);
+  latest.current = s;
 
   // Lắng nghe lệnh giám thị thời gian thực từ Admin (Gia hạn giờ, Thu bài, Thông báo)
   useEffect(() => {
     if (examState !== 'in_progress' || !sessionId) return;
+    // Bỏ qua lệnh gửi trước khi mở phiên này (vd. "+5 phút cả phòng" cũ không cộng lại sau khi tải lại trang)
+    const openedAt = Date.now() - 30 * 1000;
 
     const checkCommands = () => {
       if (!window.AsianSchoolStorage) return;
       const pending = window.AsianSchoolStorage.getPendingProctorCommands(sessionId);
       pending.forEach(cmd => {
+        if ((cmd.createdAt || 0) < openedAt) {
+          window.AsianSchoolStorage.consumeProctorCommand(cmd.cmdId, sessionId);
+          return;
+        }
         if (cmd.command === 'extend_time') {
           const mins = cmd.payload?.minutes || 5;
           if (window.AsianSchoolTimer) {
@@ -27,8 +38,9 @@ export function useProctorCommands(s) {
             message: `Thầy Trần Gia Huy vừa cộng thêm ${mins} phút vào thời gian làm bài của em!`
           });
         } else if (cmd.command === 'force_submit') {
-          showDialog('⏰ LỆNH THU BÀI TỪ GIÁM THỊ', 'Thầy/Cô giám thị đã kích hoạt lệnh thu bài thi của em ngay bây giờ!', 'warning');
-          handleSubmitExam(true);
+          showDialog('⏰ LỆNH THU BÀI TỪ GIÁM THỊ', 'Thầy/Cô giám thị đã kích hoạt lệnh thu bài của em ngay bây giờ!', 'warning');
+          if (latest.current.mode === 'practice') latest.current.handleSubmitPractice(true);
+          else latest.current.handleSubmitExam(true);
         } else if (cmd.command === 'broadcast_message') {
           setBroadcastNotice({
             type: 'info',
@@ -39,11 +51,7 @@ export function useProctorCommands(s) {
           // Bài thi chính thức: khóa/mở khóa theo exam_attempts trên máy chủ (effect bên dưới), không tin lệnh trong trình duyệt
         } else if (cmd.command === 'unlock_session') {
           setIsProctorUnlocked(true);
-          setBroadcastNotice({
-            type: 'success',
-            title: 'Giáo Viên Đã Xác Nhận Mở Khóa Bài Thi 🔓',
-            message: 'Thầy Trần Gia Huy đã xác nhận mở khóa bài thi của em. Em hãy bấm nút "VÀO LẠI TOÀN MÀN HÌNH" trên màn hình để tiếp tục làm bài!'
-          });
+          // Màn hình khóa tự chuyển sang "đã duyệt mở khóa" kèm nút vào lại (không mở thêm hộp thông báo đè lên nút)
         } else if (cmd.command === 'lock_session') {
           setIsSessionLocked(true);
           setIsProctorUnlocked(false);
@@ -76,11 +84,7 @@ export function useProctorCommands(s) {
         setLockReason(r => r || a.lockReason || 'proctor_lock');
       } else if (!locked && prevLocked === true) {
         setIsProctorUnlocked(true);
-        setBroadcastNotice({
-          type: 'success',
-          title: 'Giáo Viên Đã Xác Nhận Mở Khóa Bài Thi 🔓',
-          message: 'Thầy Trần Gia Huy đã xác nhận mở khóa bài thi của em. Em hãy bấm nút "VÀO LẠI TOÀN MÀN HÌNH" trên màn hình để tiếp tục làm bài!'
-        });
+        // Màn hình khóa tự chuyển sang "đã duyệt mở khóa" kèm nút vào lại (không mở thêm hộp thông báo đè lên nút)
         // Vào lại khi đang bị khóa thì chưa có đề: tải đề sau khi được mở khóa (đã có đề thì giữ nguyên thứ tự câu)
         if (window.AsianSchoolCloud.loadExam && setOfficialExam) {
           window.AsianSchoolCloud.loadExam({ grade, examCode: a.examCode })
@@ -94,6 +98,7 @@ export function useProctorCommands(s) {
   }, [mode, examState, grade, studentId]);
 
   const handleStudentResumeFromLock = async () => {
+    if (mode === 'practice') clearPracticeLock();
     setIsSessionLocked(false);
     setIsProctorUnlocked(false);
     setLockReason(null);
@@ -127,6 +132,7 @@ export function useProctorCommands(s) {
     setPracticeAnswers({ mcq: {}, tf: {}, essay: {} });
     setScoreResult(null);
     setViolations(0);
+    if (setTotalViolations) setTotalViolations(0);
     setActiveQuestionIdx(0);
     setExamState('entry');
   };

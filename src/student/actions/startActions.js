@@ -1,10 +1,31 @@
+const PRACTICE_LOCK_KEY = 'asian_school_practice_lock_v1';
+
+// Khóa ôn tập lưu trên máy theo mã LMS + khối (hết hạn sau 3 giờ); bài thi chính thức dùng exam_attempts.locked
+export function readPracticeLock(grade, studentId) {
+  try {
+    const d = JSON.parse(localStorage.getItem(PRACTICE_LOCK_KEY) || 'null');
+    if (!d || d.grade !== grade || d.studentId !== String(studentId || '').trim() || Date.now() - d.at > 3 * 3600 * 1000) return null;
+    return d;
+  } catch (e) { return null; }
+}
+
+export function savePracticeLock(grade, studentId, totalViolations) {
+  try {
+    localStorage.setItem(PRACTICE_LOCK_KEY, JSON.stringify({ grade, studentId: String(studentId || '').trim(), totalViolations, at: Date.now() }));
+  } catch (e) { /* bộ nhớ bị chặn */ }
+}
+
+export function clearPracticeLock() {
+  try { localStorage.removeItem(PRACTICE_LOCK_KEY); } catch (e) { /* bỏ qua */ }
+}
+
 // Bắt đầu phiên ôn tập / vào phòng thi: toàn màn hình, kiểm tra ca thi, chống gian lận, đồng hồ
 // s: state và hàm của cổng học sinh (xem hooks/useStudentController.js)
 export function createStartActions(s) {
   const { grade, mode, setExamState, fullName, studentClass, studentId, sessionId, setSessionId,
     setAssignedCode, setOfficialExam, setIsContactingServer, submittingExamRef,
     setActiveQuestionIdx, examPasswordInput, setPracticeAnswers, setTimeLeftStr, setSecondsLeft,
-    violations, setViolations, setShowWarningModal, setWarningMessage, showDialog,
+    violations, setViolations, setTotalViolations, setShowWarningModal, setWarningMessage, showDialog,
     setIsSessionLocked, setIsProctorUnlocked, lockReason, setLockReason, setExamStartTime,
     setElapsedSeconds, config, setPracticeSet, handleSubmitPractice, handleSubmitExam } = s;
 
@@ -39,7 +60,9 @@ export function createStartActions(s) {
       return;
     }
 
-    const sid = 'sess-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+    // Mỗi máy (uid ẩn danh) một phiên giám sát: tải lại trang không tạo thêm thẻ trên bảng giám sát
+    const authUid = window.AsianSchoolAuth && window.AsianSchoolAuth.uid ? window.AsianSchoolAuth.uid() : null;
+    const sid = authUid ? 'sess-' + authUid : 'sess-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
 
     // Bài thi chính thức: firestore.rules kiểm tra mật khẩu phòng thi, lớp đang mở ca thi, lượt thi theo mã LMS;
     // học sinh chỉ nhận đề không kèm đáp án
@@ -76,13 +99,16 @@ export function createStartActions(s) {
 
     setSessionId(sid);
     setActiveQuestionIdx(0);
-    const resumeLocked = !!(serverStart && serverStart.locked);
+    // Ôn tập: khóa lưu trên máy (tải lại trang vẫn khóa, chờ giám thị); bài thi chính thức khóa trên máy chủ
+    const practiceLock = mode === 'practice' ? readPracticeLock(grade, studentId) : null;
+    const resumeLocked = !!(serverStart && serverStart.locked) || !!practiceLock;
     setIsSessionLocked(resumeLocked);
     setIsProctorUnlocked(false);
-    setLockReason(resumeLocked ? serverStart.lockReason : null);
+    setLockReason(resumeLocked ? ((serverStart && serverStart.lockReason) || 'violation_3_times') : null);
     setViolations(0);
     // Tổng vi phạm của lượt (không đặt lại khi mở khóa); bài thi chính thức lấy số chuẩn trên exam_attempts
-    let totalViolations = serverStart ? (serverStart.violations || 0) : 0;
+    let totalViolations = serverStart ? (serverStart.violations || 0) : (practiceLock ? practiceLock.totalViolations : 0);
+    setTotalViolations(totalViolations);
     setExamStartTime(serverStart ? new Date(serverStart.startedAtMs) : new Date());
     setElapsedSeconds(0);
 
@@ -96,10 +122,14 @@ export function createStartActions(s) {
       onViolation: (v) => {
         setViolations(v.count);
         totalViolations += 1;
+        setTotalViolations(totalViolations);
+        if (mode === 'practice' && v.count >= 3) savePracticeLock(grade, studentId, totalViolations);
         if (mode === 'exam' && window.AsianSchoolCloud && window.AsianSchoolCloud.reportViolation) {
           window.AsianSchoolCloud.reportViolation({ grade, studentId, lock: v.count >= 3 });
         }
         if (v.count >= 3) {
+          // Cảnh báo lần 1–2 không còn ý nghĩa khi đã khóa (tránh hiện lại sau khi mở khóa)
+          setShowWarningModal(false);
           setIsSessionLocked(true);
           setIsProctorUnlocked(false);
           setLockReason('violation_3_times');
@@ -218,10 +248,9 @@ export function createStartActions(s) {
             showDialog('Cảnh Báo Thời Gian', '⚠️ Chú ý: Thời gian ôn tập chỉ còn dưới 5 phút!', 'warning');
           },
           onTimeout: () => {
-            showDialog('Hết Giờ Ôn Tập', `⏰ Đã hết thời gian ôn tập ${practiceDur} phút! Hệ thống đang tự động nộp bài ôn tập của bạn.`, 'info', () => {
-              handleSubmitPractice();
-            });
-            handleSubmitPractice();
+            // Chỉ nộp một lần (trước đây hộp thoại xác nhận còn nộp thêm lần nữa)
+            showDialog('Hết Giờ Ôn Tập', `⏰ Đã hết thời gian ôn tập ${practiceDur} phút! Hệ thống đã tự động nộp bài ôn tập của em.`, 'info');
+            handleSubmitPractice(true);
           }
         });
       }
@@ -235,8 +264,9 @@ export function createStartActions(s) {
         grade,
         mode: 'practice',
         examCode: 'DE_CUONG',
-        violations: 0,
-        status: 'practicing',
+        violations: totalViolations,
+        status: resumeLocked ? 'locked' : 'practicing',
+        isLocked: resumeLocked,
         timeLeft: practiceDur > 0 ? `${practiceDur}:00` : 'Tự do'
       });
     }

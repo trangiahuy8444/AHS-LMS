@@ -2,6 +2,17 @@
 
 > Tệp trạng thái sống. Mỗi phiên có thay đổi đáng kể thêm một mục **ở đầu** tệp: ngày, đã làm gì (kèm commit), kết quả `npm run check`, việc còn dở, câu hỏi chờ thầy. Repo công khai: không ghi bí mật hay dữ liệu học sinh.
 
+## 29/10/2026 (phiên 3): thầy thử trên trang thật
+
+Thầy thử ở chế độ **ôn tập** (Firestore không có lượt thi/bài nộp chính thức). Sửa:
+- Ôn tập: khóa 3 lần lưu trên máy theo mã LMS + khối, tải lại trang vẫn khóa chờ giám thị; nộp bài thì xóa khóa. Kết quả ôn tập ghi tổng vi phạm (không đặt lại khi mở khóa).
+- Mỗi máy một phiên giám sát (`sess-<uid>`); bảng giám sát chỉ hiện thẻ mới nhất mỗi mã LMS. Thẻ "đang khóa" theo cờ khóa thật, không theo số vi phạm.
+- Bỏ nút mở khóa trùng; bỏ hộp thông báo "đã mở khóa" đè lên nút "VÀO LẠI".
+- Lệnh giám thị: bỏ qua lệnh cũ hơn lúc mở phiên (hết cộng +5 phút lặp lại); thu bài dùng bài làm mới nhất, ôn tập gọi nộp ôn tập.
+- Hết giờ ôn tập không nộp hai lần; màn hình khóa / cảnh báo vi phạm không đè lên trang kết quả.
+- Bố cục: khung trang `max-w-7xl`; trang kết quả hai cột trên màn hình rộng (thẻ kết quả 620 px cố định khi cuộn, xem lại bài bên phải).
+- Có 190 phiên giám sát cũ trên Firestore: thầy dùng nút "Dọn thí sinh hết ca".
+
 ## 29/10/2026 (phiên 2): khóa bài trên máy chủ
 
 - Đã triển khai `be57a9a` cùng rules mới; thử trên trang thật: học sinh không đọc được toàn bộ lệnh giám thị, đọc được lệnh của mình.

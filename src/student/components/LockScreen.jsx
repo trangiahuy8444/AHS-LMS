@@ -3,9 +3,10 @@ import { useStudent } from '../StudentContext.js';
 
 // MÀN HÌNH PHONG TỎA KHÓA BÀI THI KHI VI PHẠM 3 LẦN HOẶC GIÁM THỊ KHÓA
 export default function LockScreen() {
-  const { isSessionLocked, isProctorUnlocked, lockReason, handleStudentResumeFromLock } = useStudent();
+  const { isSessionLocked, isProctorUnlocked, lockReason, handleStudentResumeFromLock, examState } = useStudent();
 
-  if (!(isSessionLocked)) return null;
+  // Chỉ khóa khi đang làm bài (đã nộp / bị thu bài thì hiện trang kết quả)
+  if (!(isSessionLocked && examState === 'in_progress')) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4">

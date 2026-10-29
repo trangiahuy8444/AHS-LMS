@@ -40,7 +40,8 @@ afterEach(() => {
 });
 
 // Khung tối thiểu giống useStudentController: state + Object.assign(s, useProctorCommands(s))
-function Harness({ mode = 'exam', initialExam = { code: '101' }, startLocked = true, onState }) {
+function Harness({ mode = 'exam', initialExam = { code: '101' }, startLocked = true, onState, onSubmit = () => {} }) {
+  const [answered, setAnswered] = useState(0);
   const [isSessionLocked, setIsSessionLocked] = useState(startLocked);
   const [isProctorUnlocked, setIsProctorUnlocked] = useState(false);
   const [lockReason, setLockReason] = useState('violation_3_times');
@@ -52,11 +53,13 @@ function Harness({ mode = 'exam', initialExam = { code: '101' }, startLocked = t
     studentId: 'HS01', sessionId: 'sess-1', assignedCode: '101', setActiveQuestionIdx: () => {},
     setPracticeAnswers: () => {}, violations, setViolations, setBroadcastNotice, setScoreResult: () => {},
     showDialog: () => {}, setIsSessionLocked, setIsProctorUnlocked, setLockReason, config: {},
-    setPracticeSet: () => {}, handleSubmitExam: () => {}, setOfficialExam,
+    setPracticeSet: () => {}, setOfficialExam,
+    handleSubmitExam: (forced) => onSubmit({ kind: 'exam', forced, answered }),
+    handleSubmitPractice: (forced) => onSubmit({ kind: 'practice', forced, answered }),
     isSessionLocked, isProctorUnlocked, lockReason
   };
   Object.assign(s, useProctorCommands(s));
-  onState({ isSessionLocked, isProctorUnlocked, violations, officialExam, broadcastNotice });
+  onState({ isSessionLocked, isProctorUnlocked, violations, officialExam, broadcastNotice, setAnswered });
   return <StudentContext.Provider value={s}><LockScreen /></StudentContext.Provider>;
 }
 
@@ -66,7 +69,7 @@ describe('Bài thi chính thức: khóa trên máy chủ', () => {
   it('lệnh mở khóa giả trong localStorage không mở được bài', async () => {
     let state;
     render(<Harness onState={x => { state = x; }} />);
-    commands.push({ cmdId: 'gia', targetSessionId: 'all', command: 'unlock_session', payload: {} });
+    commands.push({ cmdId: 'gia', targetSessionId: 'all', command: 'unlock_session', payload: {}, createdAt: Date.now() });
     await tick(5200);
     expect(state.isProctorUnlocked).toBe(false);
     expect(screen.getByText(/ĐANG CHỜ GIÁO VIÊN DUYỆT MỞ KHÓA/)).toBeTruthy();
@@ -140,7 +143,7 @@ describe('Ôn tập: mở khóa bằng lệnh giám thị', () => {
     let state;
     render(<Harness mode="practice" onState={x => { state = x; }} />);
     expect(window.AsianSchoolCloud.watchAttempt).not.toHaveBeenCalled();
-    commands.push({ cmdId: 'c1', targetSessionId: 'sess-1', command: 'unlock_session', payload: {} });
+    commands.push({ cmdId: 'c1', targetSessionId: 'sess-1', command: 'unlock_session', payload: {}, createdAt: Date.now() });
     await tick(2600);
     expect(state.isProctorUnlocked).toBe(true);
     await act(async () => { fireEvent.click(screen.getByText(/VÀO LẠI TOÀN MÀN HÌNH/)); });
@@ -151,8 +154,41 @@ describe('Ôn tập: mở khóa bằng lệnh giám thị', () => {
   it('lệnh của phiên khác không mở khóa', async () => {
     let state;
     render(<Harness mode="practice" onState={x => { state = x; }} />);
-    commands.push({ cmdId: 'c2', targetSessionId: 'sess-khac', command: 'unlock_session', payload: {} });
+    commands.push({ cmdId: 'c2', targetSessionId: 'sess-khac', command: 'unlock_session', payload: {}, createdAt: Date.now() });
     await tick(5200);
     expect(state.isProctorUnlocked).toBe(false);
+  });
+});
+
+describe('Lệnh thu bài và lệnh cũ', () => {
+  it('ôn tập: thu bài gọi nộp bài ôn tập (bắt buộc) với bài làm mới nhất', async () => {
+    let state;
+    const submits = [];
+    render(<Harness mode="practice" startLocked={false} onState={x => { state = x; }} onSubmit={x => submits.push(x)} />);
+    await act(async () => { state.setAnswered(7); });
+    commands.push({ cmdId: 'ts', targetSessionId: 'sess-1', command: 'force_submit', payload: {}, createdAt: Date.now() });
+    await tick(2600);
+    expect(submits).toEqual([{ kind: 'practice', forced: true, answered: 7 }]);
+  });
+
+  it('thi chính thức: thu bài gọi nộp bài thi với bài làm mới nhất', async () => {
+    let state;
+    const submits = [];
+    render(<Harness startLocked={false} onState={x => { state = x; }} onSubmit={x => submits.push(x)} />);
+    await act(async () => { state.setAnswered(12); });
+    commands.push({ cmdId: 'ts2', targetSessionId: 'sess-1', command: 'force_submit', payload: {}, createdAt: Date.now() });
+    await tick(2600);
+    expect(submits).toEqual([{ kind: 'exam', forced: true, answered: 12 }]);
+  });
+
+  it('lệnh gửi trước khi mở phiên (vd. +5 phút cả phòng) không áp dụng lại sau khi tải lại trang', async () => {
+    let state;
+    window.AsianSchoolTimer = { extendSeconds: vi.fn() };
+    commands.push({ cmdId: 'cu', targetSessionId: 'all', command: 'extend_time', payload: { minutes: 5 }, createdAt: Date.now() - 10 * 60 * 1000 });
+    render(<Harness mode="practice" startLocked={false} onState={x => { state = x; }} />);
+    await tick(2600);
+    expect(window.AsianSchoolTimer.extendSeconds).not.toHaveBeenCalled();
+    expect(commands[0].consumed).toBe(true);
+    delete window.AsianSchoolTimer;
   });
 });

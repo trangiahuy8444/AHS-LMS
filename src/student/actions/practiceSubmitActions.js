@@ -1,14 +1,17 @@
+import { clearPracticeLock } from './startActions.js';
+
 // Nộp bài ôn tập đề cương: tự chấm và lưu bảng điểm ôn tập
 // s: state và hàm của cổng học sinh (xem hooks/useStudentController.js)
 export function createPracticeSubmitActions(s) {
   const { grade, mode, setExamState, fullName, studentClass, studentId, sessionId,
-    setShowSubmitModal, practiceAnswers, violations, setScoreResult, showDialog, examStartTime,
+    setShowSubmitModal, practiceAnswers, totalViolations, setScoreResult, showDialog, examStartTime,
     config, practiceQuestions, practiceTfQuestions, practiceEssayQuestions } = s;
 
   // Nộp bài ôn tập
-  const handleSubmitPractice = () => {
+  // isForced: giám thị thu bài hoặc hết giờ thì nộp luôn, bỏ qua yêu cầu làm hết câu
+  const handleSubmitPractice = (isForced = false) => {
     setShowSubmitModal(false);
-    if (config.requireAllQuestionsAnswered) {
+    if (!isForced && config.requireAllQuestionsAnswered) {
       const missing = [];
       practiceQuestions.forEach((q, idx) => {
         if (practiceAnswers.mcq[q.id] === undefined) {
@@ -41,6 +44,8 @@ export function createPracticeSubmitActions(s) {
       }
     }
 
+    // Phiên ôn tập kết thúc: lần ôn tập sau không bắt đầu trong trạng thái khóa
+    clearPracticeLock();
     window.AsianSchoolAntiCheat.setSubmitting(true);
     window.AsianSchoolAntiCheat.stop();
     window.AsianSchoolAntiCheat.exitFullscreen();
@@ -103,7 +108,7 @@ export function createPracticeSubmitActions(s) {
       mcqPoints,
       score: parseFloat(score),
       essayAnswered: Object.keys(practiceAnswers.essay).length,
-      violations,
+      violations: totalViolations,
       durationSeconds: durationSec,
       durationFormatted,
       submittedAt: new Date().toISOString()
@@ -120,7 +125,7 @@ export function createPracticeSubmitActions(s) {
       score: parseFloat(score),
       correctCount: correctMcq,
       totalQuestions: totalMcq,
-      violations,
+      violations: totalViolations,
       durationSeconds: durationSec,
       durationFormatted,
       answers: practiceAnswers
@@ -139,7 +144,7 @@ export function createPracticeSubmitActions(s) {
       grade,
       mode: 'practice',
       examCode: 'DE_CUONG',
-      violations,
+      violations: totalViolations,
       status: 'submitted',
       score: parseFloat(score)
     });

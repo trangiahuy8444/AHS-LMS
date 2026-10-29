@@ -3,9 +3,9 @@ import { useStudent } from '../StudentContext.js';
 
 // MODAL CẢNH BÁO VI PHẠM (CHỐNG GIAN LẬN TOÀN MÀN HÌNH)
 export default function ViolationWarningModal() {
-  const { violations, showWarningModal, warningMessage, isSessionLocked, handleDismissWarning } = useStudent();
+  const { totalViolations, showWarningModal, warningMessage, isSessionLocked, handleDismissWarning, examState } = useStudent();
 
-  if (!(showWarningModal && !isSessionLocked)) return null;
+  if (!(showWarningModal && !isSessionLocked && examState === 'in_progress')) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
@@ -20,7 +20,7 @@ export default function ViolationWarningModal() {
           {warningMessage || 'Bạn vừa thoát khỏi chế độ toàn màn hình hoặc chuyển sang ứng dụng khác!'}
         </p>
         <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-bold py-2.5 px-4 rounded-xl mb-5">
-          Tổng số lần vi phạm đã ghi nhận: {violations} lần
+          Tổng số lần vi phạm đã ghi nhận: {totalViolations} lần
         </div>
         <button
           type="button"
