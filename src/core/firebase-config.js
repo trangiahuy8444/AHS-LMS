@@ -530,8 +530,9 @@
   // Theo dõi lượt thi của chính mình: trạng thái khóa do máy chủ quyết định
   function watchAttempt({ grade, studentId }, cb) {
     if (!db) return () => {};
-    return attemptRefFor(grade, studentId).onSnapshot(
-      (snap) => { if (snap.exists) cb(snap.data()); },
+    return attemptRefFor(grade, studentId).onSnapshot({ includeMetadataChanges: true },
+      // fromServer: dữ liệu đã xác nhận trên máy chủ (không phải ghi tạm trên máy, không phải cache)
+      (snap) => { if (snap.exists) cb(snap.data(), { fromServer: !snap.metadata.hasPendingWrites && !snap.metadata.fromCache }); },
       (e) => console.warn('[Firestore] Theo dõi lượt thi thất bại:', e.message)
     );
   }

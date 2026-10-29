@@ -21,7 +21,10 @@
 
 ## Cần thầy xác nhận ngay
 
-- [ ] Dán `firestore.rules` mới (khóa bài trên máy chủ) lên Firebase Console **cùng lúc** với lần push mã tương ứng, ngoài giờ thi
+- [x] Dán `firestore.rules` khóa bài trên máy chủ và push mã (`be57a9a`, 29/10/2026)
+- [ ] Thử trên trang thật: khóa 3 lần, tải lại trang vẫn khóa, giáo viên mở khóa, nộp bài ghi đúng số vi phạm
+- [ ] Đầu mỗi ca thi: yêu cầu mọi máy tải lại trang (Ctrl+Shift+R) để không còn chạy mã cũ
+- [ ] **Đề xuất (lần dán rules tới):** `retake()` đòi lượt cũ không bị khóa; danh sách mã LMS do giáo viên nhập (`exam_roster`) để chặn lượt bịa đọc đề khi đang khóa
 - [ ] **Đề xuất (agent bảo mật):** siết `live_sessions` (hasOnly, kích thước, id theo uid), chặn nộp quá giờ (cộng giờ ghi lên máy chủ), chặn làm bài thay (giáo viên bật cho phép nhận lại lượt), dọn dữ liệu học sinh trong localStorage máy dùng chung
 - [ ] **Cần quyết định:** làm tròn điểm đến 1 chữ số thập phân theo TT 22/2021 (hiện làm tròn 2 chữ số)
 

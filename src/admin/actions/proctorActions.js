@@ -10,7 +10,11 @@ export function createProctorActions(s) {
   // Ôn tập: chỉ khóa trên trình duyệt qua lệnh giám thị như trước.
   const setServerLock = async (sessionId, locked) => {
     const live = window.AsianSchoolStorage.getLiveSessions().find(x => x.sessionId === sessionId);
-    if (!live || live.mode !== 'exam' || !live.studentId || !window.AsianSchoolCloud) return true;
+    if (!live) {
+      showDialog('Không Tìm Thấy Phiên', 'Không còn phiên làm bài này trên bảng giám sát (có thể học sinh đã tải lại trang). Thầy chọn lại thẻ mới nhất của học sinh.', 'warning');
+      return false;
+    }
+    if (live.mode !== 'exam' || !live.studentId || !window.AsianSchoolCloud) return true;
     try {
       await window.AsianSchoolCloud.setAttemptLock({ grade: live.grade, studentId: live.studentId, locked });
       return true;
@@ -62,7 +66,7 @@ export function createProctorActions(s) {
       `Xác nhận KHÓA BÀI THI của thí sinh ${studentName}? Màn hình của học sinh sẽ bị phong tỏa ngay lập tức.`,
       'warning',
       async () => {
-        await setServerLock(sessionId, true);
+        if (!(await setServerLock(sessionId, true))) return;
         window.AsianSchoolStorage.sendProctorCommand(sessionId, 'lock_session', { reason: 'Giáo viên chủ động khóa bài' });
         window.AsianSchoolStorage.updateLiveSession({ sessionId, status: 'locked', isLocked: true });
         showToast(`Đã gửi lệnh khóa bài thi thí sinh ${studentName}!`, 'warning', 'Khóa Bài Thi 🔒');

@@ -6,7 +6,7 @@ export function useProctorCommands(s) {
   const { grade, mode, examState, setExamState, fullName, studentClass, studentId, sessionId,
     assignedCode, setActiveQuestionIdx, setPracticeAnswers, violations, setViolations,
     setBroadcastNotice, setScoreResult, showDialog, setIsSessionLocked, setIsProctorUnlocked,
-    setLockReason, config, setPracticeSet, handleSubmitExam, setOfficialExam } = s;
+    setLockReason, config, setPracticeSet, handleSubmitExam, setOfficialExam, isSessionLocked } = s;
 
   // Lắng nghe lệnh giám thị thời gian thực từ Admin (Gia hạn giờ, Thu bài, Thông báo)
   useEffect(() => {
@@ -63,9 +63,13 @@ export function useProctorCommands(s) {
   useEffect(() => {
     if (mode !== 'exam' || examState !== 'in_progress' || !studentId) return;
     if (!window.AsianSchoolCloud || !window.AsianSchoolCloud.watchAttempt) return;
-    let prevLocked;
-    const unsub = window.AsianSchoolCloud.watchAttempt({ grade, studentId }, (a) => {
+    // Vào lại khi đang bị khóa: coi như đã thấy khóa, để nếu giáo viên mở khóa trước khi bắt đầu theo dõi
+    // thì lần đọc đầu (locked = false) vẫn được tính là chuyển khóa -> mở
+    let prevLocked = isSessionLocked ? true : undefined;
+    const unsub = window.AsianSchoolCloud.watchAttempt({ grade, studentId }, (a, meta = { fromServer: true }) => {
       const locked = a.locked === true;
+      // Chỉ tin trạng thái MỞ khi máy chủ đã xác nhận (không mở khóa dựa trên dữ liệu ghi tạm hay cache)
+      if (!locked && !meta.fromServer) return;
       if (locked && prevLocked !== true) {
         setIsSessionLocked(true);
         setIsProctorUnlocked(false);

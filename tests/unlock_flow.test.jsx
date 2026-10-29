@@ -40,8 +40,8 @@ afterEach(() => {
 });
 
 // Khung tối thiểu giống useStudentController: state + Object.assign(s, useProctorCommands(s))
-function Harness({ mode = 'exam', initialExam = { code: '101' }, onState }) {
-  const [isSessionLocked, setIsSessionLocked] = useState(true);
+function Harness({ mode = 'exam', initialExam = { code: '101' }, startLocked = true, onState }) {
+  const [isSessionLocked, setIsSessionLocked] = useState(startLocked);
   const [isProctorUnlocked, setIsProctorUnlocked] = useState(false);
   const [lockReason, setLockReason] = useState('violation_3_times');
   const [violations, setViolations] = useState(3);
@@ -74,7 +74,7 @@ describe('Bài thi chính thức: khóa trên máy chủ', () => {
 
   it('chỉ mở khi máy chủ chuyển khóa -> mở; bấm nút thì làm tiếp, không ghi đè số vi phạm', async () => {
     let state;
-    render(<Harness onState={x => { state = x; }} />);
+    render(<Harness startLocked={false} onState={x => { state = x; }} />);
     expect(window.AsianSchoolCloud.watchAttempt).toHaveBeenCalledWith({ grade: 9, studentId: 'HS01' }, expect.any(Function));
     // Ảnh chụp đầu tiên chưa khóa (chưa có chuyển tiếp) thì không mở
     await act(async () => { attemptCb({ locked: false, examCode: '101' }); });
@@ -95,7 +95,7 @@ describe('Bài thi chính thức: khóa trên máy chủ', () => {
 
   it('giáo viên khóa trên máy chủ thì màn hình khóa hiện lại', async () => {
     let state;
-    render(<Harness onState={x => { state = x; }} />);
+    render(<Harness startLocked={false} onState={x => { state = x; }} />);
     await act(async () => { attemptCb({ locked: true, examCode: '101' }); });
     await act(async () => { attemptCb({ locked: false, examCode: '101' }); });
     await act(async () => { fireEvent.click(screen.getByText(/VÀO LẠI TOÀN MÀN HÌNH/)); });
@@ -113,6 +113,25 @@ describe('Bài thi chính thức: khóa trên máy chủ', () => {
     await act(async () => { attemptCb({ locked: false, examCode: '103' }); });
     expect(window.AsianSchoolCloud.loadExam).toHaveBeenCalledWith({ grade: 9, examCode: '103' });
     expect(state.officialExam).toEqual({ code: '101', mcqQuestions: [] });
+  });
+});
+
+describe('Bài thi chính thức: các tình huống dễ kẹt', () => {
+  it('vào lại khi đang khóa mà giáo viên đã mở trước khi kịp theo dõi: lần đọc đầu (mở) vẫn mở khóa', async () => {
+    let state;
+    render(<Harness initialExam={null} onState={x => { state = x; }} />);
+    await act(async () => { attemptCb({ locked: false, examCode: '102' }, { fromServer: true }); });
+    expect(state.isProctorUnlocked).toBe(true);
+    expect(window.AsianSchoolCloud.loadExam).toHaveBeenCalledWith({ grade: 9, examCode: '102' });
+  });
+
+  it('không mở khóa theo dữ liệu chưa được máy chủ xác nhận (ghi tạm / cache)', async () => {
+    let state;
+    render(<Harness onState={x => { state = x; }} />);
+    await act(async () => { attemptCb({ locked: false, examCode: '101' }, { fromServer: false }); });
+    expect(state.isProctorUnlocked).toBe(false);
+    await act(async () => { attemptCb({ locked: false, examCode: '101' }, { fromServer: true }); });
+    expect(state.isProctorUnlocked).toBe(true);
   });
 });
 
