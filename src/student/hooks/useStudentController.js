@@ -10,14 +10,25 @@ import { createStartActions } from '../actions/startActions.js';
 import { createCaptureActions } from '../actions/captureActions.js';
 export function useStudentController() {
   // Setup state
-  const [grade, setGrade] = useState(8);
+  const [grade, setGrade] = useState(() => {
+    try {
+      const v = typeof localStorage !== 'undefined' && localStorage.getItem('ahs_student_grade_v1');
+      return v ? Number(v) : 8;
+    } catch { return 8; }
+  });
   const [mode, setMode] = useState('practice'); // 'practice' | 'exam'
   const [examState, setExamState] = useState('entry'); // 'entry' | 'in_progress' | 'submitted'
   
-  // User info
-  const [fullName, setFullName] = useState('');
-  const [studentClass, setStudentClass] = useState('8/19');
-  const [studentId, setStudentId] = useState(''); // Mã LMS
+  // User info (Tự động ghi nhớ trong localStorage để học sinh không phải nhập lại)
+  const [fullName, setFullName] = useState(() => {
+    try { return (typeof localStorage !== 'undefined' && localStorage.getItem('ahs_student_fullname_v1')) || ''; } catch { return ''; }
+  });
+  const [studentClass, setStudentClass] = useState(() => {
+    try { return (typeof localStorage !== 'undefined' && localStorage.getItem('ahs_student_class_v1')) || '8/19'; } catch { return '8/19'; }
+  });
+  const [studentId, setStudentId] = useState(() => {
+    try { return (typeof localStorage !== 'undefined' && localStorage.getItem('ahs_student_lms_v1')) || ''; } catch { return ''; }
+  });
   const [sessionId, setSessionId] = useState('');
   const [assignedCode, setAssignedCode] = useState('101');
   // Đề chính thức đã bỏ đáp án, đọc từ exam_public khi vào phòng thi (AsianSchoolCloud.startExam); không nằm trong data/*.js
@@ -97,6 +108,18 @@ export function useStudentController() {
     });
     return () => unsub();
   }, []);
+
+  // Tự động lưu thông tin học sinh vào localStorage để không phải nhập lại
+  useEffect(() => {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        if (fullName) localStorage.setItem('ahs_student_fullname_v1', fullName);
+        if (studentId) localStorage.setItem('ahs_student_lms_v1', studentId);
+        if (studentClass) localStorage.setItem('ahs_student_class_v1', studentClass);
+        if (grade) localStorage.setItem('ahs_student_grade_v1', String(grade));
+      }
+    } catch { /* ignore */ }
+  }, [fullName, studentId, studentClass, grade]);
 
 
   // Cập nhật quyền truy cập khi đổi lớp hoặc cấu hình thay đổi thời gian thực từ Cloud

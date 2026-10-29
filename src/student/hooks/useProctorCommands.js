@@ -134,7 +134,38 @@ export function useProctorCommands(s) {
     setViolations(0);
     if (setTotalViolations) setTotalViolations(0);
     setActiveQuestionIdx(0);
-    setExamState('entry');
+
+    // Kích hoạt lại toàn màn hình nếu có hỗ trợ
+    try {
+      if (window.AsianSchoolAntiCheat && window.AsianSchoolAntiCheat.requestFullscreen) {
+        window.AsianSchoolAntiCheat.requestFullscreen().catch(() => {});
+      }
+    } catch { /* ignore */ }
+
+    // Nếu học sinh đã có đầy đủ tên và mã LMS, vào thẳng bài làm mới ngay lập tức không cần nhập lại
+    if (fullName && studentId) {
+      if (s.setExamStartTime) s.setExamStartTime(Date.now());
+      if (s.setElapsedSeconds) s.setElapsedSeconds(0);
+      if (sessionId && window.AsianSchoolStorage) {
+        window.AsianSchoolStorage.updateLiveSession({
+          sessionId,
+          fullName,
+          studentClass,
+          studentId,
+          grade,
+          mode: 'practice',
+          status: 'practicing',
+          isLocked: false
+        });
+      }
+      setExamState('in_progress');
+    } else {
+      setExamState('entry');
+    }
+
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   return { handleStudentResumeFromLock, handleRestartPractice };
