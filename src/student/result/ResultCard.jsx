@@ -3,7 +3,8 @@ import { useStudent } from '../StudentContext.js';
 
 // THẺ KẾT QUẢ BÀI LÀM — ĐƯỢC THIẾT KẾ ĐỂ CHỤP ẢNH NỘP LÊN LMS
 export default function ResultCard() {
-  const { mode, fullName, studentClass, studentId, scoreResult } = useStudent();
+  const { grade, mode, fullName, studentClass, studentId, scoreResult } = useStudent();
+  const maxScore = scoreResult?.maxScore !== undefined ? scoreResult.maxScore : (grade === 10 ? 7.75 : 7);
 
   return (
     <div
@@ -64,7 +65,7 @@ export default function ResultCard() {
         {mode === 'practice' ? (
           <div className="text-5xl sm:text-6xl font-black text-red-600 my-1">
             {scoreResult.score}
-            <span className="text-xl text-slate-600 font-bold"> / 10</span>
+            <span className="text-xl text-slate-600 font-bold"> / {maxScore}</span>
           </div>
         ) : (
           <div className="text-3xl sm:text-4xl font-black text-emerald-700 my-1">✅ ĐÃ NỘP BÀI THÀNH CÔNG</div>
@@ -72,7 +73,7 @@ export default function ResultCard() {
         <div className="space-y-2">
           <p className="text-xs text-slate-700 font-bold">
             {mode === 'practice'
-              ? `Làm đúng ${scoreResult.correctCount} / ${scoreResult.totalQuestions} câu trắc nghiệm • Tự luận không tính điểm • Thời gian làm: ${scoreResult.durationFormatted || 'N/A'}`
+              ? `Làm đúng ${scoreResult.correctCount} / ${scoreResult.totalQuestions} câu trắc nghiệm • Tự luận không tính điểm (thang điểm trắc nghiệm: ${maxScore}đ) • Thời gian làm: ${scoreResult.durationFormatted || 'N/A'}`
               : `Thời gian làm bài: ${scoreResult.durationFormatted || '45 phút'} • Nộp lúc: ${new Date(scoreResult.submittedAt).toLocaleTimeString('vi-VN')} • Số lần vi phạm: ${scoreResult.violations} lần`
             }
           </p>

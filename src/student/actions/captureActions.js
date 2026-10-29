@@ -99,7 +99,8 @@ export function createCaptureActions(s) {
         ctx.font = 'black 84px sans-serif';
         ctx.fillStyle = '#dc2626';
         if (mode === 'practice') {
-          ctx.fillText(`${scoreResult?.score ?? 0} / 10`, 930, 335);
+          const maxSc = scoreResult?.maxScore !== undefined ? scoreResult.maxScore : (grade === 10 ? 7.75 : 7);
+          ctx.fillText(`${scoreResult?.score ?? 0} / ${maxSc}`, 930, 335);
         } else {
           ctx.font = 'bold 54px sans-serif';
           ctx.fillStyle = '#047857';

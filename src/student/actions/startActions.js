@@ -42,7 +42,7 @@ export function createStartActions(s) {
       return;
     }
     if (!studentId) {
-      showDialog('Yêu Cầu Nhập Mã LMS', 'Vui lòng nhập Mã LMS của em (chỉ gồm chữ và số) trước khi bắt đầu!', 'warning');
+      showDialog('Yêu Cầu Nhập Mã LMS', 'Vui lòng nhập Mã LMS của em (chỉ gồm các chữ số) trước khi bắt đầu!', 'warning');
       return;
     }
 
@@ -70,9 +70,17 @@ export function createStartActions(s) {
       return;
     }
 
-    // Mỗi máy (uid ẩn danh) một phiên giám sát: tải lại trang không tạo thêm thẻ trên bảng giám sát
-    const authUid = window.AsianSchoolAuth && window.AsianSchoolAuth.uid ? window.AsianSchoolAuth.uid() : null;
-    const sid = authUid ? 'sess-' + authUid : 'sess-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+    // Giữ phiên trong sessionStorage theo khối + chế độ để tải lại trang không tạo thêm thẻ mới,
+    // đồng thời mỗi tab / mỗi học sinh mở riêng đều có mã phiên độc lập không ghi đè nhau.
+    const tabSidKey = `ahs_sess_${grade}_${mode}`;
+    let sid = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(tabSidKey)) || '';
+    if (!sid) {
+      const authUid = window.AsianSchoolAuth && window.AsianSchoolAuth.uid ? window.AsianSchoolAuth.uid() : null;
+      sid = 'sess-' + (authUid ? authUid.slice(-6) + '-' : '') + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+      if (typeof sessionStorage !== 'undefined') {
+        try { sessionStorage.setItem(tabSidKey, sid); } catch (e) {}
+      }
+    }
 
     // Bài thi chính thức: firestore.rules kiểm tra mật khẩu phòng thi, lớp đang mở ca thi, lượt thi theo mã LMS;
     // học sinh chỉ nhận đề không kèm đáp án

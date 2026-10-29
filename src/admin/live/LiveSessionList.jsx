@@ -3,18 +3,21 @@ import { useAdmin } from '../AdminContext.js';
 
 // DANH SÁCH THÍ SINH ĐANG TRỰC TUYẾN THEO LỚP
 export default function LiveSessionList() {
-  const { liveSessions, liveFilter, setShowBroadcastModal, setBroadcastTarget, setBroadcastMsgInput,
+  const { liveSessions, liveFilter, submissions, practiceSubs, setShowBroadcastModal, setBroadcastTarget, setBroadcastMsgInput,
     setIndividualMsgTarget, showToast, handleExtendTime, handleForceSubmit, handleLockSession,
     handleUnlockSession, handleRemoveCandidate, handleClearClassSessions } = useAdmin();
 
   return (
     <div className="space-y-6">
       {(() => {
-        // Mỗi mã LMS (theo khối) chỉ hiện thẻ có nhịp tim mới nhất; thẻ cũ là phiên đã tải lại / đổi máy
+        // Chỉ gộp khi đúng là cùng 1 học sinh (trùng khối, trùng mã LMS và họ tên) mở nhiều phiên (do tải lại trang / đổi máy);
+        // giữ lại phiên có nhịp tim mới nhất. TUYỆT ĐỐI không gộp các học sinh khác nhau.
         const latestByStudent = new Map();
         liveSessions.forEach(s => {
-          const lms = window.AsianSchoolNormalize ? window.AsianSchoolNormalize.normalizeLmsCode(s.studentId) : String(s.studentId || '').toUpperCase();
-          const key = lms ? `${s.grade}|${lms}` : s.sessionId;
+          const lms = window.AsianSchoolNormalize ? window.AsianSchoolNormalize.normalizeLmsCode(s.studentId) : String(s.studentId || '').replace(/\D/g, '');
+          const cleanName = (s.fullName || '').trim().toLowerCase();
+          // Nếu có cả mã LMS và họ tên: gộp theo khối + mã LMS + họ tên. Nếu thiếu: giữ riêng theo sessionId
+          const key = (lms && cleanName) ? `${s.grade}|${lms}|${cleanName}` : s.sessionId;
           const prev = latestByStudent.get(key);
           if (!prev || (s.lastPing || 0) > (prev.lastPing || 0)) latestByStudent.set(key, s);
         });
@@ -188,10 +191,84 @@ export default function LiveSessionList() {
                         </span>
                         {session.status === 'submitted' && (
                           <span className="text-emerald-700 font-black text-xs">
-                            Điểm: {session.score !== undefined ? session.score : session.mcqPoints}đ
+                            Điểm: {session.score !== undefined ? session.score : session.mcqPoints} / {session.maxScore || (parseInt(session.grade, 10) === 10 ? 7.75 : 7)}đ
                           </span>
                         )}
                       </div>
+
+                      {/* LỊCH SỬ LÀM BÀI TRÊN CARD */}
+                      {(() => {
+                        const normLms = window.AsianSchoolNormalize ? window.AsianSchoolNormalize.normalizeLmsCode(session.studentId) : String(session.studentId || '').replace(/\D/g, '');
+                        const normName = (session.fullName || '').trim().toLowerCase();
+                        const normClass = (session.studentClass || '').trim();
+                        const g = parseInt(session.grade, 10);
+
+                        const matchSub = (sub) => {
+                          if (sub.grade && parseInt(sub.grade, 10) !== g) return false;
+                          const subLms = window.AsianSchoolNormalize ? window.AsianSchoolNormalize.normalizeLmsCode(sub.studentId) : String(sub.studentId || '').replace(/\D/g, '');
+                          if (normLms && subLms && normLms === subLms) return true;
+                          if (normName && (sub.fullName || '').trim().toLowerCase() === normName && normClass && sub.studentClass === normClass) return true;
+                          return false;
+                        };
+
+                        const userPracticeSubs = (practiceSubs || []).filter(matchSub);
+                        const userOfficialSubs = (submissions || []).filter(matchSub);
+                        const hasHistory = userPracticeSubs.length > 0 || userOfficialSubs.length > 0;
+
+                        return (
+                          <div className="bg-white p-2.5 rounded-xl border border-slate-200 text-xs space-y-1.5">
+                            <div className="flex items-center justify-between font-bold text-slate-700">
+                              <span className="flex items-center space-x-1">
+                                <span>📜</span>
+                                <span>Lịch sử làm bài:</span>
+                              </span>
+                              {userPracticeSubs.length > 0 && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-100 text-purple-900 border border-purple-200">
+                                  Ôn tập: {userPracticeSubs.length} lần
+                                </span>
+                              )}
+                            </div>
+
+                            {!hasHistory ? (
+                              <p className="text-[11px] text-slate-400 italic">Chưa có lượt nộp bài trước đó (Lần đầu làm)</p>
+                            ) : (
+                              <div className="space-y-1 max-h-24 overflow-y-auto pr-0.5">
+                                {userPracticeSubs.slice(0, 4).map((p, idx) => {
+                                  const pScore = p.finalScore !== undefined ? p.finalScore : (p.score !== undefined ? p.score : 0);
+                                  const pMax = p.maxScore !== undefined ? p.maxScore : (g === 10 ? 7.75 : 7);
+                                  return (
+                                    <div key={p.id || idx} className="flex items-center justify-between text-[11px] bg-slate-50 px-2 py-1 rounded-lg border border-slate-200/60">
+                                      <span className="text-slate-600 font-semibold">
+                                        Ôn tập Lần {p.attemptNumber || (userPracticeSubs.length - idx)}:
+                                      </span>
+                                      <span className="font-mono-code font-black text-red-600">
+                                        {pScore} / {pMax}đ
+                                      </span>
+                                      <span className="text-slate-400 text-[10px] font-mono-code">
+                                        {p.submittedAt ? new Date(p.submittedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : ''}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+
+                                {userOfficialSubs.map((sub, idx) => (
+                                  <div key={sub.id || idx} className="flex items-center justify-between text-[11px] bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200">
+                                    <span className="text-emerald-800 font-bold">
+                                      Bài thi ({sub.examCode || '101'}):
+                                    </span>
+                                    <span className="font-mono-code font-black text-emerald-900">
+                                      {sub.isGraded ? `${sub.finalScore}đ` : `TN: ${sub.mcqPoints}đ`}
+                                    </span>
+                                    <span className="text-emerald-600 text-[10px] font-mono-code">
+                                      {sub.isGraded ? 'Đã chấm' : 'Chờ chấm'}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       <div className="pt-2 border-t border-slate-200 grid grid-cols-2 gap-1.5 text-[11px] font-bold">
                         <button

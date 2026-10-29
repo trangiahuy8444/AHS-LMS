@@ -2,11 +2,16 @@
 
 > Tệp trạng thái sống. Mỗi phiên có thay đổi đáng kể thêm một mục **ở đầu** tệp: ngày, đã làm gì (kèm commit), kết quả `npm run check`, việc còn dở, câu hỏi chờ thầy. Repo công khai: không ghi bí mật hay dữ liệu học sinh.
 
-## 30/10/2026
+## 30/10/2026 (phiên 2): sửa mã LMS chỉ là số, thang điểm ôn tập 7/7.75 và lịch sử làm bài trên thẻ giám thị
 
-- Thầy xác nhận khóa bài ở chế độ ôn tập đã hoạt động.
-- Chuẩn hóa mã LMS và họ tên (`src/core/normalize.js`): ô nhập tự chuẩn hóa khi rời ô và khi bắt đầu; khóa lượt thi, hàng chờ ôn tập, tra cứu lượt, gộp thẻ giám sát dùng cùng quy tắc.
-- Ôn tập: tự luận không tính điểm (vốn đã không cộng vào điểm) và nay không bắt buộc khi bật "làm hết câu"; ghi rõ "không tính điểm" trên trang nhập thông tin, câu hỏi, thẻ kết quả. Test `tests/practice_scoring.test.jsx`.
+- Mã LMS học sinh: chỉ gồm các chữ số (`\D` bị loại bỏ); ô nhập hỗ trợ `inputMode="numeric"`, tự lọc số ngay khi gõ và khi rời ô; thông báo yêu cầu nhập số.
+- Thang điểm ôn tập: không quy đổi sang thang 10. Điểm là điểm thực của phần trắc nghiệm/khách quan:
+  - Khối 8, 9: 28 câu trắc nghiệm = thang điểm 7 (tối đa 7.0 điểm). Thẻ kết quả và ảnh tải về hiển thị `X / 7`.
+  - Khối 10: 19 câu trắc nghiệm (4.75đ) + 3 câu Đúng/Sai (3.0đ) = thang điểm 7.75 (tối đa 7.75 điểm). Thẻ hiển thị `X / 7.75`.
+- Sửa lỗi hiển thị 1 thẻ giám sát admin:
+  - Trước đây gộp thẻ chỉ theo `khối|mã LMS`, dẫn tới khi học sinh chưa có mã hoặc trùng mã thì bị gộp hết thành 1 thẻ duy nhất. Nay chỉ gộp khi trùng cả `khối + mã LMS + họ tên`, nếu khác họ tên thì giữ riêng từng thẻ; giữ phiên qua `sessionStorage` để mỗi tab có mã phiên riêng.
+  - Bổ sung khối "Lịch sử làm bài" trực tiếp trên từng thẻ học sinh: thống kê số lần đã ôn tập, điểm và thời gian của từng lần (lần 1, 2, 3...) hoặc lịch sử thi chính thức.
+- Kết quả `npm run check`: toàn bộ 46 test logic (+ 3 test private bỏ qua), 25 test vitest, lint, build và chặn lọt đề đều đạt 100%.
 
 ## 29/10/2026 (phiên 3): thầy thử trên trang thật
 

@@ -175,14 +175,20 @@ export default function EntryScreen() {
 
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Mã LMS (Học sinh) <span className="text-red-500">*</span>
+                Mã LMS (Học sinh - chỉ nhập số) <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 value={studentId}
-                onChange={e => setStudentId(e.target.value)}
+                onChange={e => {
+                  const val = e.target.value;
+                  // Tự động giữ lại số khi gõ
+                  setStudentId(window.AsianSchoolNormalize ? window.AsianSchoolNormalize.normalizeLmsCode(val) : val.replace(/\D/g, ''));
+                }}
                 onBlur={e => window.AsianSchoolNormalize && setStudentId(window.AsianSchoolNormalize.normalizeLmsCode(e.target.value))}
-                placeholder="Ví dụ: 123456"
+                placeholder="Ví dụ: 123456 (chỉ nhập số)"
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold font-mono-code bg-white text-slate-900"
               />
             </div>

@@ -30,20 +30,23 @@ const allRight = { mcq: Object.fromEntries(mcq.map(q => [q.id, 0])), tf: {}, ess
 
 describe('Điểm ôn tập không tính tự luận', () => {
   for (const grade of [8, 9]) {
-    it(`Khối ${grade}: đúng hết 28 câu TN = 10 điểm, viết hay không viết tự luận không đổi điểm`, () => {
+    it(`Khối ${grade}: đúng hết 28 câu TN = 7.0 điểm (thang điểm 7), viết hay không viết tự luận không đổi điểm`, () => {
       const noEssay = run(grade, allRight).result;
       const withEssay = run(grade, { ...allRight, essay: { 1: 'bài làm', 2: 'bài làm', 3: 'bài làm' } }).result;
-      expect(noEssay.score).toBe(10);
+      expect(noEssay.score).toBe(7);
+      expect(noEssay.maxScore).toBe(7);
       expect(withEssay.score).toBe(noEssay.score);
     });
   }
 
-  it('Khối 10: đúng hết TN + Đ/S = 10 điểm, tự luận không đổi điểm', () => {
+  it('Khối 10: đúng hết TN + Đ/S = 7.75 điểm (thang điểm 7.75), tự luận không đổi điểm', () => {
     const tfAll = Object.fromEntries(tf.map(q => [q.num, { a: true, b: true, c: true, d: true }]));
     const mcq19 = mcq.slice(0, 19);
     const ans = { mcq: Object.fromEntries(mcq19.map(q => [q.id, 0])), tf: tfAll, essay: {} };
     const r1 = run(10, ans).result;
     const r2 = run(10, { ...ans, essay: { 1: 'x', 2: 'y', 3: 'z' } }).result;
+    expect(r1.score).toBe(7.75);
+    expect(r1.maxScore).toBe(7.75);
     expect(r2.score).toBe(r1.score);
   });
 

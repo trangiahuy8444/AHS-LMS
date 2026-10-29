@@ -32,8 +32,8 @@ Bản chuẩn chỉ nằm trong `../01_Van_ban_phap_ly_va_Quy_dinh/`. Không ch�
 | 28/10/2026 | Giữ gói Firebase Spark, không nâng Blaze, không Cloud Functions. Bảo mật nằm ở `firestore.rules`; học sinh chỉ gửi bài làm, trang quản trị chấm |
 | 28/10/2026 | Đ/S Khối 10 chấm theo hệ số 0 / 0,1 / 0,25 / 0,5 / 1 (khớp `ngan-hang-de-web`) |
 | 28/10/2026 | Vi phạm 3 lần: khóa bài, chờ giám thị mở khóa |
-| 30/10/2026 | Ôn tập đề cương: 3 câu tự luận **không tính điểm** và không bắt buộc làm (mọi khối); điểm thang 10 chỉ từ trắc nghiệm (và Đ/S Khối 10) |
-| 30/10/2026 | Chuẩn hóa mã LMS (viết hoa, chỉ chữ và số, bỏ "-") và họ tên (viết hoa chữ đầu mỗi từ) trước khi lưu |
+| 30/10/2026 | Ôn tập đề cương: 3 câu tự luận **không tính điểm** và không bắt buộc làm (mọi khối); thang điểm ôn tập là thang điểm phần khách quan (Khối 8, 9: thang 7; Khối 10: thang 7.75), không quy đổi sang thang 10 |
+| 30/10/2026 | Chuẩn hóa mã LMS: **chỉ là chữ số** (bỏ chữ cái, "-", khoảng trắng); họ tên viết hoa chữ đầu. Thẻ giám sát trực tiếp hiển thị lịch sử làm bài và chỉ gộp phiên khi đúng cùng một học sinh (khối + mã LMS + họ tên) |
 | 29/10/2026 | Hệ thống **không tự trừ điểm** vi phạm. Bài nộp vẫn lưu số lần vi phạm; giáo viên tự ghi nhận vào sổ |
 | 28/10/2026 | Mặc định 1 lượt kiểm tra chính thức mỗi mã LMS; giáo viên cấp thêm khi cần |
 | 28/10/2026 | Chuyển sang Vite + React 18 + Tailwind v3, triển khai bằng GitHub Actions; bản build bị chặn nếu lọt mã đề |

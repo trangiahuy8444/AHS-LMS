@@ -75,18 +75,15 @@ export function createPracticeSubmitActions(s) {
     }
 
     const totalMcq = practiceQuestions.length;
-    let score = 0;
     let mcqPoints = Math.round(correctMcq * 0.25 * 100) / 100;
     tfPoints = Math.round(tfPoints * 100) / 100;
 
-    if (grade === 10) {
-      // THPT: 19 câu MCQ (4.75đ) + 3 câu Đúng/Sai (3.0đ) = 7.75 điểm tự động tối đa
-      const autoTotal = Math.round((mcqPoints + tfPoints) * 100) / 100;
-      score = (autoTotal > 0) ? Math.min(10, Math.round(((autoTotal / 7.75) * 10) * 100) / 100).toFixed(2) : '0.00';
-    } else {
-      // THCS: 28 câu MCQ (7.0đ), quy đổi sang thang 10. Ôn tập không tính điểm tự luận (mọi khối)
-      score = totalMcq > 0 ? ((correctMcq / totalMcq) * 10).toFixed(2) : '0.00';
-    }
+    // Ôn tập: tự luận không tính điểm (máy không chấm tự luận).
+    // Thang điểm ôn tập là điểm phần trắc nghiệm/khách quan:
+    // - Khối 8, 9: 28 câu MCQ (tối đa 7.0 điểm). Thang điểm là 7.
+    // - Khối 10: 19 câu MCQ (4.75đ) + 3 câu Đúng/Sai (3.0đ) = tối đa 7.75 điểm. Thang điểm là 7.75.
+    const maxScore = grade === 10 ? 7.75 : 7.0;
+    const finalScore = grade === 10 ? Math.round((mcqPoints + tfPoints) * 100) / 100 : mcqPoints;
 
     const durationSec = examStartTime ? Math.round((Date.now() - examStartTime) / 1000) : 0;
     const mins = Math.floor(durationSec / 60);
@@ -101,7 +98,8 @@ export function createPracticeSubmitActions(s) {
       totalTfSub,
       tfPoints,
       mcqPoints,
-      score: parseFloat(score),
+      score: finalScore,
+      maxScore,
       essayAnswered: Object.keys(practiceAnswers.essay).length,
       violations: totalViolations,
       durationSeconds: durationSec,
@@ -117,7 +115,8 @@ export function createPracticeSubmitActions(s) {
       studentId,
       grade,
       mode: 'practice',
-      score: parseFloat(score),
+      score: finalScore,
+      maxScore,
       correctCount: correctMcq,
       totalQuestions: totalMcq,
       violations: totalViolations,
@@ -141,7 +140,9 @@ export function createPracticeSubmitActions(s) {
       examCode: 'DE_CUONG',
       violations: totalViolations,
       status: 'submitted',
-      score: parseFloat(score)
+      score: finalScore,
+      maxScore,
+      attemptNumber: result.attemptNumber
     });
   };
 

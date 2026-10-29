@@ -201,7 +201,7 @@ test('Hàng chờ ôn tập: trang quản trị đẩy lên Google Sheets rồi 
   assert.deepStrictEqual(deleted, ['practice-1']);
   assert.strictEqual(sent.length, 1);
   assert.strictEqual(sent[0].token, 'bi-mat');
-  assert.strictEqual(sent[0].submission.studentId, 'HS01');
+  assert.strictEqual(sent[0].submission.studentId, '01');
 });
 
 test('Cổng học sinh không gửi thẳng lên webhook; rules có hàng chờ practice_results', () => {
@@ -240,8 +240,9 @@ test('Lệnh giám thị ghi targetUid của học sinh nhận lệnh', () => {
 
 test('Chuẩn hóa mã LMS và họ tên học sinh', () => {
   const N = require('../src/core/normalize.js');
+  // Mã LMS của học sinh chỉ là số: bỏ chữ, ký tự đặc biệt, giữ lại đúng các chữ số
   for (const raw of ['hs-2026-01', 'HS 2026 01', ' Hs-202601 ', 'hs.2026_01', 'ＨＳ２０２６０１']) {
-    assert.strictEqual(N.normalizeLmsCode(raw), 'HS202601', raw);
+    assert.strictEqual(N.normalizeLmsCode(raw), '202601', raw);
   }
   assert.strictEqual(N.normalizeLmsCode('12-345'), '12345');
   assert.strictEqual(N.normalizeLmsCode(''), '');
@@ -250,6 +251,6 @@ test('Chuẩn hóa mã LMS và họ tên học sinh', () => {
   assert.strictEqual(N.normalizeStudentName('lê đức anh'), 'Lê Đức Anh');
   const storage = require('../src/core/storage-service.js');
   const row = storage.toPracticeQueueRow({ id: 'p1', studentId: 'hs-2026-01', fullName: 'nguyễn văn an', grade: 9, score: 5, finalScore: 5 });
-  assert.strictEqual(row.studentId, 'HS202601');
+  assert.strictEqual(row.studentId, '202601');
   assert.strictEqual(row.fullName, 'Nguyễn Văn An');
 });

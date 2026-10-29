@@ -1,7 +1,7 @@
 /**
  * normalize.js
  * Chuẩn hóa mã LMS và họ tên học sinh, dùng chung cho cổng học sinh, trang quản trị và khóa lượt thi.
- *  - Mã LMS: viết hoa, chỉ giữ chữ và số (bỏ "-", khoảng trắng, dấu chấm, gạch dưới). "hs-2026 01" -> "HS202601"
+ *  - Mã LMS: chỉ là số (bỏ mọi chữ cái, "-", khoảng trắng, dấu chấm, gạch dưới). "hs-2026-01" -> "202601", "123456" -> "123456"
  *  - Họ tên: bỏ khoảng trắng thừa, viết hoa chữ đầu mỗi từ. "nguyễn  văn an" -> "Nguyễn Văn An"
  */
 (function (root, factory) {
@@ -12,8 +12,7 @@
   function normalizeLmsCode(value) {
     return String(value === undefined || value === null ? '' : value)
       .normalize('NFKC')
-      .toUpperCase()
-      .replace(/[^A-Z0-9]/g, '')
+      .replace(/\D/g, '')
       .slice(0, 30);
   }
 
