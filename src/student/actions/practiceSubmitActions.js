@@ -27,12 +27,7 @@ export function createPracticeSubmitActions(s) {
           }
         });
       }
-      practiceEssayQuestions.forEach((es, idx) => {
-        const text = (practiceAnswers.essay[es.num] || '').trim();
-        if (!text) {
-          missing.push(`Câu ${idx + 1} (Tự luận)`);
-        }
-      });
+      // Ôn tập: 3 câu tự luận để tự luyện, không tính điểm nên không bắt buộc làm
 
       if (missing.length > 0) {
         showDialog(
@@ -89,7 +84,7 @@ export function createPracticeSubmitActions(s) {
       const autoTotal = Math.round((mcqPoints + tfPoints) * 100) / 100;
       score = (autoTotal > 0) ? Math.min(10, Math.round(((autoTotal / 7.75) * 10) * 100) / 100).toFixed(2) : '0.00';
     } else {
-      // THCS: 28 câu MCQ (7.0đ), quy đổi sang thang 10
+      // THCS: 28 câu MCQ (7.0đ), quy đổi sang thang 10. Ôn tập không tính điểm tự luận (mọi khối)
       score = totalMcq > 0 ? ((correctMcq / totalMcq) * 10).toFixed(2) : '0.00';
     }
 

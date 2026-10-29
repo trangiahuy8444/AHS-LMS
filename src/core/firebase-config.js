@@ -357,8 +357,10 @@
 
   // --- PHÒNG THI CHÍNH THỨC (gói Spark: không có Cloud Functions, firestore.rules kiểm tra mọi bước) ---
 
+  // Phải trùng normalizeLmsCode (src/core/normalize.js): "hs-2026 01" và "HS202601" là cùng một học sinh
   function lmsKey(studentId) {
-    return String(studentId || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 30);
+    if (window.AsianSchoolNormalize) return window.AsianSchoolNormalize.normalizeLmsCode(studentId);
+    return String(studentId || '').normalize('NFKC').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 30);
   }
 
   function waitForUser() {

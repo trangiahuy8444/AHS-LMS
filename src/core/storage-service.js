@@ -874,13 +874,16 @@
 
     // Dòng điểm ôn tập gọn để gửi qua hàng chờ (khớp các trường firestore.rules cho phép ở practice_results)
     toPracticeQueueRow(doc) {
+      const N = (typeof window !== 'undefined' && window.AsianSchoolNormalize) || require('./normalize.js');
+      const normLms = (v) => N.normalizeLmsCode(v);
+      const normName = (v) => N.normalizeStudentName(v);
       const num = (v) => (typeof v === 'number' && isFinite(v) ? v : 0);
       const text = (v, n) => String(v === undefined || v === null ? '' : v).slice(0, n);
       return {
         id: text(doc.id, 80),
         mode: 'practice',
-        studentId: text(doc.studentId || doc.studentCode, 30),
-        fullName: text(doc.fullName, 80),
+        studentId: text(normLms(doc.studentId || doc.studentCode), 30),
+        fullName: text(normName(doc.fullName), 80),
         studentClass: text(doc.studentClass, 10),
         grade: num(Number(doc.grade)),
         attemptNumber: num(doc.attemptNumber) || 1,

@@ -2,6 +2,12 @@
 
 > Tệp trạng thái sống. Mỗi phiên có thay đổi đáng kể thêm một mục **ở đầu** tệp: ngày, đã làm gì (kèm commit), kết quả `npm run check`, việc còn dở, câu hỏi chờ thầy. Repo công khai: không ghi bí mật hay dữ liệu học sinh.
 
+## 30/10/2026
+
+- Thầy xác nhận khóa bài ở chế độ ôn tập đã hoạt động.
+- Chuẩn hóa mã LMS và họ tên (`src/core/normalize.js`): ô nhập tự chuẩn hóa khi rời ô và khi bắt đầu; khóa lượt thi, hàng chờ ôn tập, tra cứu lượt, gộp thẻ giám sát dùng cùng quy tắc.
+- Ôn tập: tự luận không tính điểm (vốn đã không cộng vào điểm) và nay không bắt buộc khi bật "làm hết câu"; ghi rõ "không tính điểm" trên trang nhập thông tin, câu hỏi, thẻ kết quả. Test `tests/practice_scoring.test.jsx`.
+
 ## 29/10/2026 (phiên 3): thầy thử trên trang thật
 
 Thầy thử ở chế độ **ôn tập** (Firestore không có lượt thi/bài nộp chính thức). Sửa:

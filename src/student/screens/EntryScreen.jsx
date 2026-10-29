@@ -66,8 +66,8 @@ export default function EntryScreen() {
               </div>
               <p className="text-xs text-slate-600 mt-1 font-medium leading-relaxed">
                 {grade === 10
-                  ? 'Bộ đề ngẫu nhiên: 19 câu Trắc nghiệm + 3 câu Đúng/Sai + 3 câu Tự luận (chuẩn ma trận THPT 10 điểm).'
-                  : 'Bộ đề ngẫu nhiên: 28 câu Trắc nghiệm + 3 câu Tự luận (chuẩn ma trận THCS 10 điểm).'
+                  ? 'Bộ đề ngẫu nhiên: 19 câu Trắc nghiệm + 3 câu Đúng/Sai (tính điểm thang 10) + 3 câu Tự luận để tự luyện (không tính điểm).'
+                  : 'Bộ đề ngẫu nhiên: 28 câu Trắc nghiệm (tính điểm thang 10) + 3 câu Tự luận để tự luyện (không tính điểm).'
                 }
               </p>
               {classAccessMode === 'exam_only' && (
@@ -150,6 +150,7 @@ export default function EntryScreen() {
               type="text"
               value={fullName}
               onChange={e => setFullName(e.target.value)}
+              onBlur={e => window.AsianSchoolNormalize && setFullName(window.AsianSchoolNormalize.normalizeStudentName(e.target.value))}
               placeholder="Ví dụ: Nguyễn Văn An"
               className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold bg-white text-slate-900"
             />
@@ -180,6 +181,7 @@ export default function EntryScreen() {
                 type="text"
                 value={studentId}
                 onChange={e => setStudentId(e.target.value)}
+                onBlur={e => window.AsianSchoolNormalize && setStudentId(window.AsianSchoolNormalize.normalizeLmsCode(e.target.value))}
                 placeholder="Ví dụ: 123456"
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold font-mono-code bg-white text-slate-900"
               />

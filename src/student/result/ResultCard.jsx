@@ -72,7 +72,7 @@ export default function ResultCard() {
         <div className="space-y-2">
           <p className="text-xs text-slate-700 font-bold">
             {mode === 'practice'
-              ? `Làm đúng ${scoreResult.correctCount} / ${scoreResult.totalQuestions} câu trắc nghiệm • Thời gian làm: ${scoreResult.durationFormatted || 'N/A'}`
+              ? `Làm đúng ${scoreResult.correctCount} / ${scoreResult.totalQuestions} câu trắc nghiệm • Tự luận không tính điểm • Thời gian làm: ${scoreResult.durationFormatted || 'N/A'}`
               : `Thời gian làm bài: ${scoreResult.durationFormatted || '45 phút'} • Nộp lúc: ${new Date(scoreResult.submittedAt).toLocaleTimeString('vi-VN')} • Số lần vi phạm: ${scoreResult.violations} lần`
             }
           </p>

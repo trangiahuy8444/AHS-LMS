@@ -31,8 +31,18 @@ export function createStartActions(s) {
 
   // Bắt đầu làm bài
   const handleStart = async () => {
+    // Chuẩn hóa họ tên và mã LMS (bỏ "-", khoảng trắng; viết hoa) để giáo viên đối chiếu dễ; dùng cho cả phiên
+    const N = window.AsianSchoolNormalize;
+    const fullName = N ? N.normalizeStudentName(s.fullName) : String(s.fullName || '').trim();
+    const studentId = N ? N.normalizeLmsCode(s.studentId) : String(s.studentId || '').trim();
+    if (s.setFullName) s.setFullName(fullName);
+    if (s.setStudentId) s.setStudentId(studentId);
     if (!fullName.trim()) {
       showDialog('Yêu Cầu Nhập Họ Tên', 'Vui lòng nhập đầy đủ Họ và tên học sinh trước khi bắt đầu!', 'warning');
+      return;
+    }
+    if (!studentId) {
+      showDialog('Yêu Cầu Nhập Mã LMS', 'Vui lòng nhập Mã LMS của em (chỉ gồm chữ và số) trước khi bắt đầu!', 'warning');
       return;
     }
 

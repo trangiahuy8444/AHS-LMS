@@ -69,7 +69,7 @@ export default function ExamScreen() {
                 </div>
                 <div className="flex items-center space-x-4">
                   <span className="text-xs text-amber-900 font-black bg-amber-100 border border-amber-300 px-3 py-1 rounded-lg">
-                    {currentItem.points ? `${currentItem.points.toFixed(2).replace('.', ',')} điểm` : 'Tự luận'}
+                    {currentItem.points ? `${currentItem.points.toFixed(2).replace('.', ',')} điểm` : 'Tự luận · không tính điểm'}
                   </span>
                   <span className="text-xs text-slate-600 font-mono-code font-bold bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
                     {activeQuestionIdx + 1} / {activeList.length} câu

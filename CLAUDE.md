@@ -53,4 +53,6 @@ Never propose Blaze, Cloud Functions or paid services. Never put secrets in `exa
 
 - Grade 10 Đúng/Sai: score = question points × coefficient by correct statements `{0:0, 1:0.1, 2:0.25, 3:0.5, 4:1}` (`TF_COEFFICIENTS` in `src/core/exam-package.js`), matching `ngan-hang-de-web`.
 - 3 anti-cheat violations lock the attempt until the teacher unlocks it. The system does **not** deduct points (`VIOLATION_PENALTY_POINTS = 0` in `src/core/storage-service.js`, decision 29/10/2026); the violation count is stored on the submission and the teacher records any sanction by hand. One official attempt per LMS code by default; the teacher can grant more.
+- Practice (ôn tập đề cương): the 3 essay questions are never scored and never required, for every grade; the 10-point practice score comes from MCQ only (plus Đúng/Sai for grade 10).
+- LMS codes and student names are normalized by `src/core/normalize.js` before use (LMS: uppercase letters and digits only, so `hs-2026-01` = `HS202601`; name: collapsed spaces, each word capitalized). Attempt keys, practice rows and admin lookups all use it.
 - Result screenshots are named `[MãLMS]_[HọTên]_[Lớp]_KetQua.png` for submission on the school LMS.

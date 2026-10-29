@@ -46,7 +46,8 @@ export function createExamBankActions(s) {
 
   // Lượt thi chính thức theo mã LMS (exam_attempts/g<khối>_<MÃ LMS>, học sinh tạo khi vào phòng thi, firestore.rules kiểm tra)
   const attemptDocRef = () => {
-    const key = String(attemptLms || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+    const key = window.AsianSchoolNormalize ? window.AsianSchoolNormalize.normalizeLmsCode(attemptLms)
+      : String(attemptLms || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     return key ? window.firebaseDb.collection('exam_attempts').doc(`g${attemptGrade}_${key}`) : null;
   };
 

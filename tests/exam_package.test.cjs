@@ -237,3 +237,19 @@ test('Lệnh giám thị ghi targetUid của học sinh nhận lệnh', () => {
   assert.strictEqual(storage.sendProctorCommand('sess-khong-co', 'force_submit', {}).targetUid, 'khong_ro');
   storage.removeLiveSession('sess-uid-test');
 });
+
+test('Chuẩn hóa mã LMS và họ tên học sinh', () => {
+  const N = require('../src/core/normalize.js');
+  for (const raw of ['hs-2026-01', 'HS 2026 01', ' Hs-202601 ', 'hs.2026_01', 'ＨＳ２０２６０１']) {
+    assert.strictEqual(N.normalizeLmsCode(raw), 'HS202601', raw);
+  }
+  assert.strictEqual(N.normalizeLmsCode('12-345'), '12345');
+  assert.strictEqual(N.normalizeLmsCode(''), '');
+  assert.strictEqual(N.normalizeStudentName('  nguyễn   văn  an '), 'Nguyễn Văn An');
+  assert.strictEqual(N.normalizeStudentName('TRẦN THỊ ÁNH'), 'Trần Thị Ánh');
+  assert.strictEqual(N.normalizeStudentName('lê đức anh'), 'Lê Đức Anh');
+  const storage = require('../src/core/storage-service.js');
+  const row = storage.toPracticeQueueRow({ id: 'p1', studentId: 'hs-2026-01', fullName: 'nguyễn văn an', grade: 9, score: 5, finalScore: 5 });
+  assert.strictEqual(row.studentId, 'HS202601');
+  assert.strictEqual(row.fullName, 'Nguyễn Văn An');
+});

@@ -1,6 +1,7 @@
 // Thứ tự nạp giống các thẻ <script> của bản cũ: thư viện -> Firebase -> dữ liệu đề cương -> module lõi
 import '../styles/main.css';
 import '../shared/globals.js';
+import '../core/normalize.js';
 import '../core/firebase-config.js';
 import '../../data/questions_grade8.js';
 import '../../data/questions_grade9.js';

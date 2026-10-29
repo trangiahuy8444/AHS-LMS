@@ -13,7 +13,8 @@ export default function LiveSessionList() {
         // Mỗi mã LMS (theo khối) chỉ hiện thẻ có nhịp tim mới nhất; thẻ cũ là phiên đã tải lại / đổi máy
         const latestByStudent = new Map();
         liveSessions.forEach(s => {
-          const key = s.studentId ? `${s.grade}|${String(s.studentId).trim().toUpperCase()}` : s.sessionId;
+          const lms = window.AsianSchoolNormalize ? window.AsianSchoolNormalize.normalizeLmsCode(s.studentId) : String(s.studentId || '').toUpperCase();
+          const key = lms ? `${s.grade}|${lms}` : s.sessionId;
           const prev = latestByStudent.get(key);
           if (!prev || (s.lastPing || 0) > (prev.lastPing || 0)) latestByStudent.set(key, s);
         });
