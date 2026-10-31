@@ -53,6 +53,19 @@
       this.tick();
     }
 
+    // Đồng bộ bài thi chính thức bằng hạn tuyệt đối từ lượt thi máy chủ.
+    // Không cộng dồn snapshot lặp và không khởi động lại đồng hồ đã dừng để nộp bài.
+    syncDeadline(deadlineMs) {
+      if (!Number.isFinite(deadlineMs) || this.startTime === null) return false;
+      if (deadlineMs === this.expectedEndTime) return true;
+      if (!this.timerId) return false;
+      this.expectedEndTime = deadlineMs;
+      this.durationSeconds = Math.max(1, Math.round((deadlineMs - this.startTime) / 1000));
+      if (deadlineMs - Date.now() > 300000) this.warningTriggered = false;
+      this.tick();
+      return true;
+    }
+
     tick() {
       if (this.isPaused) return;
 

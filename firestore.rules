@@ -89,7 +89,7 @@ service cloud.firestore {
     match /exam_attempts/{attemptId} {
       function validNewAttempt(d) {
         return d.keys().hasOnly(['grade', 'studentId', 'studentClass', 'fullName', 'uid', 'examCode',
-                                 'attemptsUsed', 'submitted', 'startedAt', 'deviceChanges'])
+                                 'attemptsUsed', 'submitted', 'startedAt', 'deviceChanges', 'durationMinutes', 'extraTimeSeconds'])
           && d.grade in [8, 9, 10]
           && d.studentId is string && d.studentId.matches('[A-Z0-9_-]{1,30}')
           && attemptId == 'g' + string(d.grade) + '_' + d.studentId
@@ -98,6 +98,9 @@ service cloud.firestore {
           && d.uid == request.auth.uid
           && d.attemptsUsed == 1
           && d.deviceChanges == 0
+          && d.durationMinutes is number && d.durationMinutes > 0
+          && d.durationMinutes == cfg().get('examDurationMinutes', 45)
+          && d.extraTimeSeconds is int && d.extraTimeSeconds == 0
           && d.submitted == false
           && d.startedAt == request.time
           && classOpen(d.studentClass)
@@ -119,10 +122,14 @@ service cloud.firestore {
         let d = request.resource.data;
         return resource.data.uid == request.auth.uid
           && resource.data.submitted == true
+          && resource.data.get('locked', false) == false
           && resource.data.attemptsUsed < allowedAttempts(resource.data)
           && d.diff(resource.data).affectedKeys().hasOnly(['attemptsUsed', 'submitted', 'startedAt', 'examCode', 'submittedAt',
-                                                           'violations', 'locked', 'lockCount', 'lockReason'])
+                                                           'violations', 'locked', 'lockCount', 'lockReason', 'durationMinutes', 'extraTimeSeconds'])
           && d.attemptsUsed == resource.data.attemptsUsed + 1
+          && d.durationMinutes is number && d.durationMinutes > 0
+          && d.durationMinutes == cfg().get('examDurationMinutes', 45)
+          && d.extraTimeSeconds is int && d.extraTimeSeconds == 0
           && d.get('violations', 0) == 0 && d.get('locked', false) == false && d.get('lockCount', 0) == 0
           && !('lockReason' in d)
           && d.submitted == false
@@ -194,7 +201,7 @@ service cloud.firestore {
         return d.keys().hasOnly(['id', 'uid', 'attemptId', 'sessionId', 'fullName', 'studentClass', 'studentId',
                                  'grade', 'mode', 'examCode', 'attemptNumber', 'deviceChanges', 'answers',
                                  'violations', 'startedAt', 'submittedAt', 'serverSubmittedAt',
-                                 'isGraded', 'essayScores', 'essayTotal', 'teacherFeedback'])
+                                 'isGraded', 'essayScores', 'essayTotal', 'teacherFeedback', 'durationMinutes', 'extraTimeSeconds'])
           && d.id == subId
           && d.attemptId is string
           && subId == d.attemptId + '_' + string(d.attemptNumber)
@@ -208,6 +215,11 @@ service cloud.firestore {
           && d.fullName == a.fullName
           && d.examCode == a.examCode
           && d.startedAt == a.startedAt
+          // Không chặn bài muộn; giữ mốc tin cậy để giáo viên xử lý. Lượt cũ thiếu thời lượng để null.
+          && d.get('durationMinutes', null) == a.get('durationMinutes', null)
+          && (d.get('durationMinutes', null) == null || (d.durationMinutes is number && d.durationMinutes > 0))
+          && d.extraTimeSeconds is int && d.extraTimeSeconds >= 0
+          && d.extraTimeSeconds == a.get('extraTimeSeconds', 0)
           && d.deviceChanges == a.deviceChanges
           && d.serverSubmittedAt == request.time
           && d.mode == 'exam'
@@ -245,10 +257,39 @@ service cloud.firestore {
 
     // Phiên giám sát trực tiếp
     match /live_sessions/{sessionId} {
+      function liveFields() {
+        return ['sessionId', 'uid', 'fullName', 'studentClass', 'studentId', 'grade',
+                                'mode', 'examCode', 'violations', 'status', 'isLocked', 'lockReason',
+                                'penaltyPoints', 'timeLeft', 'lastPing', 'score', 'maxScore',
+                                'attemptNumber', 'pendingGrading'];
+      }
+      function validLiveSession(d) {
+        return d.sessionId == sessionId && sessionId.size() <= 150
+          && d.uid == request.auth.uid
+          && d.grade in [8, 9, 10] && d.mode in ['exam', 'practice']
+          && d.get('fullName', '') is string && d.get('fullName', '').size() <= 80
+          && d.get('studentClass', '') is string && d.get('studentClass', '').size() <= 10
+          && d.get('studentId', '') is string && d.get('studentId', '').size() <= 30
+          && d.get('examCode', '') is string && d.get('examCode', '').size() <= 20
+          && d.get('status', 'in_progress') in ['in_progress', 'practicing', 'locked', 'submitted']
+          && d.get('violations', 0) is int && d.get('violations', 0) >= 0 && d.get('violations', 0) <= 1000000
+          && d.get('isLocked', false) is bool
+          && (d.get('lockReason', '') == null || (d.get('lockReason', '') is string && d.get('lockReason', '').size() <= 100))
+          && d.get('timeLeft', '') is string && d.get('timeLeft', '').size() <= 40
+          && d.lastPing is int && d.lastPing >= 0
+          && d.get('score', 0) is number && d.get('score', 0) >= 0 && d.get('score', 0) <= 10
+          && d.get('maxScore', 10) is number && d.get('maxScore', 10) >= 0 && d.get('maxScore', 10) <= 10
+          && d.get('penaltyPoints', 0) is number && d.get('penaltyPoints', 0) == 0
+          && d.get('attemptNumber', 0) is int && d.get('attemptNumber', 0) >= 0 && d.get('attemptNumber', 0) <= 1000000
+          && d.get('pendingGrading', false) is bool;
+      }
       allow read: if isTeacher() || (signedIn() && resource.data.uid == request.auth.uid);
-      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.keys().hasOnly(liveFields())
+        && validLiveSession(request.resource.data);
       allow update: if isTeacher() || (signedIn() && resource.data.uid == request.auth.uid
-                                       && request.resource.data.uid == request.auth.uid);
+        // Trường lạ của phiên cũ được giữ bất biến; heartbeat không bị chặn, không cho thêm/sửa trường lạ.
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(liveFields())
+        && validLiveSession(request.resource.data));
       allow delete: if isTeacher() || (signedIn() && resource.data.uid == request.auth.uid);
     }
 

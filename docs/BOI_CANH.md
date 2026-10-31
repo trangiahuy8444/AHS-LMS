@@ -1,7 +1,7 @@
 # Bối cảnh dự án AHS-LMS (Ôn tập & Kiểm tra trực tuyến)
 
 > Tệp trạng thái sống. Đọc đầu tiên ở mỗi phiên. Repo **công khai**: không ghi mật khẩu, URL/token webhook, tên học sinh, mã LMS hay nội dung đề chính thức vào tệp này.
-> Cập nhật: 29/10/2026.
+> Cập nhật: 30/10/2026.
 
 ## 1. Mục tiêu
 
@@ -35,6 +35,7 @@ Bản chuẩn chỉ nằm trong `../01_Van_ban_phap_ly_va_Quy_dinh/`. Không ch�
 | 30/10/2026 | Ôn tập đề cương: 3 câu tự luận **không tính điểm** và không bắt buộc làm (mọi khối); thang điểm ôn tập là thang điểm phần khách quan (Khối 8, 9: thang 7; Khối 10: thang 7.75), không quy đổi sang thang 10 |
 | 30/10/2026 | Chuẩn hóa mã LMS: **chỉ là chữ số** (bỏ chữ cái, "-", khoảng trắng); họ tên viết hoa chữ đầu. Thẻ giám sát trực tiếp hiển thị lịch sử làm bài và chỉ gộp phiên khi đúng cùng một học sinh (khối + mã LMS + họ tên) |
 | 29/10/2026 | Hệ thống **không tự trừ điểm** vi phạm. Bài nộp vẫn lưu số lần vi phạm; giáo viên tự ghi nhận vào sổ |
+| 30/10/2026 | Vẫn nhận bài thi chính thức nộp muộn; đánh dấu để giáo viên xử lý, không tự trừ điểm. Cộng giờ lưu trên lượt thi để giữ sau tải lại. Bài cũ thiếu mốc tin cậy hiện “Chưa đủ dữ liệu” |
 | 28/10/2026 | Mặc định 1 lượt kiểm tra chính thức mỗi mã LMS; giáo viên cấp thêm khi cần |
 | 28/10/2026 | Chuyển sang Vite + React 18 + Tailwind v3, triển khai bằng GitHub Actions; bản build bị chặn nếu lọt mã đề |
 | 28/10/2026 | Điểm ôn tập chỉ đến Google Sheets qua hàng chờ `practice_results` do trang quản trị xử lý |
@@ -56,3 +57,11 @@ Bản chuẩn chỉ nằm trong `../01_Van_ban_phap_ly_va_Quy_dinh/`. Không ch�
 | Ca thi | Lớp được mở cho làm bài chính thức | `exam_config`, `exam_sessions` |
 | Lượt thi | Lần làm bài của một mã LMS | `exam_attempts` |
 | Giám thị | Lệnh từ xa: cộng giờ, mở khóa, thu bài, thông báo | `proctor_commands`, `live_sessions` |
+
+## Ghi chú xác minh 29/10/2026
+
+Các mục lịch sử ghi ngày 30/10/2026 được giữ nguyên để bảo toàn bản ghi; ngày thực tế chưa xác minh. Hành vi phần mềm được đối chiếu bằng mã và test ở `THUC_THI_AGENTS.md`. Giáo viên xác nhận 29/10: làm tròn và thời hạn lưu đã được triển khai; giữ hành vi hiện có, không yêu cầu chốt lại. Không bắt buộc roster trước ca thi. Mã hiện tại giữ điểm đến 2 chữ số; retention mặc định 21 ngày, cảnh báo từ 14 ngày và dọn thủ công sau sao lưu. Trạng thái rules Console cần xác nhận phiên bản riêng.
+
+## Nguồn nghiệm thu hiện tại — xác nhận 30/10/2026
+
+Giáo viên chỉ định bộ Giữa HK1 trong thư mục gửi Ms.Tuyến là chuẩn; CK1 chưa có. Các công cụ mới đã được đối chiếu bộ Giữa HK1, không tự biên soạn hoặc giả định gói CK1 đã duyệt. Xem DOI_CHIEU_GIUA_HK1.md.

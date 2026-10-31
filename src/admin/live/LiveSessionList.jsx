@@ -199,16 +199,18 @@ export default function LiveSessionList() {
                       {/* LỊCH SỬ LÀM BÀI TRÊN CARD */}
                       {(() => {
                         const normLms = window.AsianSchoolNormalize ? window.AsianSchoolNormalize.normalizeLmsCode(session.studentId) : String(session.studentId || '').replace(/\D/g, '');
-                        const normName = (session.fullName || '').trim().toLowerCase();
+                        const normalizeName = value => String(value || '').normalize('NFC').replace(/\s+/g, ' ').trim().toLocaleLowerCase('vi');
+                        const normName = normalizeName(session.fullName);
                         const normClass = (session.studentClass || '').trim();
                         const g = parseInt(session.grade, 10);
 
                         const matchSub = (sub) => {
-                          if (sub.grade && parseInt(sub.grade, 10) !== g) return false;
-                          const subLms = window.AsianSchoolNormalize ? window.AsianSchoolNormalize.normalizeLmsCode(sub.studentId) : String(sub.studentId || '').replace(/\D/g, '');
-                          if (normLms && subLms && normLms === subLms) return true;
-                          if (normName && (sub.fullName || '').trim().toLowerCase() === normName && normClass && sub.studentClass === normClass) return true;
-                          return false;
+                          // Lịch sử cần đủ định danh; không đoán theo riêng LMS hoặc tên/lớp.
+                          return [8, 9, 10].includes(g) && Number(sub.grade) === g
+                            && !!normLms && !!normName && !!normClass
+                            && (window.AsianSchoolNormalize ? window.AsianSchoolNormalize.normalizeLmsCode(sub.studentId) : String(sub.studentId || '').replace(/\D/g, '')) === normLms
+                            && normalizeName(sub.fullName) === normName
+                            && String(sub.studentClass || '').trim() === normClass;
                         };
 
                         const userPracticeSubs = (practiceSubs || []).filter(matchSub);

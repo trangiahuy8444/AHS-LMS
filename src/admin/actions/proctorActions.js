@@ -24,14 +24,39 @@ export function createProctorActions(s) {
     }
   };
 
+  const extendSessionTime = async (live, minutes) => {
+    if (live.mode === 'exam') {
+      if (!window.AsianSchoolCloud?.extendExamTime || !live.studentId) {
+        throw new Error('Chưa kết nối được lượt thi trên máy chủ.');
+      }
+      // Lượt chính thức chỉ nhận giờ qua snapshot máy chủ, không phát thêm lệnh cộng giờ.
+      return window.AsianSchoolCloud.extendExamTime({ grade: live.grade, studentId: live.studentId, minutes });
+    }
+    window.AsianSchoolStorage.sendProctorCommand(live.sessionId, 'extend_time', { minutes });
+    return { applied: true };
+  };
+
   const handleExtendTime = (sessionId, studentName, minutes = 5) => {
     showDialog(
       'Gia Hạn Thời Gian Làm Bài ⏱️',
       `Xác nhận GIA HẠN THÊM ${minutes} PHÚT làm bài cho học sinh ${studentName}?`,
       'info',
-      () => {
-        window.AsianSchoolStorage.sendProctorCommand(sessionId, 'extend_time', { minutes });
-        showToast(`Đã gửi lệnh gia hạn thêm ${minutes} phút cho ${studentName}!`, 'success', 'Gia Hạn Thành Công ⏱️');
+      async () => {
+        const live = window.AsianSchoolStorage.getLiveSessions().find(x => x.sessionId === sessionId);
+        if (!live) {
+          showDialog('Không Tìm Thấy Phiên', 'Thầy chọn lại phiên làm bài mới nhất trên bảng giám sát.', 'warning');
+          return;
+        }
+        try {
+          const result = await extendSessionTime(live, minutes);
+          if (!result.applied) {
+            showDialog('Không Gia Hạn Lượt Đã Nộp', 'Lượt thi này đã nộp bài trên máy chủ nên không được cộng thêm giờ.', 'warning');
+            return;
+          }
+          showToast(`Đã gia hạn thêm ${minutes} phút cho ${studentName}!`, 'success', 'Gia Hạn Thành Công ⏱️');
+        } catch (e) {
+          showDialog('Chưa Gia Hạn Được', `Không cập nhật được giờ làm bài: ${e.message}`, 'error');
+        }
       }
     );
   };
@@ -41,9 +66,35 @@ export function createProctorActions(s) {
       'Gia Hạn Toàn Bộ Phòng Thi ⏱️',
       `Xác nhận GIA HẠN THÊM ${minutes} PHÚT làm bài cho TOÀN BỘ PHÒNG THI ĐANG ONLINE?`,
       'warning',
-      () => {
-        window.AsianSchoolStorage.sendProctorCommand('all', 'extend_time', { minutes });
-        showToast(`Đã gửi lệnh gia hạn thêm ${minutes} phút cho toàn bộ phòng thi!`, 'success', 'Gia Hạn Toàn Phòng ⏱️');
+      async () => {
+        const targets = new Map();
+        let skipped = 0;
+        window.AsianSchoolStorage.getLiveSessions().forEach(live => {
+          if (live.status === 'submitted') { skipped++; return; }
+          const normalize = window.AsianSchoolNormalize?.normalizeLmsCode;
+          const id = normalize ? normalize(live.studentId) : String(live.studentId || '').normalize('NFKC').replace(/\D/g, '');
+          const key = live.mode === 'exam' ? `exam:${Number(live.grade)}:${id}` : `practice:${live.sessionId}`;
+          if (!targets.has(key)) targets.set(key, live);
+        });
+        let applied = 0;
+        const failures = [];
+        for (const live of targets.values()) {
+          try {
+            const result = await extendSessionTime(live, minutes);
+            if (result.applied) applied++;
+            else skipped++;
+          } catch (e) {
+            failures.push(`Khối ${live.grade} / LMS ${live.studentId || '?'}: ${e.message}`);
+          }
+        }
+        if (failures.length) {
+          showDialog('Gia Hạn Chưa Hoàn Tất',
+            `Đã gia hạn ${applied} lượt/phiên; bỏ qua ${skipped} phiên đã nộp.\nKhông cập nhật được ${failures.length} lượt:\n${failures.join('\n')}`, 'warning');
+        } else if (applied) {
+          showToast(`Đã gia hạn thêm ${minutes} phút cho ${applied} lượt/phiên; bỏ qua ${skipped} phiên đã nộp.`, 'success', 'Gia Hạn Toàn Phòng ⏱️');
+        } else {
+          showDialog('Không Có Lượt Cần Gia Hạn', 'Không tìm thấy phiên đang làm bài để cộng giờ.', 'info');
+        }
       }
     );
   };
@@ -85,11 +136,7 @@ export function createProctorActions(s) {
         const grade = live ? live.grade : null;
         const mode = live ? live.mode : null;
 
-        try {
-          await setServerLock(sessionId, false);
-        } catch (e) {
-          console.warn('Lỗi ghi khóa lên máy chủ:', e);
-        }
+        if (!(await setServerLock(sessionId, false))) return;
 
         // Gửi lệnh mở khóa trực tiếp qua proctor commands (cả sessionId và studentId để bao phủ khi tải lại trang)
         window.AsianSchoolStorage.sendProctorCommand(sessionId, 'unlock_session', { sessionId, studentId, grade });

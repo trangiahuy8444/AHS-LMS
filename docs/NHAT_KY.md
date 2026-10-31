@@ -2,6 +2,34 @@
 
 > Tệp trạng thái sống. Mỗi phiên có thay đổi đáng kể thêm một mục **ở đầu** tệp: ngày, đã làm gì (kèm commit), kết quả `npm run check`, việc còn dở, câu hỏi chờ thầy. Repo công khai: không ghi bí mật hay dữ liệu học sinh.
 
+## 30/10/2026: chốt nguồn chuẩn Giữa HK1 và kiểm sạch Node22
+
+- Giáo viên xác nhận bộ chuẩn tại thư mục gửi Ms.Tuyến, chưa có CK1. Đã đối chiếu348 câu/12 mã, thứ tự phương án, đáp án và36 barem theo câu: khớp. Không sửa nội dung đề đã duyệt.
+- Tạo3 gói upload riêng tư và biên bản hash nguồn/gói; chưa upload.
+- Kiểm bộ thật phát hiện converter chưa hỗ trợ context/points mặc định của TF và context tự luận10. Đã sửa; bổ sung renderer tự luận để hiện question của8/9 (trước đây chỉ đọc context).
+- Kiểm cuối trên cài sạch Node22.23.4:80 Node không skip,67 Vitest,12 rules emulator đạt; lint/build/kiểm lọt đề đạt. Browser local12 mã hiện ngữ cảnh/tự luận, không lỗi; cloud stub/chặn mạng ngoài.
+- Chưa phát hành thật/Console. Chi tiết tại DOI_CHIEU_GIUA_HK1.md và THUC_THI_AGENTS.md.
+
+## 30/10/2026: triển khai agents theo giai đoạn G0–G5 (phần mã và kiểm tự động)
+
+- Nhánh dự án: `codex/agents-staged-rollout`. Các thay đổi đã được đối chiếu SHA-256 trước khi đồng bộ từ snapshot cô lập ngoài Drive; không ghi đè thay đổi mới của người dùng.
+- G1: chặn retake khi khóa, giới hạn schema live, tương thích trường thừa legacy; có rules emulator demo tách khỏi project thật và bước kiểm trong CI.
+- G2: server-confirmed submit, retry không ghi đè, sessionId, draft đúng identity sau reload, hai timer dùng bài mới nhất, mở khóa không báo thành công giả.
+- G3: schema lượt phẳng/cấp lượt sau nộp, lịch sử đúng identity, nhãn thang7/7.75; xác nhận lại retention21/cảnh báo14 và cách làm tròn hiện có, không bắt buộc roster.
+- G4: công cụ chuyển native hoặc bốn export ngân hàng đã khóa, kiểm approved_hash/hoán vị/checksum, chỉ ghi private; chưa chuyển gói CK1 thật.
+- G5: runbook phát hành/khôi phục và browser local ba trang, nộp ôn tập ba khối; toàn bộ kết nối ngoài localhost bị chặn trong diễn tập.
+- Kiểm cuối: `npm run check` đạt (77 Node: 74 đạt, 3 skip thiếu gói private; 65 Vitest đạt; lint/build/kiểm lọt đề đạt). `npm run test:rules`: 12/12 đạt. `git diff --check` đạt. Node local v26.7.0; CI Node22 chưa được xác minh thực thi.
+- Review G1–G3 có agent bảo mật độc lập; G4 agent chính rà soát bổ sung sau khi lượt subagent bị giới hạn sử dụng, sửa thêm chẩn đoán JSON không in nội dung đề qua test RED→GREEN.
+- Chưa commit/push/deploy, chưa áp rules Console, chưa chỉnh/xóa dữ liệu thật. Gói CK1, diễn tập chính thức và đối soát sau kỳ thi còn trong backlog, không coi toàn bộ kế hoạch đã hoàn tất.
+
+## 29/10/2026: rà soát agents và lập kế hoạch giai đoạn
+
+- Đánh giá 2 agent dự án và 4 agent workspace; tạo `AGENTS.md`, 5 hồ sơ vai trò mới, `docs/DANH_GIA_AGENTS.md` và kế hoạch `docs/superpowers/plans/2026-10-29-trien-khai-agents.md`.
+- Cập nhật `kiem-thu`: phân biệt thang ôn tập/chính thức, giữ làm tròn là việc chờ chốt, xác minh cả nội dung chưa commit và không tự cấp phép push.
+- Nối tài liệu từ `CLAUDE.md` và backlog; giữ nguyên trạng thái nghiệm thu cũ. Chưa commit/push, chưa đổi logic/rules hoặc dữ liệu thật.
+- Chạy `node --test tests/*.cjs`: 50 test, 49 đạt, 1 lỗi `Cannot find module 'vite'` ở kiểm cú pháp JSX; checkout Drive chưa có node_modules. Chưa chạy toàn bộ `npm run check`, Vitest, build hoặc diễn tập. Node môi trường hiện tại: v26.7.0; CI dùng Node 22.
+- Kế hoạch mới là đề xuất phân công, chưa triển khai các giai đoạn phần mềm. Cần G0 xác minh phiên bản rules Console, mốc ngày lịch sử, chính sách làm tròn và nguồn chuẩn giữa các checkout.
+
 ## 30/10/2026 (phiên 2): sửa mã LMS chỉ là số, thang điểm ôn tập 7/7.75 và lịch sử làm bài trên thẻ giám thị
 
 - Mã LMS học sinh: chỉ gồm các chữ số (`\D` bị loại bỏ); ô nhập hỗ trợ `inputMode="numeric"`, tự lọc số ngay khi gõ và khi rời ô; thông báo yêu cầu nhập số.
@@ -46,3 +74,12 @@ Thầy thử ở chế độ **ôn tập** (Firestore không có lượt thi/bà
 - Lập `CLAUDE.md`, bộ tệp trạng thái `docs/BOI_CANH.md`, `docs/LO_TRINH.md`, `docs/NHAT_KY.md` và các agent trong `.claude/agents/`.
 - Trong ngày (25 commit): chuyển sang Spark và rules, Vite + React, tách mã, CI chặn lọt đề, sửa lộ webhook.
 - Chờ thầy: xác nhận rules đã dán lên Console; ca thi thử trên bản Vite.
+
+## 30/10/2026 — Giữ giờ gia hạn, nhận bài muộn có đánh dấu
+
+- Đã lưu checkpoint `c1be6d5` cho agents, bảo mật, cổng học sinh/quản trị và đối chiếu gói Giữa HK1; chưa push/deploy.
+- Theo quyết định giáo viên, bài muộn vẫn nhận, không tự trừ điểm; nhãn muộn và số giây trễ có trên bảng bài nộp/CSV, dựa vào mốc máy chủ.
+- Giờ giám thị cộng được lưu trên lượt thi, khôi phục sau reload; không cộng lặp khi nhiều tab hoặc snapshot lặp; lượt thi lại reset gia hạn.
+- Bài cũ thiếu thời lượng không suy từ cấu hình mới để kết luận muộn.
+- Kiểm sạch Node22:97 Node +78 Vitest +16 rules đạt; lint/build/chặn lọt đề đạt. Review bảo mật phần timing không thấy blocker.
+- Chỉ thao tác mã và giả lập/cục bộ, không sửa bài nộp/điểm hay Firebase thật.

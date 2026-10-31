@@ -8,6 +8,10 @@
   const SUBMISSIONS_KEY = 'asian_school_submissions_v1';
   const PRACTICE_SUBMISSIONS_KEY = 'asian_school_practice_submissions_v1';
   const LIVE_KEY = 'asian_school_live_sessions_v1';
+  // Giao kèo heartbeat với firestore.rules; bỏ trường cũ/lạ trước khi gửi.
+  const LIVE_FIELDS = ['sessionId', 'uid', 'fullName', 'studentClass', 'studentId', 'grade',
+    'mode', 'examCode', 'violations', 'status', 'isLocked', 'lockReason', 'penaltyPoints',
+    'timeLeft', 'lastPing', 'score', 'maxScore', 'attemptNumber', 'pendingGrading'];
   const CONFIG_KEY = 'asian_school_exam_config_v1';
   const PROCTOR_CMD_KEY = 'asian_school_proctor_commands_v1';
   const AUDIT_LOG_KEY = 'asian_school_audit_log_v1';
@@ -597,6 +601,7 @@
       const pkg = (typeof window !== 'undefined' && window.AsianSchoolExamPackage) || require('./exam-package.js');
       const toMillis = (t) => (t && typeof t.toMillis === 'function') ? t.toMillis() : (t && typeof t.seconds === 'number' ? t.seconds * 1000 : null);
       const cfg = this.getConfig();
+      const timingPkg = (typeof window !== 'undefined' && window.AsianSchoolExamTiming) || require('./exam-timing.js');
       const list = this.getSubmissions();
       const graded = [];
 
@@ -612,6 +617,7 @@
         const durationSeconds = startMs && endMs ? Math.max(0, Math.round((endMs - startMs) / 1000)) : (sub.durationSeconds || 0);
         const mins = Math.floor(durationSeconds / 60);
         const secs = durationSeconds % 60;
+        const timing = timingPkg.getSubmissionTiming(sub);
         const update = {
           mcqPoints: r.mcqPoints,
           maxMcqPoints: r.maxMcqPoints,
@@ -620,8 +626,8 @@
           finalScore: Math.max(0, Math.min(10, Math.round((r.mcqPoints + essayTotal - penalty) * 100) / 100)),
           durationSeconds,
           durationFormatted: `${mins} phút ${secs < 10 ? '0' : ''}${secs} giây`,
-          // Thời gian theo giờ máy chủ vượt thời lượng cấu hình (chưa tính phút giám thị cộng thêm)
-          overtimeSeconds: Math.max(0, durationSeconds - (cfg.examDurationMinutes || 45) * 60),
+          // Chỉ ghi độ trễ khi đủ mốc máy chủ, thời lượng và giờ được cấp của chính lượt thi.
+          overtimeSeconds: timing.known ? timing.lateSeconds : null,
           autoGradedAt: new Date().toISOString()
         };
         list[idx] = { ...sub, ...update };
@@ -684,6 +690,7 @@
     }
 
     exportSubmissionsCSV() {
+      const timingPkg = (typeof window !== 'undefined' && window.AsianSchoolExamTiming) || require('./exam-timing.js');
       const list = this.getSubmissions();
       const headers = [
         'STT',
@@ -701,7 +708,9 @@
         'Trạng Thái Chấm',
         'Lời Phê Của Giáo Viên',
         'Số Lần Vi Phạm',
-        'Thời Gian Nộp'
+        'Thời Gian Nộp',
+        'Trạng Thái Nộp',
+        'Số Giây Trễ'
       ];
 
       const rows = list.map((s, idx) => {
@@ -710,6 +719,8 @@
         const finalScore = s.finalScore !== undefined ? s.finalScore : (s.score !== undefined ? s.score : autoScore);
         const gradingStatus = s.isGraded ? 'Đã chấm xong' : (s.mode === 'exam' ? 'Chờ chấm tự luận' : 'Ôn tập');
         const penaltyText = s.violations >= 3 ? 'Bị khóa do vi phạm 3 lần (GV ghi nhận)' : '';
+        const timing = timingPkg.getSubmissionTiming(s);
+        const timingStatus = s.mode !== 'exam' ? '' : (timing.known ? (timing.isLate ? 'Nộp muộn' : 'Đúng hạn') : 'Chưa đủ dữ liệu');
 
         return [
           idx + 1,
@@ -727,7 +738,9 @@
           `"${gradingStatus}"`,
           `"${(s.teacherFeedback || '').replace(/"/g, '""')}"`,
           s.violations || 0,
-          `"${new Date(s.submittedAt || Date.now()).toLocaleString('vi-VN')}"`
+          `"${new Date(s.submittedAt || Date.now()).toLocaleString('vi-VN')}"`,
+          `"${timingStatus}"`,
+          timing.known ? timing.lateSeconds : ''
         ];
       });
 
@@ -1029,11 +1042,11 @@
 
       const list = this.getLiveSessions();
       const idx = list.findIndex(s => s.sessionId === sessionData.sessionId);
-      const updated = {
-        ...(idx >= 0 ? list[idx] : {}),
-        ...sessionData,
-        lastPing: Date.now()
-      };
+      const merged = { ...(idx >= 0 ? list[idx] : {}), ...sessionData, lastPing: Date.now() };
+      const updated = Object.fromEntries(LIVE_FIELDS.filter(key => merged[key] !== undefined)
+        .map(key => [key, merged[key]]));
+      // Phiên cũ có thể còn điểm phạt từ bản trước; chính sách hiện tại không trừ điểm.
+      updated.penaltyPoints = 0;
       // Gắn uid người tạo phiên (học sinh đăng nhập ẩn danh) để firestore.rules kiểm tra quyền sở hữu
       const authUid = typeof window !== 'undefined' && window.AsianSchoolAuth ? window.AsianSchoolAuth.uid() : null;
       if (!updated.uid && authUid) updated.uid = authUid;

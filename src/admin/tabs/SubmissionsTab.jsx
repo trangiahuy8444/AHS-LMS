@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAdmin } from '../AdminContext.js';
+import '../../core/exam-timing.js';
 
 export default function SubmissionsTab() {
   const { filterGrade, setFilterGrade, filterClass, setFilterClass, filterMode, setFilterMode,
@@ -159,6 +160,7 @@ export default function SubmissionsTab() {
                   const autoScore = sub.mcqPoints !== undefined ? sub.mcqPoints : (sub.score !== undefined ? sub.score : 0);
                   const finalScore = sub.finalScore !== undefined ? sub.finalScore : autoScore;
                   const hasPenalty = sub.violations >= 3;
+                  const timing = window.AsianSchoolExamTiming.getSubmissionTiming(sub);
                   return (
                     <tr key={sub.id || idx} className="hover:bg-slate-50 transition">
                       <td className="py-3 px-4 font-mono-code text-slate-400">{idx + 1}</td>
@@ -208,6 +210,17 @@ export default function SubmissionsTab() {
                         )}
                       </td>
                       <td className="py-3 px-4 text-center">
+                        {sub.mode === 'exam' && (
+                          <div className="mb-1" title="Theo thời gian máy chủ. Giáo viên xem xét; hệ thống không tự trừ điểm.">
+                            {timing.known ? (
+                              <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${timing.isLate ? 'bg-red-50 text-red-800 border-red-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                                {timing.isLate ? `Nộp muộn +${timing.lateSeconds} giây` : 'Đúng hạn'}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-slate-400">Chưa đủ dữ liệu thời gian</span>
+                            )}
+                          </div>
+                        )}
                         {sub.isGraded ? (
                           <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 text-[10px] font-bold border border-emerald-200">
                             Đã chấm ✓

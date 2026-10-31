@@ -56,3 +56,7 @@ Never propose Blaze, Cloud Functions or paid services. Never put secrets in `exa
 - Practice (ôn tập đề cương): the 3 essay questions are never scored and never required, for every grade; practice score is the raw objective score (Grades 8 & 9: max 7.0 points from 28 MCQs; Grade 10: max 7.75 points from 19 MCQs + 3 True/False), not converted to scale 10.
 - LMS codes and student names are normalized by `src/core/normalize.js` before use (LMS: digits only, e.g. `240182` or `123456`; name: collapsed spaces, each word capitalized). Attempt keys, practice rows and admin lookups all use it. Live monitoring shows attempt history on cards and deduplicates only when grade, LMS and fullName all match.
 - Result screenshots are named `[MãLMS]_[HọTên]_[Lớp]_KetQua.png` for submission on the school LMS.
+
+## Phân công mở rộng
+
+Đọc `AGENTS.md` để chọn vai trò và phạm vi file. Năm hồ sơ bổ sung trong `.claude/agents/` phụ trách điều phối, cổng học sinh, cổng quản trị, tích hợp đề và phát hành; hai reviewer bảo mật/kiểm thử giữ độc lập. Kế hoạch giai đoạn nằm trong `docs/superpowers/plans/2026-10-29-trien-khai-agents.md`; trạng thái công việc chỉ nằm ở `docs/LO_TRINH.md`.

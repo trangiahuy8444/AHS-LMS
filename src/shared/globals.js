@@ -3,6 +3,7 @@
  * Không nạp Firebase Analytics: không dùng tới, và không thu thập dữ liệu sử dụng của học sinh.
  * html2canvas chỉ tải khi học sinh bấm chụp ảnh kết quả (student/actions/captureActions.js).
  */
+import '../core/exam-timing.js';
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
 import 'firebase/compat/firestore';

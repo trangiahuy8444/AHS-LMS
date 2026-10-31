@@ -138,3 +138,12 @@ Push lên `main` thì GitHub Actions tự chạy `npm run check` rồi đăng l�
 ## 🏫 BẢN QUYỀN & CHUYÊN MÔN
 © 2026 - 2027 **Trường Tiểu Học, THCS và THPT Quốc Tế Á Châu (Asian School)**  
 Bộ Môn Tin Học — Giáo viên phụ trách: **Thầy Trần Gia Huy**
+
+
+## Kiểm tra rules và diễn tập local
+
+`npm run test:rules` cần Java21 và chạy Firestore Emulator với project demo `demo-ahs-rules`, không dùng dữ liệu Firebase thật. Workflow Pages đã có bước này trước khi build/deploy. Tham khảo `docs/VAN_HANH_PHAT_HANH.md` cho thứ tự cập nhật client/rules, diễn tập và khôi phục.
+
+Công cụ chuyển gói ngân hàng đã duyệt: `scripts/chuyen_goi_de_lms.cjs`, hướng dẫn tại `docs/CHUYEN_GOI_DE_LMS.md`. Cần Python3 để xác minh hash export theo đúng thuật toán ngân hàng; mặc định chỉ kiểm tra, không ghi tệp.
+
+Smoke trình duyệt tùy chọn: tạo môi trường Python riêng, cài `scripts/qa/requirements.txt`, chạy Vite preview tại127.0.0.1:4173 rồi `python scripts/qa/local_smoke.py`. Script chặn mọi kết nối ngoài localhost và dùng dữ liệu giả. Trên macOS mặc định dùng Chrome; có thể đặt `AHS_CHROME_EXECUTABLE` tới browser tương thích đã cài.

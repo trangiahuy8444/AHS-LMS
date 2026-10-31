@@ -1,0 +1,20 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const vm = require('node:vm');
+const fs = require('node:fs');
+const path = require('node:path');
+test('heartbeat filters stale unknown fields before sending merged live payload', () => {
+  const rows = [{ sessionId: 'fake-tab', uid: 'fake-owner', grade: 8, mode: 'practice', fullName: 'Hoc Sinh Gia', studentId: '100001', studentClass: '8/19', violations: 0, status: 'practicing', lastPing: Date.now(), penaltyPoints: 5, legacyUnknown: 'discard' }];
+  const data = new Map([['asian_school_live_sessions_v1', JSON.stringify(rows)]]), writes = [];
+  const window = { addEventListener() {}, AsianSchoolAuth: { uid: () => 'fake-owner' }, firebaseDb: { collection: () => ({ doc: () => ({ set: payload => { writes.push(payload); return Promise.resolve(); } }) }) } };
+  const context = { window, console, localStorage: { getItem: k => data.get(k) || null, setItem: (k,v) => data.set(k,v) }, module: { exports: {} } };
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/core/storage-service.js'), 'utf8'), context);
+  const result = context.module.exports.updateLiveSession({ sessionId: 'fake-tab', timeLeft: '10:00', anotherUnknown: 'discard' });
+  assert.equal(result.legacyUnknown, undefined);
+  assert.equal(result.anotherUnknown, undefined);
+  assert.equal(writes[0].uid, 'fake-owner');
+  assert.equal(writes[0].penaltyPoints, 0, 'Legacy live penalty must follow the current no-deduction policy');
+  assert.equal(writes[0].timeLeft, '10:00');
+  assert.equal(writes[0].fullName, 'Hoc Sinh Gia');
+  assert.equal(JSON.parse(data.get('asian_school_live_sessions_v1'))[0].legacyUnknown, undefined);
+});

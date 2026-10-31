@@ -66,8 +66,8 @@ export default function EntryScreen() {
               </div>
               <p className="text-xs text-slate-600 mt-1 font-medium leading-relaxed">
                 {grade === 10
-                  ? 'Bộ đề ngẫu nhiên: 19 câu Trắc nghiệm + 3 câu Đúng/Sai (tính điểm thang 10) + 3 câu Tự luận để tự luyện (không tính điểm).'
-                  : 'Bộ đề ngẫu nhiên: 28 câu Trắc nghiệm (tính điểm thang 10) + 3 câu Tự luận để tự luyện (không tính điểm).'
+                  ? 'Bộ đề ngẫu nhiên: 19 câu Trắc nghiệm + 3 câu Đúng/Sai (tính điểm thang 7.75) + 3 câu Tự luận để tự luyện (không tính điểm).'
+                  : 'Bộ đề ngẫu nhiên: 28 câu Trắc nghiệm (tính điểm thang 7) + 3 câu Tự luận để tự luyện (không tính điểm).'
                 }
               </p>
               {classAccessMode === 'exam_only' && (

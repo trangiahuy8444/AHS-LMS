@@ -53,9 +53,8 @@ export function createExamBankActions(s) {
 
   const describeAttempt = (d) => {
     const allowed = Number.isInteger(d.allowedAttempts) ? d.allowedAttempts : (config.maxExamAttempts || 1);
-    const cur = d.current || {};
-    const state = cur.submitted ? 'đã nộp' : 'đang làm dở';
-    return `${d.fullName || ''} (${d.studentClass || ''}) - mã LMS ${d.studentId}: đã dùng ${d.attemptsUsed || 0}/${allowed} lượt; lượt gần nhất mã đề ${cur.examCode || '?'}, ${state}${cur.deviceChanges ? `, đổi thiết bị ${cur.deviceChanges} lần` : ''}.`;
+    const state = d.submitted ? 'đã nộp' : 'đang làm dở';
+    return `${d.fullName || ''} (${d.studentClass || ''}) - mã LMS ${d.studentId}: đã dùng ${d.attemptsUsed || 0}/${allowed} lượt; lượt gần nhất mã đề ${d.examCode || '?'}, ${state}${d.deviceChanges ? `, đổi thiết bị ${d.deviceChanges} lần` : ''}.`;
   };
 
   const handleLookupAttempt = async () => {
@@ -74,7 +73,7 @@ export function createExamBankActions(s) {
         if (!snap.exists) throw new Error('Mã LMS này chưa vào phòng thi lần nào, chưa cần cấp thêm lượt.');
         const d = snap.data();
         const allowed = Number.isInteger(d.allowedAttempts) ? d.allowedAttempts : (config.maxExamAttempts || 1);
-        if (d.current && !d.current.submitted) throw new Error('Học sinh đang làm dở lượt hiện tại; chờ nộp bài rồi mới cấp thêm lượt.');
+        if (d.submitted !== true) throw new Error('Học sinh đang làm dở lượt hiện tại; chờ nộp bài rồi mới cấp thêm lượt.');
         tx.update(ref, { allowedAttempts: Math.max(allowed, d.attemptsUsed || 0) + 1 });
         return { ...d, allowedAttempts: Math.max(allowed, d.attemptsUsed || 0) + 1 };
       });

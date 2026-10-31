@@ -8,6 +8,7 @@ import { createPracticeSubmitActions } from '../actions/practiceSubmitActions.js
 import { createExamSubmitActions } from '../actions/examSubmitActions.js';
 import { createStartActions } from '../actions/startActions.js';
 import { createCaptureActions } from '../actions/captureActions.js';
+import { saveExamDraft } from '../actions/examDraft.js';
 export function useStudentController() {
   // Setup state
   const [grade, setGrade] = useState(() => {
@@ -35,6 +36,9 @@ export function useStudentController() {
   const [officialExam, setOfficialExam] = useState(null);
   const [isContactingServer, setIsContactingServer] = useState(false);
   const submittingExamRef = useRef(false);
+  const latestExamSubmitRef = useRef(null);
+  const latestPracticeSubmitRef = useRef(null);
+  const officialTimingRef = useRef(null);
   const [activeQuestionIdx, setActiveQuestionIdx] = useState(0);
 
   // Exam password state
@@ -45,6 +49,16 @@ export function useStudentController() {
   // Answers state
   const [practiceAnswers, setPracticeAnswers] = useState({ mcq: {}, tf: {}, essay: {} });
   const [examAnswers, setExamAnswers] = useState({ mcq: {}, tf: {}, essay: {} });
+  const [examDraftSession, setExamDraftSession] = useState(null);
+  const draftRestoredRef = useRef(null);
+
+  useEffect(() => {
+    if (mode !== 'exam' || examState !== 'in_progress' || !examDraftSession) return;
+    // Chỉ bật lưu sau khi render đã nhận đúng object bài vừa phục hồi; không ghi state rỗng/cũ.
+    if (draftRestoredRef.current !== examDraftSession && examAnswers !== examDraftSession.initialAnswers) return;
+    draftRestoredRef.current = examDraftSession;
+    saveExamDraft(examDraftSession.identity, examAnswers);
+  }, [mode, examState, examDraftSession, examAnswers]);
   
   // Timer & Anti-cheat Modal State
   const [timeLeftStr, setTimeLeftStr] = useState('45:00');
@@ -335,6 +349,7 @@ export function useStudentController() {
     isContactingServer,
     setIsContactingServer,
     submittingExamRef,
+    officialTimingRef,
     activeQuestionIdx,
     setActiveQuestionIdx,
     examPasswordInput,
@@ -347,6 +362,8 @@ export function useStudentController() {
     setPracticeAnswers,
     examAnswers,
     setExamAnswers,
+    examDraftSession,
+    setExamDraftSession,
     timeLeftStr,
     setTimeLeftStr,
     secondsLeft,
@@ -398,8 +415,14 @@ export function useStudentController() {
     handleDismissWarning,
   };
   Object.assign(s, createPracticeSubmitActions(s));
+  latestPracticeSubmitRef.current = s.handleSubmitPractice;
+  // Ôn tập có hẹn giờ cũng phải chấm bài, phiên và tổng vi phạm mới nhất.
+  s.handleSubmitPractice = (...args) => latestPracticeSubmitRef.current(...args);
   const { handleSubmitPractice } = s;
   Object.assign(s, createExamSubmitActions(s));
+  latestExamSubmitRef.current = s.handleSubmitExam;
+  // Timer được tạo lúc bắt đầu nhưng phải nộp bài và identity của render mới nhất.
+  s.handleSubmitExam = (...args) => latestExamSubmitRef.current(...args);
   const { handleSubmitExam } = s;
   Object.assign(s, createStartActions(s));
   const { handleStart } = s;

@@ -117,7 +117,7 @@ test('Trang quản trị tự chấm bài thi chính thức học sinh gửi lê
     removeItem(k) { delete this._data[k]; }
   };
   const storage = require('../src/core/storage-service.js');
-  const base = { mode: 'exam', grade: 10, examCode: '102', isGraded: false, essayTotal: 0, essayScores: {} };
+  const base = { durationMinutes: 45, extraTimeSeconds: 0, mode: 'exam', grade: 10, examCode: '102', isGraded: false, essayTotal: 0, essayScores: {} };
   localStorage.setItem('asian_school_submissions_v1', JSON.stringify([
     { ...base, id: 'g10_A1_1', violations: 0, answers: { mcq: { 1: 1 }, tf: { 1: { a: true, b: false, c: true } } },
       startedAt: { seconds: 1000, nanoseconds: 0 }, serverSubmittedAt: { seconds: 1000 + 46 * 60, nanoseconds: 0 } },
@@ -131,7 +131,7 @@ test('Trang quản trị tự chấm bài thi chính thức học sinh gửi lê
   assert.strictEqual(s1.mcqPoints, 0.75, '0,25 trắc nghiệm + 0,5 Đúng/Sai (3 ý đúng)');
   assert.strictEqual(s1.finalScore, 0.75);
   assert.strictEqual(s1.durationSeconds, 46 * 60);
-  assert.strictEqual(s1.overtimeSeconds, 60, 'Quá 45 phút cấu hình 1 phút');
+  assert.strictEqual(s1.overtimeSeconds, 60, 'Quá thời lượng 45 phút của lượt thi 1 phút');
   const s2 = subs.find(s => s.id === 'g10_A2_1');
   assert.strictEqual(s2.penaltyPoints, 0, 'Không tự trừ điểm vi phạm (giáo viên ghi nhận riêng)');
   assert.strictEqual(s2.finalScore, 0.25, 'Điểm giữ nguyên dù vi phạm 3 lần');

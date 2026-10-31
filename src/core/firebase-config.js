@@ -449,7 +449,9 @@
           attemptsUsed: 1,
           submitted: false,
           startedAt: FieldValue.serverTimestamp(),
-          deviceChanges: 0
+          deviceChanges: 0,
+          durationMinutes: cfg.examDurationMinutes || 45,
+          extraTimeSeconds: 0
         });
       } catch (createErr) {
         // Mã LMS này đã có lượt thi từ máy khác: nhận lại lượt bằng mật khẩu phòng thi
@@ -461,6 +463,10 @@
       }
       attempt = await readOwnAttempt();
       if (!attempt) throw denied;
+    }
+
+    if (attempt.submitted && attempt.locked) {
+      throw new Error('Lượt thi đang bị khóa. Em chờ Thầy/Cô giám thị mở khóa trước khi làm lại.');
     }
 
     if (attempt.submitted) {
@@ -478,6 +484,8 @@
           examCode: code,
           submittedAt: FieldValue.delete(),
           violations: 0,
+          extraTimeSeconds: 0,
+          durationMinutes: cfg.examDurationMinutes || 45,
           locked: false,
           lockCount: 0,
           lockReason: FieldValue.delete()
@@ -491,10 +499,16 @@
 
     const examDocId = `g${grade}_${attempt.examCode}`;
     await db.collection('exam_sessions').doc(uid).set({ attemptId, examDocId });
+    const baseDurationSeconds = (attempt.durationMinutes || cfg.examDurationMinutes || 45) * 60;
+    const extraTimeSeconds = Number.isSafeInteger(attempt.extraTimeSeconds) && attempt.extraTimeSeconds >= 0 ? attempt.extraTimeSeconds : 0;
+    const startedAtMs = toMillis(attempt.startedAt) || Date.now();
     const base = {
       examCode: attempt.examCode,
-      durationMinutes: cfg.examDurationMinutes || 45,
-      startedAtMs: toMillis(attempt.startedAt) || Date.now(),
+      baseDurationSeconds,
+      extraTimeSeconds,
+      durationMinutes: (baseDurationSeconds + extraTimeSeconds) / 60,
+      startedAtMs,
+      deadlineMs: startedAtMs + (baseDurationSeconds + extraTimeSeconds) * 1000,
       violations: attempt.violations || 0
     };
     // Tải lại trang khi đang bị khóa: vẫn khóa, chưa được đọc đề cho tới khi giáo viên mở khóa
@@ -547,6 +561,30 @@
       : { locked: false, lockReason: FieldValue.delete() });
   }
 
+  // Giáo viên gia hạn trên lượt thi, không phụ thuộc một tab/session cụ thể.
+  // Transaction đọc trạng thái mới nhất nên ca đã nộp không được cộng giờ và hai giám thị không ghi đè nhau.
+  async function extendExamTime({ grade, studentId, minutes }) {
+    await waitForUser();
+    const extra = Number(minutes) * 60;
+    if (![8, 9, 10].includes(Number(grade)) || !lmsKey(studentId) || !Number.isSafeInteger(extra) || extra <= 0) {
+      throw new Error('Khối, mã LMS hoặc số phút gia hạn chưa hợp lệ.');
+    }
+    const ref = attemptRefFor(grade, studentId);
+    return db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new Error('Không tìm thấy lượt thi để gia hạn.');
+      const attempt = snap.data();
+      if (attempt.submitted) return { applied: false, reason: 'submitted' };
+      const oldExtra = attempt.extraTimeSeconds === undefined ? 0 : attempt.extraTimeSeconds;
+      if (!Number.isSafeInteger(oldExtra) || oldExtra < 0 || !Number.isSafeInteger(oldExtra + extra)) {
+        throw new Error('Dữ liệu giờ gia hạn trên máy chủ chưa hợp lệ.');
+      }
+      const extraTimeSeconds = oldExtra + extra;
+      tx.update(ref, { extraTimeSeconds });
+      return { applied: true, extraTimeSeconds };
+    });
+  }
+
   async function submitExam(data) {
     const user = await waitForUser();
     const grade = Number(data.grade);
@@ -554,12 +592,24 @@
     const attemptRef = db.collection('exam_attempts').doc(attemptId);
     let snap;
     try {
-      snap = await attemptRef.get();
+      snap = await attemptRef.get({ source: 'server' });
     } catch (e) {
       throw new Error('Lượt làm bài này đang mở trên thiết bị khác. Em báo giám thị.');
     }
+    // Cache/pending write không phải bằng chứng máy chủ đã nhận bài (đặc biệt sau timeout).
+    if (snap.metadata && (snap.metadata.fromCache || snap.metadata.hasPendingWrites)) {
+      throw new Error('Máy chủ chưa xác nhận lượt thi. Em giữ nguyên trang và thử nộp lại khi có mạng.');
+    }
     if (!snap.exists) throw new Error('Không tìm thấy lượt làm bài. Em báo giám thị.');
     const a = snap.data();
+    // Mốc thời gian để giáo viên đối soát nộp muộn lấy từ lượt thi, không từ đồng hồ học sinh.
+    // Lượt cũ thiếu thời lượng được giữ null, không suy từ cấu hình hiện tại để kết luận nộp muộn.
+    const durationMinutes = a.durationMinutes === undefined ? null : a.durationMinutes;
+    const extraTimeSeconds = a.extraTimeSeconds === undefined ? 0 : a.extraTimeSeconds;
+    if ((durationMinutes !== null && (typeof durationMinutes !== 'number' || !Number.isFinite(durationMinutes) || durationMinutes <= 0))
+      || !Number.isSafeInteger(extraTimeSeconds) || extraTimeSeconds < 0) {
+      throw new Error('Thời lượng lượt thi trên máy chủ chưa hợp lệ. Em báo giám thị.');
+    }
     const subId = `${attemptId}_${a.attemptsUsed}`;
     // Bỏ giá trị undefined (Firestore không nhận) và tách khỏi state React
     const answers = JSON.parse(JSON.stringify(data.answers || { mcq: {}, tf: {}, essay: {} }));
@@ -587,6 +637,8 @@
         answers,
         violations,
         startedAt: a.startedAt,
+        durationMinutes,
+        extraTimeSeconds,
         submittedAt,
         serverSubmittedAt: FieldValue.serverTimestamp(),
         isGraded: false,
@@ -641,7 +693,7 @@
       }
     };
 
-    window.AsianSchoolCloud = { startExam, submitExam, loadExam, reportViolation, watchAttempt, setAttemptLock };
+    window.AsianSchoolCloud = { startExam, submitExam, loadExam, reportViolation, watchAttempt, setAttemptLock, extendExamTime };
 
     const pathname = (window.location && window.location.pathname) || '';
     const isStudentPortal = pathname.includes('/test');

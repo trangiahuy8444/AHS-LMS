@@ -28,6 +28,11 @@ export function useProctorCommands(s) {
           return;
         }
         if (cmd.command === 'extend_time') {
+          // Bài chính thức chỉ theo deadline máy chủ; command cũ không được cộng lần hai.
+          if (mode === 'exam') {
+            window.AsianSchoolStorage.consumeProctorCommand(cmd.cmdId, sessionId);
+            return;
+          }
           const mins = cmd.payload?.minutes || 5;
           if (window.AsianSchoolTimer) {
             window.AsianSchoolTimer.extendSeconds(mins * 60);
@@ -135,6 +140,24 @@ export function useProctorCommands(s) {
     // thì lần đọc đầu (locked = false) vẫn được tính là chuyển khóa -> mở
     let prevLocked = isSessionLocked ? true : undefined;
     const unsub = window.AsianSchoolCloud.watchAttempt({ grade, studentId }, (a, meta = { fromServer: true }) => {
+      // Đồng bộ giờ từ đúng lượt và snapshot máy chủ, kể cả khi bài đang khóa.
+      // Đặt hạn tuyệt đối thay vì cộng số phút để snapshot/command lặp không cộng hai lần.
+      const timing = latest.current.officialTimingRef?.current;
+      const startedAtMs = typeof a.startedAt?.toMillis === 'function' ? a.startedAt.toMillis()
+        : (typeof a.startedAt?.seconds === 'number' ? a.startedAt.seconds * 1000 : null);
+      const extraTimeSeconds = a.extraTimeSeconds === undefined ? 0 : a.extraTimeSeconds;
+      if (meta.fromServer && !a.submitted && timing && startedAtMs === timing.startedAtMs
+        && a.examCode === timing.examCode && Number.isSafeInteger(extraTimeSeconds) && extraTimeSeconds >= 0) {
+        const baseDurationSeconds = typeof a.durationMinutes === 'number' && a.durationMinutes > 0
+          ? a.durationMinutes * 60 : timing.baseDurationSeconds;
+        const deadlineMs = startedAtMs + (baseDurationSeconds + extraTimeSeconds) * 1000;
+        if (window.AsianSchoolTimer?.syncDeadline) window.AsianSchoolTimer.syncDeadline(deadlineMs);
+        if (extraTimeSeconds > timing.extraTimeSeconds) {
+          setBroadcastNotice({ type: 'success', title: 'Gia Hạn Thời Gian Làm Bài ⏱️',
+            message: `Giám thị đã cập nhật tổng giờ gia hạn: ${extraTimeSeconds / 60} phút.` });
+        }
+        timing.extraTimeSeconds = extraTimeSeconds;
+      }
       const locked = a.locked === true;
       // Chỉ tin trạng thái MỞ khi máy chủ đã xác nhận (không mở khóa dựa trên dữ liệu ghi tạm hay cache)
       if (!locked && !meta.fromServer) return;

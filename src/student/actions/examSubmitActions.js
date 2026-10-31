@@ -1,9 +1,11 @@
+import { clearExamDraft, saveExamDraft } from './examDraft.js';
+
 // Nộp bài thi chính thức: gửi bài làm, trang quản trị chấm
 // s: state và hàm của cổng học sinh (xem hooks/useStudentController.js)
 export function createExamSubmitActions(s) {
   const { grade, mode, setExamState, fullName, studentClass, studentId, sessionId, assignedCode,
     setIsContactingServer, submittingExamRef, setShowSubmitModal, examAnswers, violations,
-    setScoreResult, showDialog, config, currentOfficialExam } = s;
+    setScoreResult, showDialog, config, currentOfficialExam, examDraftSession, setExamDraftSession } = s;
 
   // Nộp bài thi chính thức
   const handleSubmitExam = async (isForced = false) => {
@@ -67,10 +69,13 @@ export function createExamSubmitActions(s) {
     window.AsianSchoolAntiCheat.stop();
     window.AsianSchoolAntiCheat.exitFullscreen();
 
+    // Lưu ngay trước khi gửi, kể cả khi effect lưu nháp chưa kịp chạy.
+    saveExamDraft(examDraftSession?.identity, examAnswers);
+
     // Bản sao bài làm trên máy, phòng khi mất mạng lúc nộp
     try {
       localStorage.setItem('asian_school_pending_exam_v1', JSON.stringify({
-        grade, sessionId, fullName, studentClass, studentId, examCode: assignedCode, violations, answers: examAnswers, savedAt: new Date().toISOString()
+        grade, sessionId, fullName, studentClass, studentId, examCode: assignedCode, draftIdentity: examDraftSession?.identity, violations, answers: examAnswers, savedAt: new Date().toISOString()
       }));
     } catch (e) { /* bộ nhớ đầy hoặc bị chặn */ }
 
@@ -78,7 +83,7 @@ export function createExamSubmitActions(s) {
     let finalResult;
     setIsContactingServer(true);
     try {
-      finalResult = await window.AsianSchoolCloud.submitExam({ grade, studentId, answers: examAnswers, violations });
+      finalResult = await window.AsianSchoolCloud.submitExam({ grade, studentId, sessionId, answers: examAnswers, violations });
     } catch (err) {
       setIsContactingServer(false);
       submittingExamRef.current = false;
@@ -91,6 +96,8 @@ export function createExamSubmitActions(s) {
       return;
     }
     setIsContactingServer(false);
+    clearExamDraft(examDraftSession?.identity);
+    if (setExamDraftSession) setExamDraftSession(null);
     try { localStorage.removeItem('asian_school_pending_exam_v1'); } catch (e) { /* bỏ qua */ }
 
     setScoreResult(finalResult);

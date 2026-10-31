@@ -1,3 +1,5 @@
+import { createExamDraftIdentity, readExamDraft } from './examDraft.js';
+
 const PRACTICE_LOCK_KEY = 'asian_school_practice_lock_v1';
 
 // Khóa ôn tập lưu trên máy theo mã LMS + khối (hết hạn sau 3 giờ); bài thi chính thức dùng exam_attempts.locked
@@ -23,7 +25,7 @@ export function clearPracticeLock() {
 // s: state và hàm của cổng học sinh (xem hooks/useStudentController.js)
 export function createStartActions(s) {
   const { grade, mode, setExamState, fullName, studentClass, studentId, sessionId, setSessionId,
-    setAssignedCode, setOfficialExam, setIsContactingServer, submittingExamRef,
+    setAssignedCode, setOfficialExam, setIsContactingServer, submittingExamRef, setExamAnswers, setExamDraftSession, officialTimingRef,
     setActiveQuestionIdx, examPasswordInput, setPracticeAnswers, setScoreResult, setTimeLeftStr, setSecondsLeft,
     violations, setViolations, setTotalViolations, setShowWarningModal, setWarningMessage, showDialog,
     isSessionLockedRef, setIsSessionLocked, setIsProctorUnlocked, lockReason, setLockReason, setExamStartTime,
@@ -31,6 +33,9 @@ export function createStartActions(s) {
 
   // Bắt đầu làm bài
   const handleStart = async () => {
+    // Chưa có lượt được máy chủ xác nhận: không cho effect ghi state cũ vào draft.
+    if (setExamDraftSession) setExamDraftSession(null);
+    if (officialTimingRef) officialTimingRef.current = null;
     // Reset kết quả cũ nếu có
     if (setScoreResult) setScoreResult(null);
     // Chuẩn hóa họ tên và mã LMS (bỏ "-", khoảng trắng; viết hoa) để giáo viên đối chiếu dễ; dùng cho cả phiên
@@ -105,6 +110,19 @@ export function createStartActions(s) {
       setIsContactingServer(false);
       // Lượt đang bị khóa (tải lại trang khi bị khóa): chưa có đề, chờ giáo viên mở khóa trên máy chủ
       setOfficialExam(serverStart.exam || null);
+      if (officialTimingRef) officialTimingRef.current = {
+        startedAtMs: serverStart.startedAtMs,
+        examCode: serverStart.examCode,
+        baseDurationSeconds: serverStart.baseDurationSeconds || (serverStart.durationMinutes * 60 - (serverStart.extraTimeSeconds || 0)),
+        extraTimeSeconds: serverStart.extraTimeSeconds || 0
+      };
+      const identity = createExamDraftIdentity({
+        grade, studentClass, studentId, examCode: serverStart.examCode, startedAtMs: serverStart.startedAtMs,
+        uid: window.AsianSchoolAuth?.uid?.() || ''
+      });
+      const restoredAnswers = readExamDraft(identity) || { mcq: {}, tf: {}, essay: {} };
+      if (setExamAnswers) setExamAnswers(restoredAnswers);
+      if (setExamDraftSession) setExamDraftSession(identity ? { identity, initialAnswers: restoredAnswers } : null);
       submittingExamRef.current = false;
     }
 
@@ -221,7 +239,7 @@ export function createStartActions(s) {
     const examDur = serverStart ? serverStart.durationMinutes : (config.examDurationMinutes || 45);
     // Tải lại trang giữa giờ: đồng hồ tính tiếp từ giờ bắt đầu máy chủ ghi nhận
     const examRemainingMin = serverStart
-      ? Math.max(1 / 60, examDur - (Date.now() - serverStart.startedAtMs) / 60000)
+      ? Math.max(1 / 60, ((serverStart.deadlineMs || (serverStart.startedAtMs + examDur * 60000)) - Date.now()) / 60000)
       : examDur;
     const practiceDur = config.practiceDurationMinutes || 0;
 

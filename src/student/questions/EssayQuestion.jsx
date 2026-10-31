@@ -10,7 +10,7 @@ export default function EssayQuestion({ currentItem }) {
   return (
     <div className="space-y-5">
       <p className="text-base sm:text-lg font-bold text-slate-900 leading-relaxed whitespace-pre-line bg-slate-50 p-5 rounded-2xl border-2 border-slate-200">
-        {currentItem.data.context}
+        {currentItem.data.context || currentItem.data.question}
       </p>
 
       {currentItem.data.subItems && currentItem.data.subItems.length > 0 && (
