@@ -2,6 +2,16 @@
 
 > Tệp trạng thái sống. Mỗi phiên có thay đổi đáng kể thêm một mục **ở đầu** tệp: ngày, đã làm gì (kèm commit), kết quả `npm run check`, việc còn dở, câu hỏi chờ thầy. Repo công khai: không ghi bí mật hay dữ liệu học sinh.
 
+
+## 31/10/2026 — Phát hành web thật và rules
+
+- Theo yêu cầu giáo viên, phát hành bản `b9314f5` lên GitHub Pages, giữ các thay đổi đã có trên `main` (`b0a71f4`). Hai checkpoint nguồn được đưa vào bản phát hành: `c1be6d5`, `099dc21`.
+- Cài sạch Node22.23.4;94 Node đạt/3 kiểm private bỏ qua,78 Vitest và16 rules emulator đạt; lint/build/chặn lọt đề đạt. Các file src/tests/rules khớp bản đã duyệt.
+- [GitHub Actions41163804059](https://github.com/trangiahuy8444/AHS-LMS/actions/runs/41163804059) build/deploy thành công.
+- Publish rules qua Console lúc10:21 giờ Việt Nam; bản đã xuất bản khớp hash chuẩn hóa của nguồn đã kiểm. Sao lưu rules cũ và biên bản trong private, không đưa vào repo.
+- Đối chiếu trang gốc/test/admin:HTTP200; toàn bộ asset tham chiếu khớp build, giao diện học sinh đã cập nhật.
+- Không sửa kho đề, bài nộp hoặc điểm. Cần tải lại máy trước ca và diễn tập chính thức; chưa thực hiện ca thi thật trong phiên này.
+
 ## 30/10/2026: chốt nguồn chuẩn Giữa HK1 và kiểm sạch Node22
 
 - Giáo viên xác nhận bộ chuẩn tại thư mục gửi Ms.Tuyến, chưa có CK1. Đã đối chiếu348 câu/12 mã, thứ tự phương án, đáp án và36 barem theo câu: khớp. Không sửa nội dung đề đã duyệt.

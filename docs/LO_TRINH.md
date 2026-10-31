@@ -76,3 +76,12 @@ Cài sạch `npm ci` bằng Node22.23.4: đạt. Bộ kiểm tra với gói Gi�
 Theo xác nhận giáo viên: vẫn nhận bài muộn và đánh dấu để thầy xử lý. Đã lưu thời lượng/gia hạn trên lượt thi, giữ khi tải lại, tránh cộng lặp nhiều tab; làm lại reset gia hạn. Bảng bài nộp và CSV ghi trạng thái/số giây trễ theo giờ máy chủ, không tự trừ điểm. Bài cũ thiếu mốc thời lượng không bị kết luận muộn.
 
 Kiểm cuối trên bản cài sạch: **97 Node,78 Vitest,16 rules emulator đạt**, không skip; lint/build/chặn lọt đề đạt. Reviewer bảo mật không thấy blocker mới. Chưa phát hành thật; cần cặp client/rules mới ngoài ca và tải lại mọi máy.
+
+### Phát hành thật ngày 31/10/2026
+
+- [x] Đã phát hành client `b9314f5` lên [web thật](https://trangiahuy8444.github.io/AHS-LMS/); [GitHub Actions](https://github.com/trangiahuy8444/AHS-LMS/actions/runs/41163804059) build/deploy đều thành công.
+- [x] Đã Publish rules trên Firebase Console lúc 10:21 (giờ Việt Nam). Nội dung đã xuất bản khớp SHA-256 sau chuẩn hóa khoảng trắng `63bda424c41f38de96cab0120e26eb10c7e1d0ecffc7b19660a64eacf32eb314`. Đã lưu bản khôi phục riêng tư.
+- [x] Trang gốc, học sinh và quản trị trả HTTP200; mọi tệp JS/CSS được tham chiếu đều khớp bản build. Trang học sinh hiển thị thang ôn tập7 đúng bản mới.
+- [ ] Trước ca tiếp theo: tải lại tất cả máy, diễn tập ca chính thức bằng dữ liệu thử và nghiệm thu vận hành; việc phát hành không thay thế diễn tập này.
+
+Không upload/thay kho đề hoặc sửa bài nộp/điểm trong lần phát hành này. Những ghi nhận “chưa phát hành” phía trên là trạng thái lịch sử trước ngày31/10.
