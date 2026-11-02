@@ -148,3 +148,34 @@ test('legacy attempt without duration accepts submission but cannot invent deadl
   await assertFails(submitActive({ durationMinutes: 45 }));
   await assertSucceeds(submitActive());
 });
+
+test('student-choice permits an active code for the grade and denies inactive or other-grade codes', async () => {
+  await assertSucceeds(updateDoc(doc(teacher(), 'exam_config/global_config'), { codeAllocationMode: 'student_choice', 'activeCodes.9': ['104'] }));
+  const fresh = { grade: 8, studentId: '100002', studentClass: '8/19', fullName: 'Hoc Sinh Gia', uid: 'owner', examCode: '102', attemptsUsed: 1, submitted: false, startedAt: serverTimestamp(), deviceChanges: 0, durationMinutes: 45, extraTimeSeconds: 0 };
+  for (const code of ['999','104','']) await assertFails(setDoc(doc(db('owner'), 'exam_attempts/g8_100002'), { ...fresh, examCode: code }));
+  await assertSucceeds(setDoc(doc(db('owner'), 'exam_attempts/g8_100002'), fresh));
+  await assertSucceeds(setDoc(doc(db('owner'), 'exam_sessions/owner'), { attemptId: 'g8_100002', examDocId: 'g8_102' }));
+  await assertSucceeds(getDoc(doc(db('owner'), 'exam_public/g8_102')));
+  await assertFails(getDoc(doc(db('owner'), 'exam_public/g8_101')));
+  await assertFails(updateDoc(doc(db('owner'), 'exam_attempts/g8_100002'), { examCode: '101' }));
+});
+test('student-choice retake requires allowance and cannot bypass lock', async () => {
+  await assertSucceeds(updateDoc(doc(teacher(), 'exam_config/global_config'), { codeAllocationMode: 'student_choice' }));
+  const change = () => updateDoc(doc(db('owner'), 'exam_attempts/g8_100001'), { attemptsUsed: 2, submitted: false, startedAt: serverTimestamp(), examCode: '102', submittedAt: deleteField(), violations: 0, locked: false, lockCount: 0, lockReason: deleteField(), durationMinutes: 45, extraTimeSeconds: 0 });
+  await assertFails(change());
+  await assertSucceeds(updateDoc(doc(teacher(), 'exam_attempts/g8_100001'), { locked:false,allowedAttempts:1 }));
+  await assertFails(change());
+  await assertSucceeds(updateDoc(doc(teacher(), 'exam_attempts/g8_100001'), { allowedAttempts:2 }));
+  await assertSucceeds(change());
+});
+
+test('student-choice takeover changes only device owner and keeps original code and attempt', async () => {
+  await seedActive({ uid:'previous-device', examCode:'101' });
+  await assertSucceeds(updateDoc(doc(teacher(), 'exam_config/global_config'), { codeAllocationMode:'student_choice' }));
+  await assertFails(getDoc(doc(db('owner'), 'exam_attempts/g8_100001')));
+  await assertSucceeds(updateDoc(doc(db('owner'), 'exam_attempts/g8_100001'), { uid:'owner',deviceChanges:1 }));
+  const saved = (await getDoc(doc(db('owner'), 'exam_attempts/g8_100001'))).data();
+  require('node:assert/strict').equal(saved.examCode,'101');
+  require('node:assert/strict').equal(saved.attemptsUsed,1);
+  await assertFails(updateDoc(doc(db('owner'), 'exam_attempts/g8_100001'), { uid:'owner',deviceChanges:2,examCode:'102' }));
+});

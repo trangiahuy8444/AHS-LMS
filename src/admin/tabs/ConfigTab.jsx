@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAdmin } from '../AdminContext.js';
 import ExamTimingCard from '../config/ExamTimingCard.jsx';
+import ExamAllocationCard from '../config/ExamAllocationCard.jsx';
 import RoomPasswordCard from '../config/RoomPasswordCard.jsx';
 import ExamBankCard from '../config/ExamBankCard.jsx';
 import AttemptsCard from '../config/AttemptsCard.jsx';
@@ -23,6 +24,8 @@ export default function ConfigTab() {
 
       {/* 1. CẤU HÌNH THỜI GIAN & CHẾ ĐỘ TRỘN ĐỀ THI */}
       <ExamTimingCard />
+
+      <ExamAllocationCard />
 
       {/* 2. MẬT KHẨU PHÒNG THI */}
       <RoomPasswordCard />

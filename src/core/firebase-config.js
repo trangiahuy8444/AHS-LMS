@@ -386,9 +386,11 @@
   }
 
   // Phải khớp hàm codeAllowed trong firestore.rules
-  function pickExamCode(cfg, grade, studentClass) {
-    const active = (cfg.activeCodes || {})[String(grade)] || [];
+  function pickExamCode(cfg, grade, studentClass, selectedCode) {
+    const codes = (cfg.activeCodes || {})[String(grade)];
+    const active = Array.isArray(codes) ? codes.filter(code => typeof code === 'string') : [];
     const mode = cfg.codeAllocationMode || 'class_assigned';
+    if (mode === 'student_choice') return typeof selectedCode === 'string' && active.includes(selectedCode) ? selectedCode : null;
     if (mode === 'random') return active[Math.floor(Math.random() * active.length)] || null;
     const code = mode === 'fixed' ? cfg.fixedCode : (cfg.classMapping || {})[studentClass];
     return active.includes(code) ? code : null;
@@ -435,9 +437,19 @@
     const denied = new Error('Không vào được phòng thi: mật khẩu chưa đúng, lớp chưa mở ca thi hoặc mã đề chưa được bật. Em báo Thầy/Cô giám thị.');
 
     let attempt = await readOwnAttempt();
+    // UID mới chưa đọc được lượt ở máy cũ. Nhận lại lượt trước khi đòi mã cho lượt MỚI;
+    // rules vẫn kiểm mật khẩu và ca thi, chỉ thay uid/deviceChanges, không đổi mã hay số lượt.
+    if (!attempt && cfg.codeAllocationMode === 'student_choice') {
+      try {
+        await attemptRef.update({ uid, deviceChanges: FieldValue.increment(1) });
+        attempt = await readOwnAttempt();
+      } catch (e) { /* Không có lượt hoặc chưa được phép nhận lại: tiếp tục kiểm lượt mới bên dưới. */ }
+    }
     if (!attempt) {
-      const code = pickExamCode(cfg, grade, data.studentClass);
-      if (!code) throw new Error(`Chưa có mã đề đang bật cho Lớp ${data.studentClass}. Em báo Thầy/Cô giám thị.`);
+      const code = pickExamCode(cfg, grade, data.studentClass, data.examCode);
+      if (!code) throw new Error(cfg.codeAllocationMode === 'student_choice'
+        ? 'Em hãy chọn một mã đề đang được bật của đúng khối trước khi bắt đầu lượt thi mới.'
+        : `Chưa có mã đề đang bật cho Lớp ${data.studentClass}. Em báo Thầy/Cô giám thị.`);
       try {
         await attemptRef.set({
           grade,
@@ -474,8 +486,10 @@
       if (attempt.attemptsUsed >= allowed) {
         throw new Error(`Mã LMS ${key} đã dùng hết ${allowed} lượt làm bài thi chính thức. Nếu cần thi lại, em báo Thầy/Cô.`);
       }
-      const code = pickExamCode(cfg, grade, attempt.studentClass);
-      if (!code) throw new Error(`Chưa có mã đề đang bật cho Lớp ${attempt.studentClass}. Em báo Thầy/Cô giám thị.`);
+      const code = pickExamCode(cfg, grade, attempt.studentClass, data.examCode);
+      if (!code) throw new Error(cfg.codeAllocationMode === 'student_choice'
+        ? 'Em hãy chọn một mã đề đang được bật của đúng khối trước khi bắt đầu lượt thi mới.'
+        : `Chưa có mã đề đang bật cho Lớp ${attempt.studentClass}. Em báo Thầy/Cô giám thị.`);
       try {
         await attemptRef.update({
           attemptsUsed: FieldValue.increment(1),

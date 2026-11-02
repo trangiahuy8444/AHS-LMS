@@ -38,7 +38,7 @@ service cloud.firestore {
       let c = cfg();
       let mode = c.get('codeAllocationMode', 'class_assigned');
       return code in c.activeCodes.get(string(grade), [])
-        && (mode == 'random'
+        && (mode in ['random', 'student_choice']
           || (mode == 'fixed' && code == c.fixedCode)
           || (mode == 'class_assigned' && code == c.classMapping.get(studentClass, '')));
     }

@@ -3,6 +3,15 @@
 > Tệp trạng thái sống. Mỗi phiên có thay đổi đáng kể thêm một mục **ở đầu** tệp: ngày, đã làm gì (kèm commit), kết quả `npm run check`, việc còn dở, câu hỏi chờ thầy. Repo công khai: không ghi bí mật hay dữ liệu học sinh.
 
 
+## 02/11/2026 — Bổ sung học sinh tự chọn mã đề
+
+- Cấu hình thêm cách phân mã `student_choice`, giữ các chế độ theo lớp/ngẫu nhiên/cố định. Lưu riêng trường cấu hình và chờ máy chủ xác nhận.
+- Cổng học sinh hiện danh sách mã đang bật theo đúng khối; không chọn sẵn. Máy chủ kiểm mã cho lượt mới/thi lại; resume giữ mã cũ, cả khi đổi thiết bị.
+- Rules vẫn chặn đổi mã giữa lượt; mật khẩu, ca thi, khóa và số lượt không đổi. Không sửa kho đề hoặc bài nộp.
+- TDD cho UI/core/rules; review bảo mật độc lập phát hiện và đã sửa resume trống từ máy khác. Kiểm cuối104 Node +92 Vitest +19 emulator đạt (3 Node private skip); lint/build/chặn lọt đề đạt.
+- Hướng dẫn bật: Quản trị → Cấu hình → Phân mã đề thi → Học sinh tự chọn mã đề → Lưu cách phân mã đề.
+
+
 ## 31/10/2026 — Phát hành web thật và rules
 
 - Theo yêu cầu giáo viên, phát hành bản `b9314f5` lên GitHub Pages, giữ các thay đổi đã có trên `main` (`b0a71f4`). Hai checkpoint nguồn được đưa vào bản phát hành: `c1be6d5`, `099dc21`.

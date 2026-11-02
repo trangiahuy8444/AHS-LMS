@@ -85,3 +85,11 @@ Kiểm cuối trên bản cài sạch: **97 Node,78 Vitest,16 rules emulator đ�
 - [ ] Trước ca tiếp theo: tải lại tất cả máy, diễn tập ca chính thức bằng dữ liệu thử và nghiệm thu vận hành; việc phát hành không thay thế diễn tập này.
 
 Không upload/thay kho đề hoặc sửa bài nộp/điểm trong lần phát hành này. Những ghi nhận “chưa phát hành” phía trên là trạng thái lịch sử trước ngày31/10.
+
+### 02/11/2026 — Học sinh chọn mã đề
+
+- [x] Thêm lựa chọn `Học sinh tự chọn mã đề` trong Cấu hình → Phân mã đề thi, chỉ lưu sau khi máy chủ xác nhận. Giáo viên chủ động bật chế độ; giữ cấu hình phân mã hiện hành cho đến khi lưu.
+- [x] Học sinh chọn mã đang bật của đúng khối khi bắt đầu lượt mới/thi lại được cấp; tiếp tục lượt đang làm giữ mã đã nhận, kể cả chuyển thiết bị và để trống lựa chọn.
+- [x] Rules kiểm mã theo khối và chế độ; không cho đổi mã giữa lượt, không bỏ mật khẩu, ca thi, khóa hoặc giới hạn lượt.
+- [x] Kiểm cuối:104 Node đạt/3 private skip,92 Vitest,19 rules emulator đạt; lint/build/chặn lọt đề đạt. Review độc lập đã sửa thêm trường hợp nhận lại lượt từ thiết bị khác; không còn blocker trong phạm vi rà soát.
+- [ ] Diễn tập ca chính thức sau khi giáo viên chọn chế độ phù hợp; không dùng test cục bộ thay cho ca thật.

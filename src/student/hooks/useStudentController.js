@@ -32,6 +32,7 @@ export function useStudentController() {
   });
   const [sessionId, setSessionId] = useState('');
   const [assignedCode, setAssignedCode] = useState('101');
+  const [selectedExamCode, setSelectedExamCode] = useState('');
   // Đề chính thức đã bỏ đáp án, đọc từ exam_public khi vào phòng thi (AsianSchoolCloud.startExam); không nằm trong data/*.js
   const [officialExam, setOfficialExam] = useState(null);
   const [isContactingServer, setIsContactingServer] = useState(false);
@@ -115,6 +116,16 @@ export function useStudentController() {
       ? window.AsianSchoolStorage.getConfig()
       : {}
   ));
+
+  const availableExamCodes = useMemo(() => {
+    const codes = config.activeCodes?.[String(grade)];
+    return Array.isArray(codes) ? codes.filter(code => typeof code === 'string' && code.trim()) : [];
+  }, [config.activeCodes, grade]);
+
+  // Không giữ lựa chọn đã thuộc khối khác hoặc đã bị giáo viên tắt.
+  useEffect(() => {
+    setSelectedExamCode(current => availableExamCodes.includes(current) ? current : '');
+  }, [availableExamCodes]);
 
   // Lắng nghe cấu hình Admin thay đổi thời gian thực
   useEffect(() => {
@@ -344,6 +355,8 @@ export function useStudentController() {
     setSessionId,
     assignedCode,
     setAssignedCode,
+    selectedExamCode,
+    setSelectedExamCode,
     officialExam,
     setOfficialExam,
     isContactingServer,

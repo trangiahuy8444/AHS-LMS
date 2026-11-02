@@ -25,7 +25,7 @@ export function clearPracticeLock() {
 // s: state và hàm của cổng học sinh (xem hooks/useStudentController.js)
 export function createStartActions(s) {
   const { grade, mode, setExamState, fullName, studentClass, studentId, sessionId, setSessionId,
-    setAssignedCode, setOfficialExam, setIsContactingServer, submittingExamRef, setExamAnswers, setExamDraftSession, officialTimingRef,
+    setAssignedCode, selectedExamCode, setOfficialExam, setIsContactingServer, submittingExamRef, setExamAnswers, setExamDraftSession, officialTimingRef,
     setActiveQuestionIdx, examPasswordInput, setPracticeAnswers, setScoreResult, setTimeLeftStr, setSecondsLeft,
     violations, setViolations, setTotalViolations, setShowWarningModal, setWarningMessage, showDialog,
     isSessionLockedRef, setIsSessionLocked, setIsProctorUnlocked, lockReason, setLockReason, setExamStartTime,
@@ -100,7 +100,7 @@ export function createStartActions(s) {
       setIsContactingServer(true);
       try {
         serverStart = await window.AsianSchoolCloud.startExam({
-          grade, studentClass, fullName, studentId, sessionId: sid, password: examPasswordInput
+          grade, studentClass, fullName, studentId, sessionId: sid, password: examPasswordInput, examCode: selectedExamCode || ''
         });
       } catch (err) {
         setIsContactingServer(false);

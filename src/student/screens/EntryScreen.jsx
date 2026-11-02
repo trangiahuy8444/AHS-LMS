@@ -7,9 +7,14 @@ export default function EntryScreen() {
   const { grade, setGrade, mode, setMode, examState, fullName, setFullName, studentClass,
     setStudentClass, studentId, setStudentId, isContactingServer, examPasswordInput,
     setExamPasswordInput, showExamPassword, setShowExamPassword, showDialog, classAccessMode,
-    handleStart } = useStudent();
+    handleStart, config = {}, selectedExamCode, setSelectedExamCode } = useStudent();
 
   if (!(examState === 'entry')) return null;
+
+  const configuredCodes = config.activeCodes?.[String(grade)];
+  const availableExamCodes = Array.isArray(configuredCodes)
+    ? [...new Set(configuredCodes.filter(code => typeof code === 'string' && code.trim()))]
+    : [];
 
   return (
     <div className="max-w-xl mx-auto bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
@@ -193,6 +198,31 @@ export default function EntryScreen() {
               />
             </div>
           </div>
+
+          {mode === 'exam' && config.codeAllocationMode === 'student_choice' && (
+            <div className="pt-2 space-y-2">
+              <label htmlFor="student-exam-code-select" className="block text-sm font-bold text-[#0267B1]">
+                Mã đề thi <span className="text-red-500">*</span>
+              </label>
+              <select
+                id="student-exam-code-select"
+                value={selectedExamCode || ''}
+                onChange={e => setSelectedExamCode(e.target.value)}
+                disabled={isContactingServer}
+                aria-describedby="student-exam-code-hint"
+                className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0267B1] text-base font-semibold bg-white text-slate-900 disabled:bg-slate-100"
+              >
+                <option value="">Chọn mã đề</option>
+                {availableExamCodes.map(code => <option key={code} value={code}>Mã đề {code}</option>)}
+              </select>
+              {availableExamCodes.length === 0 && (
+                <p className="text-sm font-medium text-amber-800">Chưa có mã đề được bật cho khối này. Em báo giám thị để được hỗ trợ.</p>
+              )}
+              <p id="student-exam-code-hint" className="text-sm text-slate-600 leading-relaxed">
+                Lượt đang làm sẽ giữ nguyên mã đề đã nhận khi em vào lại.
+              </p>
+            </div>
+          )}
 
           {/* MẬT KHẨU PHÒNG THI (KHI CHỌN CHẾ ĐỘ THI CHÍNH THỨC) */}
           {mode === 'exam' && (
