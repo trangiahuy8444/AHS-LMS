@@ -4,6 +4,8 @@
 
 
 ## 02/11/2026 — Bổ sung học sinh tự chọn mã đề
+- Phát hành thật02/11: client `d36625a`, [GitHub Pages build/deploy đạt](https://github.com/trangiahuy8444/AHS-LMS/actions/runs/41369616826); rules mới đã Publish và đối chiếu khớp hash. Trang gốc/test/admin HTTP200, mọi asset tham chiếu khớp build. Cấu hình phân mã hiện hành được giữ, giáo viên chủ động bật tự chọn.
+
 
 - Cấu hình thêm cách phân mã `student_choice`, giữ các chế độ theo lớp/ngẫu nhiên/cố định. Lưu riêng trường cấu hình và chờ máy chủ xác nhận.
 - Cổng học sinh hiện danh sách mã đang bật theo đúng khối; không chọn sẵn. Máy chủ kiểm mã cho lượt mới/thi lại; resume giữ mã cũ, cả khi đổi thiết bị.

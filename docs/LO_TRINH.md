@@ -93,3 +93,5 @@ Không upload/thay kho đề hoặc sửa bài nộp/điểm trong lần phát h
 - [x] Rules kiểm mã theo khối và chế độ; không cho đổi mã giữa lượt, không bỏ mật khẩu, ca thi, khóa hoặc giới hạn lượt.
 - [x] Kiểm cuối:104 Node đạt/3 private skip,92 Vitest,19 rules emulator đạt; lint/build/chặn lọt đề đạt. Review độc lập đã sửa thêm trường hợp nhận lại lượt từ thiết bị khác; không còn blocker trong phạm vi rà soát.
 - [ ] Diễn tập ca chính thức sau khi giáo viên chọn chế độ phù hợp; không dùng test cục bộ thay cho ca thật.
+
+- Phát hành thật02/11: client `d36625a`, [GitHub Pages build/deploy đạt](https://github.com/trangiahuy8444/AHS-LMS/actions/runs/41369616826); rules mới đã Publish và đối chiếu khớp hash. Trang gốc/test/admin HTTP200, mọi asset tham chiếu khớp build. Cấu hình phân mã hiện hành được giữ, giáo viên chủ động bật tự chọn.
