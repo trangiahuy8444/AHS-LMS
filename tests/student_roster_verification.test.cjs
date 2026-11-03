@@ -1,0 +1,56 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const path = require('node:path');
+
+test('Xác thực 2 lớp danh tính học sinh từ Roster chuẩn Asian School (Chống giả mạo / thi hộ)', async () => {
+  const rosterModule = await import(path.resolve(__dirname, '../src/core/roster-data.js'));
+  const { getStudentsByClass, verifyStudentLms, findStudentInClassByLms, ROSTER_BY_CLASS } = rosterModule;
+
+  // 1. Kiểm tra có đủ 15 lớp của cả 3 khối
+  const expectedClasses = [
+    '8/19', '8/20', '8/21', '8/22', '8/23',
+    '9/20', '9/21', '9/22', '9/23', '9/24', '9/25', '9/26',
+    '10/14', '10/15', '10/16'
+  ];
+  assert.equal(Object.keys(ROSTER_BY_CLASS).length, 15);
+  expectedClasses.forEach(cls => {
+    assert.ok(ROSTER_BY_CLASS[cls], `Lớp ${cls} phải có trong danh sách số hóa`);
+    assert.ok(ROSTER_BY_CLASS[cls].length > 0, `Lớp ${cls} phải có học sinh`);
+  });
+
+  // 2. Thử nghiệm Lớp 8/19: Học sinh đầu tiên "Trần Thái Bình"
+  const s819 = getStudentsByClass('8/19');
+  assert.ok(s819.length >= 20);
+  const hs1 = s819[0];
+  assert.equal(hs1.fullName, 'Trần Thái Bình');
+  assert.equal(hs1.studentId, '01190002');
+  assert.equal(hs1.loginId, '01-19-0002');
+
+  // a. Khớp mã số thuần
+  assert.equal(verifyStudentLms(hs1, '01190002'), true);
+  // b. Khớp mã có dấu gạch
+  assert.equal(verifyStudentLms(hs1, '01-19-0002'), true);
+  // c. Khớp 4 số cuối
+  assert.equal(verifyStudentLms(hs1, '0002'), true);
+  // d. Từ chối mã sai hoặc của bạn khác (bảo vệ chống thi hộ)
+  assert.equal(verifyStudentLms(hs1, '15240009'), false, 'Mã của bạn khác phải bị từ chối');
+  assert.equal(verifyStudentLms(hs1, '99999999'), false, 'Mã không tồn tại phải bị từ chối');
+  assert.equal(verifyStudentLms(hs1, '1234'), false, 'Mã sai phải bị từ chối');
+
+  // 3. Thử nghiệm Auto-Fill: Gõ mã LMS -> Tự nhận diện đúng tên
+  const found = findStudentInClassByLms('8/19', '01190002');
+  assert.ok(found);
+  assert.equal(found.fullName, 'Trần Thái Bình');
+
+  const foundByLast4 = findStudentInClassByLms('8/19', '0002');
+  assert.ok(foundByLast4);
+  assert.equal(foundByLast4.fullName, 'Trần Thái Bình');
+
+  // 4. Thử nghiệm Khối 10: Lớp 10/14
+  const s1014 = getStudentsByClass('10/14');
+  assert.ok(s1014.length > 0);
+  const hs10 = s1014[0];
+  assert.ok(hs10.fullName);
+  assert.ok(hs10.studentId);
+  assert.equal(verifyStudentLms(hs10, hs10.studentId), true);
+});

@@ -1,4 +1,5 @@
 import { createExamDraftIdentity, readExamDraft } from './examDraft.js';
+import { getStudentsByClass, verifyStudentLms } from '../../core/roster-data.js';
 
 const PRACTICE_LOCK_KEY = 'asian_school_practice_lock_v1';
 
@@ -51,6 +52,20 @@ export function createStartActions(s) {
     if (!studentId) {
       showDialog('Yêu Cầu Nhập Mã LMS', 'Vui lòng nhập Mã LMS của em (chỉ gồm các chữ số) trước khi bắt đầu!', 'warning');
       return;
+    }
+
+    // Xác thực 2 lớp danh tính học sinh nếu thuộc danh sách lớp đã số hóa (chống bạn khác thi hộ)
+    if (mode === 'exam') {
+      const classRoster = getStudentsByClass(studentClass);
+      const matched = classRoster.find(st => st.fullName === fullName);
+      if (matched && !verifyStudentLms(matched, studentId)) {
+        showDialog(
+          'Xác Thực Danh Tính Thí Sinh ⛔',
+          `Mã LMS "${studentId}" không khớp với học sinh "${fullName}" (Lớp ${studentClass}).\n\nQuy chế khảo thí Asian School không cho phép bạn khác vào thi hộ. Em vui lòng kiểm tra lại thẻ học sinh hoặc báo Giám thị nhé!`,
+          'error'
+        );
+        return;
+      }
     }
 
     // 1. KÍCH HOẠT CHẾ ĐỘ TOÀN MÀN HÌNH TỨC THÌ (INSTANT FULLSCREEN) TỪ CỬ CHỈ BẤM NÚT
@@ -129,7 +144,7 @@ export function createStartActions(s) {
         grade, studentClass, studentId, examCode: serverStart.examCode, startedAtMs: serverStart.startedAtMs,
         uid: window.AsianSchoolAuth?.uid?.() || ''
       });
-      const restoredAnswers = readExamDraft(identity) || { mcq: {}, tf: {}, essay: {} };
+      const restoredAnswers = readExamDraft(identity) || serverStart.draftAnswers || { mcq: {}, tf: {}, essay: {} };
       if (setExamAnswers) setExamAnswers(restoredAnswers);
       if (setExamDraftSession) setExamDraftSession(identity ? { identity, initialAnswers: restoredAnswers } : null);
       submittingExamRef.current = false;

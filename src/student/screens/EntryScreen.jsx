@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useStudent } from '../StudentContext.js';
 import { CLASS_LISTS } from '../constants.js';
+import { getStudentsByClass, verifyStudentLms, findStudentInClassByLms } from '../../core/roster-data.js';
 
 // 1. MÀN HÌNH CHỌN CHẾ ĐỘ & ĐĂNG KÝ VÀO PHÒNG LÀM BÀI
 export default function EntryScreen() {
@@ -8,6 +9,11 @@ export default function EntryScreen() {
     setStudentClass, studentId, setStudentId, isContactingServer, examPasswordInput,
     setExamPasswordInput, showExamPassword, setShowExamPassword, showDialog, classAccessMode,
     handleStart, handleReviewLookup, config = {}, selectedExamCode, setSelectedExamCode } = useStudent();
+
+  const [isManualName, setIsManualName] = useState(false);
+  const classRoster = getStudentsByClass(studentClass);
+  const matchedStudent = classRoster.find(s => s.fullName === fullName);
+  const isLmsVerified = matchedStudent ? verifyStudentLms(matchedStudent, studentId) : false;
 
   if (!(examState === 'entry')) return null;
 
@@ -216,29 +222,18 @@ export default function EntryScreen() {
 
         {/* Nhập Thông tin Học sinh */}
         <div className="space-y-4 pt-2 border-t border-slate-200">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-              {mode === 'review' ? 'Họ và tên (Tự động nạp từ bài thi)' : 'Họ và tên học sinh'} {mode !== 'review' && <span className="text-red-500">*</span>}
-            </label>
-            <input
-              type="text"
-              value={fullName}
-              onChange={e => setFullName(e.target.value)}
-              onBlur={e => window.AsianSchoolNormalize && setFullName(window.AsianSchoolNormalize.normalizeStudentName(e.target.value))}
-              placeholder={mode === 'review' ? 'Họ tên sẽ tự động nạp từ bài thi cũ...' : 'Ví dụ: Nguyễn Văn An'}
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold bg-white text-slate-900"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label htmlFor="student-class-select" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Lớp học <span className="text-red-500">*</span>
+                3. Lớp học <span className="text-red-500">*</span>
               </label>
               <select
                 id="student-class-select"
                 value={studentClass}
-                onChange={e => setStudentClass(e.target.value)}
+                onChange={e => {
+                  setStudentClass(e.target.value);
+                  setFullName('');
+                }}
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold bg-white text-slate-900"
               >
                 {(CLASS_LISTS[grade] || []).map(cls => (
@@ -248,24 +243,130 @@ export default function EntryScreen() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Mã LMS (Học sinh - chỉ nhập số) <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={studentId}
-                onChange={e => {
-                  const val = e.target.value;
-                  // Tự động giữ lại số khi gõ
-                  setStudentId(window.AsianSchoolNormalize ? window.AsianSchoolNormalize.normalizeLmsCode(val) : val.replace(/\D/g, ''));
-                }}
-                onBlur={e => window.AsianSchoolNormalize && setStudentId(window.AsianSchoolNormalize.normalizeLmsCode(e.target.value))}
-                placeholder="Ví dụ: 123456 (chỉ nhập số)"
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold font-mono-code bg-white text-slate-900"
-              />
+              <div className="flex items-center justify-between mb-1">
+                <label htmlFor="student-name-select" className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  4. Họ và tên học sinh <span className="text-red-500">*</span>
+                </label>
+                {classRoster.length > 0 && mode !== 'review' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsManualName(!isManualName);
+                      setFullName('');
+                    }}
+                    className="text-[10px] text-blue-700 hover:underline font-bold"
+                  >
+                    {isManualName ? '← Chọn từ danh sách lớp' : '+ Tự gõ tên'}
+                  </button>
+                )}
+              </div>
+
+              {mode === 'review' ? (
+                <input
+                  type="text"
+                  value={fullName}
+                  readOnly
+                  placeholder="Họ tên sẽ tự động nạp từ bài thi..."
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 text-sm font-semibold"
+                />
+              ) : (!isManualName && classRoster.length > 0) ? (
+                <select
+                  id="student-name-select"
+                  value={fullName}
+                  onChange={e => {
+                    const chosen = e.target.value;
+                    if (chosen === '__guest__') {
+                      setIsManualName(true);
+                      setFullName('');
+                    } else {
+                      setFullName(chosen);
+                    }
+                  }}
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold bg-white text-slate-900"
+                >
+                  <option value="">-- Chọn tên em trong danh sách Lớp {studentClass} --</option>
+                  {classRoster.map(s => (
+                    <option key={s.stt} value={s.fullName}>
+                      STT {String(s.stt).padStart(2, '0')} - {s.fullName}
+                    </option>
+                  ))}
+                  <option value="__guest__">➕ [+ Em là Thí sinh bổ sung / Học sinh mới]</option>
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={e => setFullName(e.target.value)}
+                  onBlur={e => window.AsianSchoolNormalize && setFullName(window.AsianSchoolNormalize.normalizeStudentName(e.target.value))}
+                  placeholder="Ví dụ: Nguyễn Văn An"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold bg-white text-slate-900"
+                />
+              )}
             </div>
+          </div>
+
+          {/* Ô NHẬP MÃ LMS VÀ XÁC THỰC 2 LỚP CHỐNG THI HỘ */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                5. Mã LMS (Bắt buộc để xác thực chính chủ) <span className="text-red-500">*</span>
+              </label>
+              {matchedStudent && (
+                <span className="text-[11px] text-slate-500 font-mono-code font-bold">
+                  Gợi ý: {matchedStudent.loginId ? `${matchedStudent.loginId.slice(0, 5)}****` : 'Nhập mã của em'}
+                </span>
+              )}
+            </div>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={studentId}
+              onChange={e => {
+                const val = e.target.value;
+                const clean = window.AsianSchoolNormalize ? window.AsianSchoolNormalize.normalizeLmsCode(val) : val.replace(/\D/g, '');
+                setStudentId(clean);
+
+                // Auto-fill: Nếu chưa chọn tên nhưng gõ đúng mã LMS thì tự động chọn đúng học sinh!
+                if (!fullName && clean.length >= 4) {
+                  const autoFound = findStudentInClassByLms(studentClass, clean);
+                  if (autoFound) {
+                    setFullName(autoFound.fullName);
+                  }
+                }
+              }}
+              onBlur={e => window.AsianSchoolNormalize && setStudentId(window.AsianSchoolNormalize.normalizeLmsCode(e.target.value))}
+              placeholder="Nhập Mã LMS hoặc 4 số cuối (Ví dụ: 01190002 hoặc 0002)"
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold font-mono-code bg-white text-slate-900"
+            />
+
+            {/* CHỈ BÁO XÁC THỰC 2 LỚP THỜI GIAN THỰC */}
+            {fullName && matchedStudent && (
+              <div className="mt-2 text-xs">
+                {isLmsVerified ? (
+                  <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 font-bold flex items-center space-x-2">
+                    <span className="text-base">✅</span>
+                    <span>ĐÃ XÁC THỰC CHÍNH CHỦ: <strong>{fullName}</strong> (STT {matchedStudent.stt} - Lớp {studentClass}). Sẵn sàng vào thi!</span>
+                  </div>
+                ) : studentId ? (
+                  <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-300 text-rose-950 font-bold flex items-center space-x-2">
+                    <span className="text-base">⛔</span>
+                    <span>MÃ LMS CHƯA KHỚP với học sinh <strong>{fullName}</strong>. Em vui lòng kiểm tra lại thẻ học sinh (Bạn khác không thể vào thi hộ)!</span>
+                  </div>
+                ) : (
+                  <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 font-medium flex items-center space-x-2">
+                    <span className="text-base">🔑</span>
+                    <span>Vui lòng nhập Mã LMS (hoặc 4 số cuối mã) để xác nhận chính chủ trước khi bắt đầu.</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {isManualName && (
+              <div className="mt-2 p-2.5 rounded-xl bg-blue-50 border border-blue-300 text-blue-950 text-xs font-semibold flex items-center space-x-2">
+                <span className="text-base">ℹ️</span>
+                <span>Chế độ Thí sinh bổ sung: Bài làm của em sẽ được ghi nhận và lưu trữ an toàn để Giám thị đối soát.</span>
+              </div>
+            )}
           </div>
 
           {mode === 'exam' && config.codeAllocationMode === 'student_choice' && (

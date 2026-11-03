@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStudent } from '../StudentContext.js';
 import McqQuestion from '../questions/McqQuestion.jsx';
 import TrueFalseQuestion from '../questions/TrueFalseQuestion.jsx';
@@ -10,6 +10,19 @@ export default function ExamScreen() {
   const { grade, mode, examState, assignedCode, activeQuestionIdx, setActiveQuestionIdx,
     setShowSubmitModal, timeLeftStr, practiceItems, examItems, config, elapsedSeconds,
     formatElapsed, showDialog } = useStudent();
+
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const minExamMinutes = (config?.minExamMinutes !== undefined && config?.minExamMinutes !== null) ? Number(config.minExamMinutes) : 15;
   const remainingEarlyLockSeconds = (mode === 'exam' && config?.preventEarlySubmission !== false)
@@ -51,6 +64,16 @@ export default function ExamScreen() {
             <p className="text-xs text-slate-700 font-medium">
               🚫 <strong>Cấm gian lận:</strong> Không chuyển tab/rời toàn màn hình. Vi phạm đến lần thứ 3 bài sẽ bị khóa, giám thị ghi nhận và xử lý theo quy chế.
             </p>
+          </div>
+        )}
+
+        {/* BANNER DỰ PHÒNG NGOẠI TUYẾN KHI MẤT MẠNG INTERNET */}
+        {!isOnline && (
+          <div className="border-2 border-amber-400 bg-amber-50 rounded-2xl p-3.5 text-amber-950 text-xs font-bold flex items-center space-x-2.5 shadow-sm animate-pulse">
+            <span className="text-xl shrink-0">📡</span>
+            <div className="leading-relaxed">
+              <span className="font-black uppercase text-amber-900">CHẾ ĐỘ NGOẠI TUYẾN DỰ PHÒNG:</span> Mạng Internet phòng máy đang tạm gián đoạn. Bài làm của em đang được tự động lưu trữ an toàn từng câu trên máy tính này. Em hãy yên tâm tiếp tục làm bài bình thường!
+            </div>
           </div>
         )}
 
