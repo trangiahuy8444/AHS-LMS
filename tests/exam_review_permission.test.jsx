@@ -125,6 +125,6 @@ describe('Bảo mật xem lại bài thi chính thức & Xác nhận điểm s�
 
     expect(screen.getByText(/EM ĐÃ XÁC NHẬN ĐIỂM SỐ CHÍNH XÁC/i)).toBeTruthy();
     expect(screen.getByText(/ĐÃ CHỐT ĐIỂM THÀNH CÔNG/i)).toBeTruthy();
-    expect(screen.queryByText(/XÁC NHẬN ĐIỂM SỐ CHÍNH XÁC/i)).toBeNull();
+    expect(screen.queryByRole('button', { name: /XÁC NHẬN ĐIỂM SỐ CHÍNH XÁC/i })).toBeNull();
   });
 });
