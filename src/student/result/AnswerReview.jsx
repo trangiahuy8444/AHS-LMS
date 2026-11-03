@@ -37,6 +37,36 @@ export default function AnswerReview() {
             )}
           </div>
 
+          {/* BẢNG TỔNG KẾT ĐIỂM SỐ ĐỐI SOÁT */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+            <div className="bg-white p-3 rounded-2xl border border-blue-200 text-center">
+              <span className="text-[11px] font-bold text-slate-500 uppercase block">Trắc Nghiệm</span>
+              <span className="text-base sm:text-lg font-black text-blue-900">
+                {scoreResult?.mcqPoints !== undefined ? scoreResult.mcqPoints : (scoreResult?.score || 0)} đ
+              </span>
+            </div>
+            <div className="bg-white p-3 rounded-2xl border border-blue-200 text-center">
+              <span className="text-[11px] font-bold text-slate-500 uppercase block">Tự Luận (Thầy Chấm)</span>
+              <span className="text-base sm:text-lg font-black text-indigo-700">
+                {scoreResult?.essayTotal || 0} đ
+              </span>
+            </div>
+            <div className="bg-white p-3 rounded-2xl border border-blue-200 text-center">
+              <span className="text-[11px] font-bold text-slate-500 uppercase block">Tổng Điểm Bài Thi</span>
+              <span className="text-base sm:text-lg font-black text-emerald-700">
+                {scoreResult?.finalScore !== undefined ? scoreResult.finalScore : scoreResult?.score} / 10 đ
+              </span>
+            </div>
+            <div className="bg-white p-3 rounded-2xl border border-blue-200 text-center">
+              <span className="text-[11px] font-bold text-slate-500 uppercase block">Số Câu Đúng</span>
+              <span className="text-base sm:text-lg font-black text-amber-700">
+                {scoreResult?.correctMcq !== undefined
+                  ? `${scoreResult.correctMcq} câu`
+                  : `${((grade === 10 ? currentOfficialExam?.part1_mcq : currentOfficialExam?.mcqQuestions) || []).filter(q => q.correctAnswer !== undefined && examAnswers?.mcq?.[q.num] === q.correctAnswer).length} câu`}
+              </span>
+            </div>
+          </div>
+
           {scoreResult?.scoreConfirmed ? (
             <div className="p-4 bg-emerald-50 border-2 border-emerald-300 rounded-2xl text-emerald-950 text-xs font-bold flex items-center space-x-3">
               <span className="text-2xl">🎉</span>
@@ -50,9 +80,9 @@ export default function AnswerReview() {
               </div>
             </div>
           ) : (
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-white rounded-2xl border border-blue-200">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-white rounded-2xl border border-blue-200 shadow-sm">
               <p className="text-xs text-slate-700 leading-relaxed font-medium">
-                Em đã kiểm tra toàn bộ các câu hỏi trắc nghiệm, đúng/sai, tự luận và xác nhận kết quả điểm số là chính xác?
+                Em vui lòng xem kỹ từng câu hỏi trắc nghiệm (đúng/sai) và phần tự luận được chấm ở dưới. Nếu kết quả chính xác, hãy bấm nút xác nhận chốt điểm.
               </p>
               <button
                 type="button"
@@ -70,32 +100,61 @@ export default function AnswerReview() {
       {/* Danh sách câu hỏi Trắc nghiệm bài thi chính thức */}
       {mode === 'exam' && (
         <div className="space-y-4">
-          <h3 className="font-black text-base text-slate-900 flex items-center space-x-2">
-            <span>📝</span>
-            <span>Chi Tiết Phần Trắc Nghiệm Bài Thi (Mã Đề: {scoreResult?.examCode || currentOfficialExam?.code || '101'})</span>
-          </h3>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
+            <h3 className="font-black text-base text-slate-900 flex items-center space-x-2">
+              <span>📝</span>
+              <span>Chi Tiết Phần Trắc Nghiệm Bài Thi (Mã Đề: {scoreResult?.examCode || currentOfficialExam?.code || '101'})</span>
+            </h3>
+            <span className="text-xs text-slate-500 font-semibold">
+              Ký hiệu: <span className="text-emerald-700 font-bold">✓ Làm đúng</span> • <span className="text-rose-700 font-bold">✗ Làm sai</span>
+            </span>
+          </div>
 
           {((grade === 10 ? currentOfficialExam?.part1_mcq : currentOfficialExam?.mcqQuestions) || []).map((q, idx) => {
             const userChoice = examAnswers?.mcq?.[q.num];
             const isAnswered = userChoice !== undefined;
             const letters = ['A', 'B', 'C', 'D'];
             const userLetter = isAnswered ? letters[userChoice] : null;
+            const mcqRes = scoreResult?.mcqResults?.[q.num];
+            const hasKey = q.correctAnswer !== undefined || mcqRes !== undefined;
+            const isCorrect = mcqRes ? mcqRes.isCorrect : (hasKey && userChoice === q.correctAnswer);
+            const correctAnsIdx = mcqRes?.correctAnswer !== undefined ? mcqRes.correctAnswer : q.correctAnswer;
+            const ptsEarned = isCorrect ? (mcqRes?.pointsEarned || q.points || 0.25) : 0;
 
             return (
               <div
                 key={q.num || idx}
-                className="p-5 rounded-2xl border-2 shadow-sm space-y-2.5 transition bg-white border-slate-200 text-slate-800"
+                className={`p-5 rounded-2xl border-2 shadow-sm space-y-3 transition ${
+                  hasKey
+                    ? (isCorrect
+                        ? 'bg-emerald-50/20 border-emerald-300 text-slate-900 ring-1 ring-emerald-400/20'
+                        : 'bg-rose-50/20 border-rose-300 text-slate-900 ring-1 ring-rose-400/20')
+                    : 'bg-white border-slate-200 text-slate-800'
+                }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-black text-xs text-slate-600 uppercase">
-                    Câu {q.num || (idx + 1)}
+                  <span className="font-black text-xs text-slate-600 uppercase flex items-center space-x-2">
+                    <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-300 text-slate-700 font-mono-code font-bold">
+                      Câu {q.num || (idx + 1)}
+                    </span>
+                    {q.pointsText && <span className="text-slate-400 font-normal">({q.pointsText})</span>}
                   </span>
                   <span
-                    className={`px-3 py-1 rounded-full text-xs font-black ${
-                      !isAnswered ? 'bg-slate-200 text-slate-700' : 'bg-blue-100 text-blue-900 border border-blue-300'
+                    className={`px-3 py-1 rounded-full text-xs font-black shadow-sm ${
+                      !isAnswered
+                        ? 'bg-slate-200 text-slate-700'
+                        : hasKey
+                          ? (isCorrect
+                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center space-x-1'
+                              : 'bg-rose-100 text-rose-800 border border-rose-300 flex items-center space-x-1')
+                          : 'bg-blue-100 text-blue-900 border border-blue-300'
                     }`}
                   >
-                    {!isAnswered ? '— Chưa làm' : `Đã chọn: ${userLetter}`}
+                    {!isAnswered
+                      ? '— Chưa làm (0đ)'
+                      : hasKey
+                        ? (isCorrect ? `✓ LÀM ĐÚNG (+${q.points || 0.25}đ)` : `✗ LÀM SAI (0đ) • Em chọn ${userLetter}`)
+                        : `Đã chọn: ${userLetter}`}
                   </span>
                 </div>
 
@@ -105,25 +164,42 @@ export default function AnswerReview() {
                   {(q.options || []).map((optText, optIdx) => {
                     const letter = letters[optIdx];
                     const isUserSelected = userChoice === optIdx;
+                    const isCorrectOption = hasKey && correctAnsIdx === optIdx;
+
+                    let optStyle = 'bg-white border-slate-200 text-slate-800';
+                    let badgeText = null;
+                    let badgeStyle = '';
+
+                    if (isUserSelected && isCorrectOption) {
+                      optStyle = 'bg-emerald-50 border-emerald-500 text-emerald-950 font-bold ring-2 ring-emerald-500/30';
+                      badgeText = '✓ Em chọn ĐÚNG';
+                      badgeStyle = 'text-emerald-800 bg-emerald-100 border-emerald-300';
+                    } else if (isUserSelected && !isCorrectOption) {
+                      optStyle = 'bg-rose-50 border-rose-400 text-rose-950 font-bold ring-2 ring-rose-500/20';
+                      badgeText = '✗ Em đã chọn (Sai)';
+                      badgeStyle = 'text-rose-800 bg-rose-100 border-rose-300';
+                    } else if (!isUserSelected && isCorrectOption) {
+                      optStyle = 'bg-emerald-50/70 border-emerald-400 text-emerald-900 font-bold border-dashed';
+                      badgeText = '✓ Đáp án đúng';
+                      badgeStyle = 'text-emerald-800 bg-emerald-100 border-emerald-300';
+                    }
 
                     return (
                       <div
                         key={optIdx}
-                        className={`p-3 rounded-xl border-2 flex items-start space-x-2.5 text-xs sm:text-sm transition ${
-                          isUserSelected
-                            ? 'bg-blue-50 border-blue-500 text-blue-950 font-bold ring-1 ring-blue-500/30'
-                            : 'bg-white border-slate-200 text-slate-800'
-                        }`}
+                        className={`p-3.5 rounded-xl border-2 flex items-start space-x-2.5 text-xs sm:text-sm transition ${optStyle}`}
                       >
                         <span className={`w-6 h-6 rounded-lg flex items-center justify-center font-black text-xs shrink-0 border mt-0.5 ${
-                          isUserSelected ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-100 text-slate-700 border-slate-300'
+                          isUserSelected
+                            ? (isCorrectOption ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-rose-600 text-white border-rose-600')
+                            : (isCorrectOption ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-slate-100 text-slate-700 border-slate-300')
                         }`}>
                           {letter}
                         </span>
-                        <span className="flex-1 leading-snug">{optText}</span>
-                        {isUserSelected && (
-                          <span className="shrink-0 text-[11px] font-black text-blue-700 bg-blue-100 px-2 py-0.5 rounded border border-blue-300">
-                            ✓ Em đã chọn
+                        <span className="flex-1 leading-relaxed">{optText}</span>
+                        {badgeText && (
+                          <span className={`shrink-0 text-[11px] font-black px-2 py-0.5 rounded border shadow-sm ${badgeStyle}`}>
+                            {badgeText}
                           </span>
                         )}
                       </div>
@@ -157,19 +233,41 @@ export default function AnswerReview() {
                 {(tf.subQuestions || []).map(sub => {
                   const userVal = examAnswers?.tf?.[tf.num]?.[sub.letter];
                   const isAns = userVal !== undefined;
+                  const tfRes = scoreResult?.tfResults?.[tf.num]?.subResults?.[sub.letter];
+                  const hasSubKey = sub.correctAnswer !== undefined || tfRes !== undefined;
+                  const correctSubVal = tfRes?.correctAnswer !== undefined ? tfRes.correctAnswer : sub.correctAnswer;
+                  const isSubCorrect = tfRes ? tfRes.isCorrect : (hasSubKey && userVal === correctSubVal);
+
                   return (
                     <div
                       key={sub.letter}
-                      className={`p-3 rounded-xl border-2 text-xs flex items-center justify-between ${
-                        isAns ? 'bg-blue-50 border-blue-300 text-blue-950 font-bold' : 'bg-slate-50 border-slate-200 text-slate-700'
+                      className={`p-3.5 rounded-xl border-2 text-xs sm:text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2 transition ${
+                        !isAns
+                          ? 'bg-slate-50 border-slate-200 text-slate-700'
+                          : hasSubKey
+                            ? (isSubCorrect ? 'bg-emerald-50 border-emerald-300 text-emerald-950 font-bold' : 'bg-rose-50 border-rose-300 text-rose-950 font-bold')
+                            : 'bg-blue-50 border-blue-300 text-blue-950 font-bold'
                       }`}
                     >
-                      <span><strong>{sub.letter})</strong> {sub.text}</span>
-                      <span className={`px-2 py-0.5 rounded text-[11px] font-black ${
-                        !isAns ? 'bg-slate-200 text-slate-700' : 'bg-blue-600 text-white'
-                      }`}>
-                        {isAns ? (userVal ? 'Em chọn ĐÚNG' : 'Em chọn SAI') : 'Chưa làm'}
-                      </span>
+                      <span className="leading-relaxed"><strong>{sub.letter})</strong> {sub.text}</span>
+                      <div className="shrink-0 flex items-center space-x-2">
+                        <span className={`px-2.5 py-1 rounded text-xs font-black ${
+                          !isAns
+                            ? 'bg-slate-200 text-slate-700'
+                            : hasSubKey
+                              ? (isSubCorrect ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white')
+                              : 'bg-blue-600 text-white'
+                        }`}>
+                          {isAns ? (userVal ? 'Em chọn: ĐÚNG' : 'Em chọn: SAI') : 'Chưa làm'}
+                        </span>
+                        {isAns && hasSubKey && (
+                          <span className={`text-[11px] font-extrabold px-2 py-0.5 rounded border ${
+                            isSubCorrect ? 'bg-emerald-100 text-emerald-900 border-emerald-300' : 'bg-rose-100 text-rose-900 border-rose-300'
+                          }`}>
+                            {isSubCorrect ? '✓ Đúng (+0.25đ)' : `✕ Sai (Đáp án: ${correctSubVal ? 'ĐÚNG' : 'SAI'})`}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -387,6 +485,19 @@ export default function AnswerReview() {
                     {studentAnswer.trim() ? studentAnswer : <em className="text-slate-400">Học sinh chưa nhập bài làm cho câu hỏi này.</em>}
                   </div>
                 </div>
+
+                {/* Điểm Thầy chấm cho câu tự luận này (nếu đã chấm) */}
+                {mode === 'exam' && scoreResult?.essayScores?.[eq.num] !== undefined && (
+                  <div className="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-3.5 flex items-center justify-between text-xs font-bold text-indigo-950 shadow-sm">
+                    <span className="flex items-center space-x-2">
+                      <span className="text-base">✍️</span>
+                      <span>Điểm Thầy chấm câu này:</span>
+                    </span>
+                    <span className="text-sm font-black text-indigo-800 bg-indigo-100 px-3 py-1 rounded-xl border border-indigo-300">
+                      {scoreResult.essayScores[eq.num]} / {eq.points || 1} điểm
+                    </span>
+                  </div>
+                )}
 
                 {/* ĐÁP ÁN MẪU & RUBRIC CHẤM */}
                 <div className="bg-blue-50/80 border-2 border-blue-300 rounded-2xl p-4 space-y-2">

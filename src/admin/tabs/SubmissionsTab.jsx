@@ -3,10 +3,28 @@ import { useAdmin } from '../AdminContext.js';
 import '../../core/exam-timing.js';
 
 export default function SubmissionsTab() {
-  const { filterGrade, setFilterGrade, filterClass, setFilterClass, filterMode, setFilterMode,
-    filterGraded, setFilterGraded, searchQuery, setSearchQuery, fileInputRef,
-    handleDeleteSubmission, openGradingModal, handleExportCSV, handleExportJSON, handleImportJSON,
-    handleClearAllData, filteredSubmissions } = useAdmin();
+  const {
+    config,
+    filterGrade,
+    setFilterGrade,
+    filterClass,
+    setFilterClass,
+    filterMode,
+    setFilterMode,
+    filterGraded,
+    setFilterGraded,
+    searchQuery,
+    setSearchQuery,
+    fileInputRef,
+    handleDeleteSubmission,
+    openGradingModal,
+    handleExportCSV,
+    handleExportJSON,
+    handleImportJSON,
+    handleClearAllData,
+    filteredSubmissions,
+    handleSetClassReviewMode
+  } = useAdmin();
 
   return (
     <div className="space-y-6">
@@ -79,6 +97,46 @@ export default function SubmissionsTab() {
             />
           </div>
         </div>
+
+        {/* BANNER ĐIỀU PHỐI CHỐT ĐIỂM THEO LỚP ĐANG LỌC */}
+        {filterClass !== 'all' && (() => {
+          const isClassReviewOpen = Boolean(config?.allowStudentReviewOfficialExam || config?.classReviewControl?.[filterClass]);
+          return (
+            <div className="p-3.5 bg-indigo-50/80 border-2 border-indigo-200 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="flex items-center space-x-2">
+                <span className="text-xl">📋</span>
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <span className="font-black text-indigo-950">Chức Năng Xem Bài & Chốt Điểm Lớp {filterClass}:</span>
+                    <span className={`px-2 py-0.5 rounded text-[11px] font-black border ${
+                      isClassReviewOpen
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                        : 'bg-slate-200 text-slate-700 border-slate-300'
+                    }`}>
+                      {isClassReviewOpen ? '🟢 ĐANG MỞ CHO HỌC SINH' : '🔒 ĐANG KHÓA (CHỜ CHẤM XONG)'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-indigo-900/80 mt-0.5 font-medium">
+                    {isClassReviewOpen
+                      ? `Học sinh Lớp ${filterClass} đã có thể vào xem chi tiết bài làm, đáp án và bấm "Xác nhận điểm số chính xác".`
+                      : `Sau khi Thầy hoàn tất chấm bài tự luận cho Lớp ${filterClass}, bấm nút bên phải để mở cho học sinh.`}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleSetClassReviewMode(filterClass, !isClassReviewOpen)}
+                className={`px-4 py-2 rounded-xl font-black text-xs transition shadow-sm flex items-center space-x-1.5 ${
+                  isClassReviewOpen
+                    ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/20'
+                    : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20'
+                }`}
+              >
+                <span>{isClassReviewOpen ? '🔒 Khóa Lại Lớp ' + filterClass : '🔓 Mở Chốt Điểm Lớp ' + filterClass}</span>
+              </button>
+            </div>
+          );
+        })()}
 
         {/* THANH CÔNG CỤ XUẤT NHẬP */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">

@@ -58,7 +58,8 @@
     // Chống nộp bài sớm & Quyền xem lại bài thi chính thức
     preventEarlySubmission: true,
     minExamMinutes: 15, // Thời gian tối thiểu (phút) được phép nộp bài thi
-    allowStudentReviewOfficialExam: false, // Mặc định khóa xem lại chi tiết bài thi chính thức
+    allowStudentReviewOfficialExam: false, // Mặc định khóa xem lại chi tiết bài thi chính thức (toàn trường)
+    classReviewControl: {}, // Điều khiển mở xem lại bài làm và chốt điểm theo từng lớp: { '8/19': true, '8/20': false, ... }
     
     // Cấu hình Google Drive Webhook & Vòng đời lưu trữ (Retention)
     googleDriveWebhookUrl: '', // URL Web App Google Apps Script kết nối Google Drive / Sheets
@@ -311,6 +312,50 @@
       });
       const res = this.saveConfig({ classAccessControl: currentMap });
       this.logAudit('Đóng tất cả ca thi', 'Chuyển toàn bộ các lớp về chế độ Ôn tập đề cương');
+      return res;
+    }
+
+    // --- PHÂN QUYỀN XEM LẠI BÀI THI & CHỐT ĐIỂM THEO LỚP (CLASS REVIEW CONTROL) ---
+
+    isClassReviewAllowed(studentClass) {
+      const cfg = this.getConfig();
+      if (cfg.allowStudentReviewOfficialExam) return true; // Cờ mở toàn trường
+      if (studentClass && cfg.classReviewControl && cfg.classReviewControl[studentClass] === true) {
+        return true;
+      }
+      return false;
+    }
+
+    setClassReviewMode(studentClass, isAllowed) {
+      const cfg = this.getConfig();
+      const currentMap = { ...(cfg.classReviewControl || {}) };
+      currentMap[studentClass] = Boolean(isAllowed);
+      const res = this.saveConfig({ classReviewControl: currentMap });
+      this.logAudit('Đổi quyền xem bài theo lớp', `Lớp ${studentClass} ${isAllowed ? 'MỞ' : 'KHÓA'} chức năng xem lại bài và chốt điểm`);
+      return res;
+    }
+
+    setGradeReviewMode(grade, isAllowed, classesList = []) {
+      const cfg = this.getConfig();
+      const currentMap = { ...(cfg.classReviewControl || {}) };
+      classesList.forEach(cls => {
+        currentMap[cls] = Boolean(isAllowed);
+      });
+      const res = this.saveConfig({ classReviewControl: currentMap });
+      this.logAudit('Đổi quyền xem bài theo khối', `Khối ${grade} ${isAllowed ? 'MỞ' : 'KHÓA'} chức năng xem lại bài và chốt điểm cho ${classesList.length} lớp`);
+      return res;
+    }
+
+    setAllClassesReviewMode(isAllowed, classesList = []) {
+      const currentMap = {};
+      classesList.forEach(cls => {
+        currentMap[cls] = Boolean(isAllowed);
+      });
+      const res = this.saveConfig({
+        allowStudentReviewOfficialExam: Boolean(isAllowed),
+        classReviewControl: currentMap
+      });
+      this.logAudit('Đổi quyền xem bài toàn trường', `${isAllowed ? 'MỞ' : 'KHÓA'} chức năng xem lại bài và chốt điểm cho toàn bộ các lớp`);
       return res;
     }
 
@@ -633,6 +678,8 @@
           durationFormatted: `${mins} phút ${secs < 10 ? '0' : ''}${secs} giây`,
           // Chỉ ghi độ trễ khi đủ mốc máy chủ, thời lượng và giờ được cấp của chính lượt thi.
           overtimeSeconds: timing.known ? timing.lateSeconds : null,
+          mcqResults: r.mcqResults,
+          tfResults: r.tfResults,
           autoGradedAt: new Date().toISOString()
         };
         list[idx] = { ...sub, ...update };

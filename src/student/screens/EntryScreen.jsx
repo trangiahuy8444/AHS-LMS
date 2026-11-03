@@ -121,42 +121,73 @@ export default function EntryScreen() {
             </button>
 
             {/* NÚT XEM LẠI BÀI THI & CHỐT ĐIỂM */}
-            <button
-              type="button"
-              onClick={() => {
-                if (!config?.allowStudentReviewOfficialExam) {
-                  showDialog(
-                    'Chức Năng Chưa Mở ⏳',
-                    'Thầy Trần Gia Huy hiện đang chấm bài và chưa mở chức năng xem lại bài làm.\n\nEm vui lòng chờ Thầy thông báo sau khi hoàn tất chấm điểm nhé!',
-                    'info'
-                  );
-                  return;
-                }
-                setMode('review');
-              }}
-              className={`p-3.5 sm:p-4 rounded-2xl border-2 text-left transition relative ${
-                mode === 'review'
-                  ? 'border-indigo-600 bg-indigo-50/70 shadow-sm ring-2 ring-indigo-500/20'
-                  : 'border-slate-200 hover:border-slate-300 bg-slate-50'
-              }`}
-            >
-              <div className="flex items-center space-x-2">
-                <span className="text-2xl">📋</span>
-                <span className="font-bold text-sm text-indigo-950">XEM BÀI & CHỐT ĐIỂM</span>
-              </div>
-              <p className="text-xs text-slate-600 mt-1 font-medium leading-relaxed">
-                Xem lại bài thi đã nộp, đối soát điểm trắc nghiệm, tự luận và chốt điểm chính thức.
-              </p>
-              {config?.allowStudentReviewOfficialExam ? (
-                <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                  🟢 Đang mở xem bài
-                </span>
-              ) : (
-                <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700 border border-slate-300">
-                  🔒 Đang chờ chấm
-                </span>
-              )}
-            </button>
+            {(() => {
+              const isAnyReviewOpen = Boolean(
+                config?.allowStudentReviewOfficialExam ||
+                (config?.classReviewControl && Object.values(config.classReviewControl).some(Boolean))
+              );
+              const isCurrentClassReviewOpen = Boolean(
+                config?.allowStudentReviewOfficialExam ||
+                (studentClass && config?.classReviewControl && config.classReviewControl[studentClass] === true)
+              );
+
+              return (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (studentClass && !isCurrentClassReviewOpen) {
+                      showDialog(
+                        'Chức Năng Chưa Mở ⏳',
+                        `Thầy Trần Gia Huy hiện đang chấm bài tự luận cho Lớp ${studentClass} và chưa mở chức năng xem lại bài làm.\n\nEm vui lòng chờ Thầy thông báo sau khi lớp mình hoàn tất chấm điểm nhé!`,
+                        'info'
+                      );
+                      return;
+                    }
+                    if (!studentClass && !isAnyReviewOpen) {
+                      showDialog(
+                        'Chức Năng Chưa Mở ⏳',
+                        'Thầy Trần Gia Huy hiện đang chấm bài và chưa mở chức năng xem lại bài làm.\n\nEm vui lòng chờ Thầy thông báo sau khi hoàn tất chấm điểm nhé!',
+                        'info'
+                      );
+                      return;
+                    }
+                    setMode('review');
+                  }}
+                  className={`p-3.5 sm:p-4 rounded-2xl border-2 text-left transition relative ${
+                    mode === 'review'
+                      ? 'border-indigo-600 bg-indigo-50/70 shadow-sm ring-2 ring-indigo-500/20'
+                      : 'border-slate-200 hover:border-slate-300 bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <span className="text-2xl">📋</span>
+                    <span className="font-bold text-sm text-indigo-950">XEM BÀI & CHỐT ĐIỂM</span>
+                  </div>
+                  <p className="text-xs text-slate-600 mt-1 font-medium leading-relaxed">
+                    Xem lại bài thi đã nộp, đối soát điểm trắc nghiệm, tự luận và chốt điểm chính thức.
+                  </p>
+                  {studentClass ? (
+                    isCurrentClassReviewOpen ? (
+                      <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                        🟢 Lớp {studentClass}: Đang mở xem bài
+                      </span>
+                    ) : (
+                      <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700 border border-slate-300">
+                        🔒 Lớp {studentClass}: Chờ chấm bài
+                      </span>
+                    )
+                  ) : isAnyReviewOpen ? (
+                    <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                      🟢 Mở theo từng lớp
+                    </span>
+                  ) : (
+                    <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700 border border-slate-300">
+                      🔒 Đang chờ chấm
+                    </span>
+                  )}
+                </button>
+              );
+            })()}
           </div>
         </div>
 

@@ -855,8 +855,11 @@
 
     const cfgSnap = await db.collection('exam_config').doc('global_config').get();
     const cfg = cfgSnap.exists ? cfgSnap.data() : {};
-    if (!cfg.allowStudentReviewOfficialExam) {
-      throw new Error('Chức năng xem lại bài làm và chốt điểm hiện chưa được mở. Em vui lòng chờ Thầy Trần Gia Huy thông báo nhé!');
+    const isReviewAllowed = cfg.allowStudentReviewOfficialExam
+      || (data.studentClass && cfg.classReviewControl && cfg.classReviewControl[data.studentClass] === true);
+    if (!isReviewAllowed) {
+      const classInfo = data.studentClass ? ` cho Lớp ${data.studentClass}` : '';
+      throw new Error(`Chức năng xem lại bài làm và chốt điểm${classInfo} hiện chưa được mở. Em vui lòng chờ Thầy Trần Gia Huy thông báo sau khi hoàn tất chấm bài nhé!`);
     }
 
     const scopedId = attemptIdFor(grade, data.studentClass, key);
@@ -993,13 +996,36 @@
     let examData = null;
     if (subDoc.examCode) {
       const examDocId = `g${grade}_${subDoc.examCode}`;
+      // 1. Thử đọc từ exam_bank để có đầy đủ đáp án đối chiếu đúng/sai
       try {
-        const examSnap = await db.collection('exam_public').doc(examDocId).get();
-        if (examSnap.exists) {
-          examData = examSnap.data();
+        const bankSnap = await db.collection('exam_bank').doc(examDocId).get();
+        if (bankSnap.exists) {
+          const bData = bankSnap.data();
+          examData = bData.exam || bData;
         }
       } catch (e) {
-        console.warn('[Firestore] Không tải được exam_public:', e.message);
+        /* Bỏ qua nếu rules chưa cho phép đọc exam_bank */
+      }
+
+      // 2. Fallback đọc từ exam_public
+      if (!examData) {
+        try {
+          const examSnap = await db.collection('exam_public').doc(examDocId).get();
+          if (examSnap.exists) {
+            const pData = examSnap.data();
+            examData = pData.exam || pData;
+          }
+        } catch (e) {
+          console.warn('[Firestore] Không tải được exam_public:', e.message);
+        }
+      }
+
+      // 3. Fallback bộ nhớ cục bộ
+      if (!examData && typeof window !== 'undefined') {
+        const localObj = window['EXAM_DATA_G' + grade];
+        if (localObj?.officialExams?.[subDoc.examCode]) {
+          examData = localObj.officialExams[subDoc.examCode];
+        }
       }
     }
 

@@ -256,7 +256,10 @@ export function useAdminController() {
     handleCleanStaleSessions,
     handleDeleteSubmission,
     handleClearPracticeClass,
-    handleDeletePracticeSubmission
+    handleDeletePracticeSubmission,
+    handleSetClassReviewMode,
+    handleSetGradeReviewMode,
+    handleSetAllClassReviewMode
   } = createClassAccessActions(s);
   const { openGradingModal, handleSaveGrading } = createGradingActions(s);
   const { handleExportCSV, handleExportJSON, handleImportJSON, handleClearAllData } = createExportActions(s);
@@ -439,6 +442,9 @@ export function useAdminController() {
     handleDeleteSubmission,
     handleClearPracticeClass,
     handleDeletePracticeSubmission,
+    handleSetClassReviewMode,
+    handleSetGradeReviewMode,
+    handleSetAllClassReviewMode,
     openGradingModal,
     handleSaveGrading,
     handleExportCSV,

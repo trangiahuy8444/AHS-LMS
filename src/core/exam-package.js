@@ -66,23 +66,49 @@
     let mcqPoints = 0;
     let correctMcq = 0;
     let tfPoints = 0;
+    const mcqResults = {};
+    const tfResults = {};
 
     mcqList(exam).forEach(q => {
-      if (mcqAnswers[q.num] === q.correctAnswer) {
+      const isCorrect = mcqAnswers[q.num] === q.correctAnswer;
+      if (isCorrect) {
         correctMcq++;
         mcqPoints += (q.points || 0.25);
       }
+      mcqResults[q.num] = {
+        isCorrect,
+        userChoice: mcqAnswers[q.num],
+        correctAnswer: q.correctAnswer,
+        answerLetter: q.answerLetter || (Number.isInteger(q.correctAnswer) ? String.fromCharCode(65 + q.correctAnswer) : null),
+        pointsEarned: isCorrect ? (q.points || 0.25) : 0
+      };
     });
 
     tfList(exam).forEach(q => {
       const userSub = tfAnswers[q.num] || {};
       const subs = q.subQuestions || [];
+      const subResults = {};
+      subs.forEach(sub => {
+        const isSubCorrect = userSub[sub.letter] === sub.correctAnswer;
+        subResults[sub.letter] = {
+          isCorrect: isSubCorrect,
+          userChoice: userSub[sub.letter],
+          correctAnswer: sub.correctAnswer
+        };
+      });
       const correctCount = subs.filter(sub => userSub[sub.letter] === sub.correctAnswer).length;
+      let earned = 0;
       if (opts.tfScoringPolicy === 'per_statement') {
-        tfPoints += correctCount * 0.25;
+        earned = correctCount * 0.25;
       } else {
-        tfPoints += (q.points || 1) * (TF_COEFFICIENTS[correctCount] || 0);
+        earned = (q.points || 1) * (TF_COEFFICIENTS[correctCount] || 0);
       }
+      tfPoints += earned;
+      tfResults[q.num] = {
+        subResults,
+        correctCount,
+        pointsEarned: earned
+      };
     });
 
     const maxPoints = maxObjectivePoints(exam);
@@ -92,7 +118,9 @@
       totalMcq: mcqList(exam).length,
       mcqPoints: objectivePoints,
       tfPoints: round2(tfPoints),
-      maxMcqPoints: maxPoints
+      maxMcqPoints: maxPoints,
+      mcqResults,
+      tfResults
     };
   }
 

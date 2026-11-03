@@ -30,6 +30,52 @@ export function createClassAccessActions(s) {
     );
   };
 
+  // --- MỞ/KHÓA XEM LẠI BÀI THI & CHỐT ĐIỂM THEO LỚP ---
+
+  const handleSetClassReviewMode = (cls, isAllowed) => {
+    if (window.AsianSchoolStorage && window.AsianSchoolStorage.setClassReviewMode) {
+      window.AsianSchoolStorage.setClassReviewMode(cls, isAllowed);
+      setConfig(window.AsianSchoolStorage.getConfig());
+      showToast(
+        isAllowed
+          ? `Đã MỞ quyền xem bài & chốt điểm cho học sinh Lớp ${cls}!`
+          : `Đã KHÓA quyền xem bài của Lớp ${cls}.`,
+        'success',
+        isAllowed ? `Lớp ${cls} 🔓` : `Lớp ${cls} 🔒`
+      );
+    }
+  };
+
+  const handleSetGradeReviewMode = (grade, isAllowed, classesList) => {
+    const list = classesList || (s.ALL_CLASSES_BY_GRADE && s.ALL_CLASSES_BY_GRADE[grade]) || [];
+    if (window.AsianSchoolStorage && window.AsianSchoolStorage.setGradeReviewMode) {
+      window.AsianSchoolStorage.setGradeReviewMode(grade, isAllowed, list);
+      setConfig(window.AsianSchoolStorage.getConfig());
+      showToast(
+        isAllowed
+          ? `Đã MỞ chốt điểm cho toàn bộ ${list.length} lớp Khối ${grade}!`
+          : `Đã KHÓA chốt điểm cho Khối ${grade}.`,
+        'success',
+        `Khối ${grade}`
+      );
+    }
+  };
+
+  const handleSetAllClassReviewMode = (isAllowed, classesList) => {
+    const list = classesList || Object.values(s.ALL_CLASSES_BY_GRADE || {}).flat();
+    if (window.AsianSchoolStorage && window.AsianSchoolStorage.setAllClassesReviewMode) {
+      window.AsianSchoolStorage.setAllClassesReviewMode(isAllowed, list);
+      setConfig(window.AsianSchoolStorage.getConfig());
+      showToast(
+        isAllowed
+          ? 'Đã MỞ chức năng xem bài & chốt điểm cho TOÀN BỘ CÁC LỚP!'
+          : 'Đã KHÓA chức năng xem bài & chốt điểm cho toàn bộ các lớp.',
+        'success',
+        isAllowed ? 'Mở Chốt Điểm Toàn Trường 🔓' : 'Khóa Chốt Điểm Toàn Trường 🔒'
+      );
+    }
+  };
+
   const handleRemoveCandidate = (sessionId, studentName) => {
     showDialog(
       'Xóa Thí Sinh Khỏi Phòng Thi 🗑️',
@@ -127,6 +173,9 @@ export function createClassAccessActions(s) {
     handleCleanStaleSessions,
     handleDeleteSubmission,
     handleClearPracticeClass,
-    handleDeletePracticeSubmission
+    handleDeletePracticeSubmission,
+    handleSetClassReviewMode,
+    handleSetGradeReviewMode,
+    handleSetAllClassReviewMode
   };
 }

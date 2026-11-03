@@ -362,6 +362,19 @@ export function createStartActions(s) {
       return;
     }
 
+    const isClassAllowed = Boolean(
+      config?.allowStudentReviewOfficialExam ||
+      (studentClass && config?.classReviewControl && config.classReviewControl[studentClass] === true)
+    );
+    if (!isClassAllowed) {
+      showDialog(
+        `Lớp ${studentClass || ''} Chưa Mở Xem Bài ⏳`,
+        `Thầy Trần Gia Huy hiện đang chấm bài tự luận cho Lớp ${studentClass || 'của em'}.\n\nSau khi Thầy hoàn tất chấm điểm sẽ mở chức năng để lớp mình đối soát và chốt điểm nhé!`,
+        'info'
+      );
+      return;
+    }
+
     setIsContactingServer(true);
     try {
       let result = null;
@@ -417,6 +430,8 @@ export function createStartActions(s) {
         score: mcqPoints,
         mcqPoints,
         correctMcq: sub.correctMcq,
+        mcqResults: sub.mcqResults || {},
+        tfResults: sub.tfResults || {},
         essayScores: sub.essayScores || {},
         essayTotal: sub.essayTotal || 0,
         finalScore: sub.finalScore !== undefined ? sub.finalScore : mcqPoints,

@@ -6,8 +6,14 @@ import AnswerReview from '../result/AnswerReview.jsx';
 // 4. MÀN HÌNH KẾT QUẢ BÀI LÀM (CHUẨN TƯƠNG PHẢN, CHỤP ẢNH TÊN CHUẨN, MỞ ĐÁP ÁN TỰ LUẬN)
 export default function ResultScreen() {
   const { mode, examState, scoreResult, isCapturing, handleCaptureScreenshot, handleRestartPractice,
-    config } = useStudent();
+    config, studentClass } = useStudent();
   const [showExamReview, setShowExamReview] = useState(false);
+
+  const isReviewAllowed = Boolean(
+    config?.allowStudentReviewOfficialExam ||
+    (studentClass && config?.classReviewControl && config.classReviewControl[studentClass] === true) ||
+    scoreResult?.isOfficialReview
+  );
 
   if (!(examState === 'submitted' && scoreResult)) return null;
 
@@ -67,7 +73,7 @@ export default function ResultScreen() {
       <div className="min-w-0">
         {mode === 'practice' ? (
           <AnswerReview />
-        ) : config?.allowStudentReviewOfficialExam ? (
+        ) : isReviewAllowed ? (
           (showExamReview || scoreResult?.isOfficialReview) ? (
             <div className="space-y-4">
               <div className="flex items-center justify-between bg-white p-4 rounded-2xl border-2 border-blue-200 shadow-sm">
@@ -97,7 +103,7 @@ export default function ResultScreen() {
                 🔓
               </div>
               <h3 className="text-base sm:text-lg font-black text-blue-950 uppercase">
-                Giáo Viên Đã Mở Quyền Xem Lại Bài Thi
+                Giáo Viên Đã Mở Quyền Xem Lại Bài Thi {studentClass ? `(Lớp ${studentClass})` : ''}
               </h3>
               <p className="text-slate-600 text-xs sm:text-sm max-w-md mx-auto leading-relaxed font-medium">
                 Thầy đã mở chức năng đối soát bài làm. Em hãy mở xem lại toàn bộ câu hỏi và đáp án để chốt điểm số chính xác của mình.
@@ -125,7 +131,7 @@ export default function ResultScreen() {
             </p>
             <div className="inline-flex items-center space-x-2 text-xs font-bold text-amber-800 bg-amber-50 border border-amber-300 px-4 py-2 rounded-xl">
               <span>⏳</span>
-              <span>Trạng thái: Chờ Thầy mở quyền xem lại bài thi</span>
+              <span>Trạng thái: Chờ Thầy mở quyền xem lại bài thi {studentClass ? `(Lớp ${studentClass})` : ''}</span>
             </div>
           </div>
         )}
