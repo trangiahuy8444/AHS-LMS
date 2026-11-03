@@ -33,8 +33,8 @@ function App() {
         {/* HEADER CHÍNH — NỀN TRẮNG SÁNG, LOGO TO RÕ, ĐỘ TƯƠNG PHẢN CAO, RESPONSIVE ĐA THIẾT BỊ */}
         <StudentHeader />
 
-        {/* NỘI DUNG CHÍNH — TRÀN VIỀN EDGE-TO-EDGE CHUẨN ASIAN SCHOOL */}
-        <main className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 py-5 sm:py-6">
+        {/* NỘI DUNG CHÍNH */}
+        <main className="max-w-7xl mx-auto px-4 py-6 sm:py-8">
         
           {/* 1. MÀN HÌNH CHỌN CHẾ ĐỘ & ĐĂNG KÝ VÀO PHÒNG LÀM BÀI */}
           <EntryScreen />
