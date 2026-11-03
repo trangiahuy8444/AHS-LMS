@@ -31,8 +31,8 @@ function AdminApp() {
       <div className="min-h-screen flex flex-col bg-slate-100 text-slate-900">
       
         {/* HEADER CHÍNH CHUẨN ASIAN SCHOOL */}
-        <header className="bg-[#1e3a8a] text-white shadow-md sticky top-0 z-40 border-b-2 border-amber-400 no-print">
-          <div className="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+        <header className="bg-[#1e3a8a] text-white shadow-md sticky top-0 z-40 border-b-2 border-amber-400 no-print w-full">
+          <div className="w-full px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center space-x-3">
               <div className="bg-white p-1 rounded-2xl shadow-sm">
                 <img
@@ -78,7 +78,7 @@ function AdminApp() {
           </div>
 
           {/* THANH ĐIỀU HƯỚNG 6 TABS */}
-          <div className="max-w-7xl mx-auto px-4 flex items-center space-x-1 overflow-x-auto border-t border-blue-900/80">
+          <div className="w-full px-4 sm:px-6 lg:px-8 flex items-center space-x-1 overflow-x-auto border-t border-blue-900/80">
             <button
               type="button"
               onClick={() => setActiveTab('live')}
@@ -165,7 +165,7 @@ function AdminApp() {
           </div>
         </header>
 
-        <main className="max-w-7xl mx-auto px-4 py-6 flex-1 w-full print:max-w-none print:p-0 print:m-0">
+        <main className="w-full px-4 sm:px-6 lg:px-8 py-6 flex-1 print:max-w-none print:p-0 print:m-0">
         
           {/* TAB 1: GIÁM SÁT TRỰC TIẾP & ĐIỀU KHIỂN GIÁM THỊ */}
           {activeTab === 'live' && <LiveTab />}

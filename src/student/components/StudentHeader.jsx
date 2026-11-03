@@ -6,8 +6,8 @@ export default function StudentHeader() {
   const { mode, examState, timeLeftStr, violations, elapsedSeconds, formatElapsed, config } = useStudent();
 
   return (
-    <header className="border-b bg-white border-slate-200 sticky top-0 z-30 shadow-sm backdrop-blur">
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2">
+    <header className="border-b bg-white border-slate-200 sticky top-0 z-30 shadow-sm backdrop-blur w-full">
+      <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 py-2.5 sm:py-3 flex items-center justify-between gap-2">
         <div className="flex items-center space-x-2 sm:space-x-3.5 min-w-0">
           <img
             src={window.ASIAN_SCHOOL_LOGO_BASE64 || "../assets/logo_asian_school.png"}
