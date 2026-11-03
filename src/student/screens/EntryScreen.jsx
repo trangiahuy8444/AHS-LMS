@@ -187,14 +187,14 @@ export default function EntryScreen() {
         <div className="space-y-4 pt-2 border-t border-slate-200">
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-              Họ và tên học sinh <span className="text-red-500">*</span>
+              {mode === 'review' ? 'Họ và tên (Tự động nạp từ bài thi)' : 'Họ và tên học sinh'} {mode !== 'review' && <span className="text-red-500">*</span>}
             </label>
             <input
               type="text"
               value={fullName}
               onChange={e => setFullName(e.target.value)}
               onBlur={e => window.AsianSchoolNormalize && setFullName(window.AsianSchoolNormalize.normalizeStudentName(e.target.value))}
-              placeholder="Ví dụ: Nguyễn Văn An"
+              placeholder={mode === 'review' ? 'Họ tên sẽ tự động nạp từ bài thi cũ...' : 'Ví dụ: Nguyễn Văn An'}
               className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold bg-white text-slate-900"
             />
           </div>

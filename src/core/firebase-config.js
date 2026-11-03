@@ -858,25 +858,126 @@
     let subDoc = null;
     let subId = null;
 
+    // 1. Danh sách các candidate submission ID khả dĩ (ưu tiên lớp hiện tại, gạch ngang, legacy)
     const candidateIds = [
       `${scopedId}_1`,
       `${scopedId}_2`,
+      `g${grade}_${String(data.studentClass || '').replace(/[^a-zA-Z0-9]/g, '-')}_${key}_1`,
+      `g${grade}_${String(data.studentClass || '').replace(/[^a-zA-Z0-9]/g, '-')}_${key}_2`,
       `${legacyId}_1`,
       `${legacyId}_2`
     ];
+
+    // Thêm các lớp thường gặp trong khối nếu học sinh chọn nhầm lớp
+    const commonClasses = grade === 8
+      ? ['8/19', '8/20', '8/21', '8/22', '8/23', '8/24', '8/25']
+      : (grade === 9
+          ? ['9/15', '9/16', '9/17', '9/18', '9/19', '9/20']
+          : ['10/11', '10/12', '10/13', '10/14', '10/15', '10/16']);
+
+    for (const c of commonClasses) {
+      if (c !== data.studentClass) {
+        candidateIds.push(`${attemptIdFor(grade, c, key)}_1`);
+      }
+    }
 
     for (const candId of candidateIds) {
       try {
         const snap = await db.collection('submissions').doc(candId).get();
         if (snap.exists) {
           const d = snap.data();
-          if (!data.studentClass || !d.studentClass || d.studentClass === data.studentClass) {
-            subDoc = d;
-            subId = candId;
-            break;
+          subDoc = d;
+          subId = candId;
+          break;
+        }
+      } catch (e) { /* bỏ qua lỗi permission hoặc không tồn tại */ }
+    }
+
+    // 2. Nếu chưa thấy trong submissions, kiểm tra exam_attempts để lấy thông tin lượt thi gốc
+    if (!subDoc) {
+      const candAttemptIds = [
+        scopedId,
+        `g${grade}_${String(data.studentClass || '').replace(/[^a-zA-Z0-9]/g, '-')}_${key}`,
+        legacyId
+      ];
+      for (const c of commonClasses) {
+        candAttemptIds.push(attemptIdFor(grade, c, key));
+      }
+
+      for (const attId of candAttemptIds) {
+        try {
+          const aSnap = await db.collection('exam_attempts').doc(attId).get();
+          if (aSnap.exists) {
+            const att = aSnap.data();
+            const attClass = att.studentClass || data.studentClass;
+            const extraCandSubIds = [
+              `${attemptIdFor(grade, attClass, key)}_${att.attemptsUsed || 1}`,
+              `${attId}_${att.attemptsUsed || 1}`,
+              `${attId}_1`,
+              `${attId}_2`
+            ];
+            for (const sId of extraCandSubIds) {
+              try {
+                const subSnap = await db.collection('submissions').doc(sId).get();
+                if (subSnap.exists) {
+                  subDoc = subSnap.data();
+                  subId = sId;
+                  break;
+                }
+              } catch (e) {}
+            }
+            if (subDoc) break;
+
+            // Nếu attempt có submitted = true nhưng bản ghi submissions chưa có hoặc bị chặn quyền:
+            // Phục hồi an toàn từ attempt để học sinh vào được trang chốt điểm mà không bị lỗi chặn
+            if (att.submitted) {
+              subDoc = {
+                id: `${attId}_${att.attemptsUsed || 1}`,
+                attemptId: attId,
+                grade: Number(att.grade) || grade,
+                studentClass: att.studentClass || data.studentClass,
+                studentId: att.studentId || key,
+                fullName: att.fullName || data.fullName || 'Học sinh',
+                examCode: att.examCode || '101',
+                attemptNumber: att.attemptsUsed || 1,
+                violations: att.violations || 0,
+                durationFormatted: att.durationMinutes ? `${att.durationMinutes} phút` : '45 phút',
+                submittedAt: att.submittedAt ? (typeof att.submittedAt.toDate === 'function' ? att.submittedAt.toDate().toISOString() : String(att.submittedAt)) : new Date().toISOString(),
+                isGraded: false,
+                mcqPoints: 0,
+                finalScore: 0,
+                essayScores: {},
+                essayTotal: 0,
+                teacherFeedback: '',
+                scoreConfirmed: false,
+                answers: { mcq: {}, tf: {}, essay: {} }
+              };
+              subId = subDoc.id;
+              break;
+            }
+          }
+        } catch (e) {}
+      }
+    }
+
+    // 3. Nếu vẫn chưa thấy, query theo studentId trong submissions (nếu rules cho phép)
+    if (!subDoc) {
+      try {
+        const querySnap = await db.collection('submissions')
+          .where('grade', '==', grade)
+          .where('studentId', '==', key)
+          .get();
+        if (!querySnap.empty) {
+          const matchDoc = querySnap.docs.find(d => {
+            const dataDoc = d.data();
+            return !data.studentClass || dataDoc.studentClass === data.studentClass;
+          }) || querySnap.docs[0];
+          if (matchDoc) {
+            subDoc = matchDoc.data();
+            subId = matchDoc.id;
           }
         }
-      } catch (e) { /* bỏ qua */ }
+      } catch (e) { /* bỏ qua lỗi query */ }
     }
 
     if (!subDoc) {

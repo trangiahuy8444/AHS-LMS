@@ -366,19 +366,29 @@ export function createStartActions(s) {
     try {
       let result = null;
       if (window.AsianSchoolCloud && window.AsianSchoolCloud.lookupSubmissionForReview) {
-        result = await window.AsianSchoolCloud.lookupSubmissionForReview({
-          grade,
-          studentClass,
-          studentId,
-          fullName: s.fullName
-        });
-      } else if (window.AsianSchoolStorage && window.AsianSchoolStorage.lookupLocalSubmission) {
-        const local = window.AsianSchoolStorage.lookupLocalSubmission(grade, studentClass, studentId);
-        if (local) result = { submission: local, exam: null, subId: local.id };
+        try {
+          result = await window.AsianSchoolCloud.lookupSubmissionForReview({
+            grade,
+            studentClass,
+            studentId,
+            fullName: s.fullName
+          });
+        } catch (cloudErr) {
+          console.warn('[ReviewLookup] Cloud lookup:', cloudErr.message);
+        }
+      }
+
+      // Fallback tìm bài trong storage nếu máy chủ chưa trả về hoặc làm bài cục bộ
+      if (!result && window.AsianSchoolStorage && window.AsianSchoolStorage.lookupLocalSubmission) {
+        const local = window.AsianSchoolStorage.lookupLocalSubmission(grade, studentClass, studentId)
+          || window.AsianSchoolStorage.lookupLocalSubmission(grade, null, studentId);
+        if (local) {
+          result = { submission: local, exam: null, subId: local.id };
+        }
       }
 
       if (!result || !result.submission) {
-        throw new Error(`Không tìm thấy bài thi của Mã LMS ${studentId} (Lớp ${studentClass}).`);
+        throw new Error(`Không tìm thấy bài thi của Mã LMS ${studentId} (Lớp ${studentClass}). Em vui lòng kiểm tra lại đúng Khối, Lớp và Mã LMS nhé!`);
       }
 
       const sub = result.submission;
@@ -388,6 +398,7 @@ export function createStartActions(s) {
       if (setExamAnswers) setExamAnswers(sub.answers || { mcq: {}, tf: {}, essay: {} });
       if (s.setAssignedCode) s.setAssignedCode(sub.examCode || '101');
       if (s.setFullName && sub.fullName) s.setFullName(sub.fullName);
+      if (s.setStudentClass && sub.studentClass) s.setStudentClass(sub.studentClass);
 
       const mcqPoints = sub.mcqPoints !== undefined
         ? sub.mcqPoints

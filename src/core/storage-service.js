@@ -681,9 +681,19 @@
     lookupLocalSubmission(grade, studentClass, studentId) {
       const list = this.getSubmissions();
       const normId = String(studentId || '').replace(/\D/g, '');
+      if (!normId) return null;
+      // 1. Ưu tiên tìm đúng lớp
+      if (studentClass) {
+        const exact = list.find(s =>
+          Number(s.grade) === Number(grade) &&
+          String(s.studentClass || '').trim() === String(studentClass || '').trim() &&
+          String(s.studentId || '').replace(/\D/g, '') === normId
+        );
+        if (exact) return exact;
+      }
+      // 2. Tìm theo mã LMS trong cùng khối (dành cho trường hợp học sinh chọn nhầm lớp)
       return list.find(s =>
         Number(s.grade) === Number(grade) &&
-        String(s.studentClass || '').trim() === String(studentClass || '').trim() &&
         String(s.studentId || '').replace(/\D/g, '') === normId
       ) || null;
     }
