@@ -3,7 +3,8 @@ import { useAdmin } from '../AdminContext.js';
 
 // LƯỢT THI CHÍNH THỨC THEO MÃ LMS
 export default function AttemptsCard() {
-  const { maxExamAttempts, setMaxExamAttempts, attemptGrade, setAttemptGrade, attemptLms,
+  const { maxExamAttempts, setMaxExamAttempts, attemptGrade, setAttemptGrade,
+    attemptClass, setAttemptClass, ALL_CLASSES_BY_GRADE, attemptLms,
     setAttemptLms, attemptStatus, handleLookupAttempt, handleGrantAttempt, handleSaveMaxAttempts } = useAdmin();
 
   return (
@@ -32,12 +33,22 @@ export default function AttemptsCard() {
       <div className="flex flex-wrap items-end gap-2 border-t border-slate-100 pt-4">
         <select
           value={attemptGrade}
-          onChange={e => setAttemptGrade(e.target.value)}
+          onChange={e => { setAttemptGrade(e.target.value); if (setAttemptClass) setAttemptClass(''); }}
           className="bg-slate-50 border-2 border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900"
         >
           <option value="8">Khối 8</option>
           <option value="9">Khối 9</option>
           <option value="10">Khối 10</option>
+        </select>
+        <select
+          value={attemptClass || ''}
+          onChange={e => setAttemptClass && setAttemptClass(e.target.value)}
+          className="bg-slate-50 border-2 border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900"
+        >
+          <option value="">Tất cả lớp (Khối {attemptGrade})</option>
+          {((ALL_CLASSES_BY_GRADE && ALL_CLASSES_BY_GRADE[attemptGrade]) || []).map(cls => (
+            <option key={cls} value={cls}>Lớp {cls}</option>
+          ))}
         </select>
         <input
           type="text"

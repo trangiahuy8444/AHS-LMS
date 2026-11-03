@@ -7,6 +7,7 @@ export default function ExamTimingCard() {
     setPracticeDurationMinutes, shuffleQuestions, setShuffleQuestions, shuffleOptions,
     setShuffleOptions, requireAllQuestionsAnswered, setRequireAllQuestionsAnswered,
     lockOnExamViolation, setLockOnExamViolation, lockOnPracticeViolation, setLockOnPracticeViolation,
+    preventEarlySubmission, setPreventEarlySubmission, minExamMinutes, setMinExamMinutes,
     handleSaveExamConfig } = useAdmin();
 
   return (
@@ -193,6 +194,54 @@ export default function ExamTimingCard() {
             <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
           </label>
         </div>
+
+        {/* Chống nộp bài sớm (Thi chính thức) */}
+        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex items-center justify-between sm:col-span-2">
+          <div>
+            <span className="text-xs font-bold text-slate-900 block">⏱️ Chống Nộp Bài Sớm (Thi Chính Thức)</span>
+            <p className="text-[11px] text-slate-500 mt-0.5">Bắt buộc học sinh phải làm bài tối thiểu số phút quy định mới được phép nộp (Mặc định: BẬT)</p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={preventEarlySubmission}
+              onChange={e => setPreventEarlySubmission(e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
+          </label>
+        </div>
+
+        {/* Thời gian làm bài tối thiểu trước khi được phép nộp */}
+        {preventEarlySubmission && (
+          <div className="bg-amber-50/80 p-4 rounded-2xl border-2 border-amber-200 space-y-2 sm:col-span-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-amber-950">
+                ⏳ Thời Gian Làm Bài Tối Thiểu Được Phép Nộp (Phút):
+              </label>
+              <span className="text-xs font-black text-amber-900 bg-amber-100 border border-amber-300 px-2.5 py-0.5 rounded-lg">
+                Tối thiểu: {minExamMinutes} phút
+              </span>
+            </div>
+            <select
+              value={minExamMinutes}
+              onChange={e => setMinExamMinutes(Number(e.target.value))}
+              className="w-full bg-white border-2 border-amber-300 rounded-xl px-3.5 py-2.5 text-xs text-amber-950 font-bold focus:outline-none focus:border-amber-600"
+            >
+              <option value={5}>5 phút</option>
+              <option value={10}>10 phút</option>
+              <option value={15}>15 phút (Chuẩn 1/3 thời lượng bài thi 45p)</option>
+              <option value={20}>20 phút</option>
+              <option value={25}>25 phút</option>
+              <option value={30}>30 phút (Chuẩn 2/3 thời lượng bài thi 45p)</option>
+              <option value={35}>35 phút</option>
+              <option value={40}>40 phút</option>
+            </select>
+            <p className="text-[11px] text-amber-800 italic">
+              Trước mốc thời gian này, nút nộp bài sẽ hiển thị đồng hồ đếm ngược và nhắc nhở học sinh tập trung rà soát bài làm.
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="pt-2 border-t border-slate-100 flex justify-end">

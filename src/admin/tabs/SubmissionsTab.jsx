@@ -230,6 +230,19 @@ export default function SubmissionsTab() {
                             Chờ chấm ⏳
                           </span>
                         )}
+                        {sub.mode === 'exam' && (
+                          <div className="mt-1">
+                            {sub.scoreConfirmed ? (
+                              <span className="inline-block px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black border border-emerald-300">
+                                🟢 Đã chốt {sub.scoreConfirmedAt ? `(${new Date(sub.scoreConfirmedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })})` : ''}
+                              </span>
+                            ) : (
+                              <span className="inline-block px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold border border-slate-200">
+                                ⏳ Chưa chốt
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="py-3 px-4 text-center">
                         <div className="flex items-center justify-center space-x-1.5">

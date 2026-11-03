@@ -16,7 +16,7 @@ export function createProctorActions(s) {
     }
     if (live.mode !== 'exam' || !live.studentId || !window.AsianSchoolCloud) return true;
     try {
-      await window.AsianSchoolCloud.setAttemptLock({ grade: live.grade, studentId: live.studentId, locked });
+      await window.AsianSchoolCloud.setAttemptLock({ grade: live.grade, studentClass: live.studentClass, studentId: live.studentId, locked });
       return true;
     } catch (e) {
       showDialog('Chưa Ghi Được Lên Máy Chủ', `Không cập nhật được trạng thái khóa của lượt thi: ${e.message}`, 'error');
@@ -30,7 +30,7 @@ export function createProctorActions(s) {
         throw new Error('Chưa kết nối được lượt thi trên máy chủ.');
       }
       // Lượt chính thức chỉ nhận giờ qua snapshot máy chủ, không phát thêm lệnh cộng giờ.
-      return window.AsianSchoolCloud.extendExamTime({ grade: live.grade, studentId: live.studentId, minutes });
+      return window.AsianSchoolCloud.extendExamTime({ grade: live.grade, studentClass: live.studentClass, studentId: live.studentId, minutes });
     }
     window.AsianSchoolStorage.sendProctorCommand(live.sessionId, 'extend_time', { minutes });
     return { applied: true };

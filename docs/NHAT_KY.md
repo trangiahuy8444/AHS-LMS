@@ -3,6 +3,53 @@
 > Tệp trạng thái sống. Mỗi phiên có thay đổi đáng kể thêm một mục **ở đầu** tệp: ngày, đã làm gì (kèm commit), kết quả `npm run check`, việc còn dở, câu hỏi chờ thầy. Repo công khai: không ghi bí mật hay dữ liệu học sinh.
 
 
+## 03/11/2026 — Nâng cấp Khảo thí: Chống nộp sớm, Khóa bài làm, Chốt điểm học sinh, Bảo toàn dữ liệu & Google Sheets 5 Tab
+
+- **1. Chống nộp bài sớm (Anti-Early Submission)**:
+  - Mặc định thời gian tối thiểu làm bài là 15 phút (trên tổng 45 phút). Hệ thống khóa nút nộp bài với đồng hồ đếm ngược `⏱️ Nộp bài (còn mm:ss)`.
+  - Hộp thoại nộp bài hiển thị cảnh báo đỏ và vô hiệu hóa nút nộp nếu chưa đủ thời gian.
+  - Khi hết thời gian làm bài chính thức hoặc khi giáo viên phát lệnh thu bài từ xa (`isForced = true`), cơ chế chặn nộp bài sớm tự động được gỡ bỏ ngay lập tức để học sinh nộp bài an toàn.
+  - Chế độ ôn tập đề cương được miễn trừ, học sinh có thể nộp bất kỳ lúc nào để tra cứu rubric.
+- **2. Ẩn toàn bộ bài làm sau khi nộp thi chính thức**:
+  - Giao diện kết quả (`ResultCard`) trong chế độ thi chính thức chỉ hiển thị điểm trắc nghiệm khách quan (7.0đ THCS hoặc 7.75đ THPT) và thông báo bài tự luận đang chờ giáo viên chấm.
+  - Toàn bộ danh sách câu hỏi, phương án lựa chọn, bài làm tự luận và barem đáp án bị ẩn hoàn toàn để bảo mật tuyệt đối đề thi trong phòng máy.
+- **3. Mở xem lại bài thi & Học sinh xác nhận chốt điểm**:
+  - Tùy chọn `allowStudentReviewOfficialExam` do Admin toàn quyền kiểm soát trong tab Cấu hình (thẻ *Mở / Khóa Học Sinh Xem Lại Bài Thi Chính Thức*).
+  - Khi Admin BẬT tính năng, màn hình kết quả của học sinh sẽ xuất hiện nút mở xem lại chi tiết bài làm.
+  - Tại giao diện xem lại, học sinh kiểm tra từng câu và bấm nút `✅ XÁC NHẬN ĐIỂM SỐ CHÍNH XÁC`.
+  - Trạng thái `scoreConfirmed: true` và `scoreConfirmedAt` được lưu vĩnh viễn vào Firestore và localStorage, hiển thị huy hiệu `✓ ĐÃ CHỐT ĐIỂM THÀNH CÔNG` và đồng bộ tức thời lên bảng điểm Quản trị cũng như Google Sheets.
+- **4. Bảo toàn lưu trữ vĩnh viễn dữ liệu thi**:
+  - Loại bỏ hoàn toàn mọi cơ chế tự động xóa bài nộp. Dữ liệu bài thi chính thức được cam kết lưu trữ vĩnh viễn (0% Auto-deletion).
+  - Thẻ quản trị *Lưu Trữ Dữ Liệu Bài Thi & Dọn Dẹp An Toàn* hiển thị trạng thái `🟢 Lưu Trữ Vĩnh Viễn`.
+  - Thao tác dọn dẹp chỉ được kích hoạt khi Admin chủ động nhập đúng từ khóa bảo mật `XAC NHAN XOA`, đồng thời hệ thống tự động xuất bản sao lưu CSV & JSON trước khi thực hiện.
+- **5. Mở rộng đồng bộ Google Sheets 5 Tab độc lập**:
+  - Cập nhật Google Apps Script Webhook trong `DriveSyncCard.jsx` với nút Sao Chép 1-click.
+  - Dữ liệu được phân luồng tự động vào 5 sheet chuyên biệt:
+    1. `On_Tap_De_Cuong`: Lưu kết quả các lượt ôn tập tự do.
+    2. `Bai_Thi_Chinh_Thuc`: Lưu kết quả thi chính thức, bổ sung cột Xác nhận điểm & Thời điểm xác nhận.
+    3. `Chi_Tiet_Bai_Lam`: Lưu chi tiết câu trả lời trắc nghiệm, đúng/sai và bài làm tự luận của từng học sinh.
+    4. `Giam_Sat_Va_Vi_Pham`: Lưu nhật ký vi phạm chuyển tab, toàn màn hình và thời gian làm bài.
+    5. `Thong_Ke_Theo_Lop`: Bảng tổng hợp sĩ số, số bài đã nộp, điểm trung bình và tỷ lệ chốt điểm theo từng lớp.
+- **Kiểm thử tự động**:
+  - 101/101 bài kiểm tra Node (`node --test tests/*.test.cjs`) đạt 100%.
+  - `tests/exam_early_submit.test.cjs`: Đạt 4/4 kiểm thử chống nộp bài sớm.
+  - `tests/drive_multi_sheet_sync.test.cjs`: Đạt 3/3 kiểm thử luồng 5 tab và chốt điểm.
+  - `tests/verify_platform.test.cjs`: Đạt 33/33 kiểm thử chuẩn hóa nền tảng.
+
+
+## 03/11/2026 — Phân biệt lượt thi theo Khối, Lớp và Mã LMS
+
+- **Giải quyết lỗi xung đột mã LMS giữa các lớp**: Sửa cách định danh tài liệu lượt thi thành `exam_attempts/g<khối>_<LỚP>_<MÃ LMS>` (vd: `g8_8_20_111`), giúp học sinh trùng mã LMS (như 111) ở các lớp khác nhau (lớp 8/19 đã thi xong và lớp 8/20 đang mở thi) có lượt thi hoàn toàn độc lập, không bị khóa nhầm do lượt thi của lớp khác.
+- **Tương thích ngược (Backward Compatibility)**: Khi học sinh vào phòng thi hoặc nộp bài, hệ thống ưu tiên định danh theo lớp mới; nếu chưa có thì kiểm tra lượt cũ theo mã LMS và chỉ nhận lại nếu trùng đúng lớp của học sinh. Học sinh cũ đang thi dở theo cấu trúc cũ vẫn tiếp tục bình thường.
+- **Cập nhật Security Rules**: `firestore.rules` hỗ trợ cả định danh mới theo lớp (`g<khối>_<LỚP>_<MÃ LMS>`) và định danh cũ (`g<khối>_<MÃ LMS>`).
+- **Nâng cấp Cổng Quản Trị**:
+  - Nút *Lưu Mật Khẩu Thi* chờ máy chủ xác nhận, có thông báo trạng thái rõ ràng và chống lưu rỗng/lỗi mạng.
+  - Bổ sung ô chọn Lớp trong thẻ *Lượt làm bài thi chính thức theo mã LMS*, hỗ trợ tra cứu lượt thi theo từng lớp hoặc tra cứu toàn khối; liệt kê chi tiết nếu mã LMS xuất hiện ở nhiều lớp.
+- **Kiểm thử & Đóng gói**:
+  - Bổ sung `tests/class_scoped_attempts.test.cjs` mô phỏng chính xác ca học sinh 111 lớp 8/19 và 8/20.
+  - Bộ kiểm thử: 109 Node tests đạt, 94 Vitest tests đạt (16 files), ESLint đạt, build Vite đạt.
+
+
 ## 02/11/2026 — Bổ sung học sinh tự chọn mã đề
 - Phát hành thật02/11: client `d36625a`, [GitHub Pages build/deploy đạt](https://github.com/trangiahuy8444/AHS-LMS/actions/runs/41369616826); rules mới đã Publish và đối chiếu khớp hash. Trang gốc/test/admin HTTP200, mọi asset tham chiếu khớp build. Cấu hình phân mã hiện hành được giữ, giáo viên chủ động bật tự chọn.
 

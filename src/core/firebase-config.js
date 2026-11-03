@@ -408,6 +408,21 @@
     return `${mins} phút ${secs < 10 ? '0' : ''}${secs} giây`;
   }
 
+  function classKey(studentClass) {
+    return String(studentClass || '').trim().replace(/[^a-zA-Z0-9]/g, '_');
+  }
+
+  function attemptIdFor(grade, studentClass, studentId) {
+    const g = Number(grade);
+    const key = lmsKey(studentId);
+    const ck = classKey(studentClass);
+    return ck ? `g${g}_${ck}_${key}` : `g${g}_${key}`;
+  }
+
+  function legacyAttemptIdFor(grade, studentId) {
+    return `g${Number(grade)}_${lmsKey(studentId)}`;
+  }
+
   async function startExam(data) {
     const user = await waitForUser();
     const uid = user.uid;
@@ -423,27 +438,52 @@
       throw new Error(`Lớp ${data.studentClass} chưa được mở ca thi chính thức.`);
     }
 
-    const attemptId = `g${grade}_${key}`;
-    const attemptRef = db.collection('exam_attempts').doc(attemptId);
+    const scopedAttemptId = attemptIdFor(grade, data.studentClass, key);
+    const legacyAttemptId = legacyAttemptIdFor(grade, key);
+    let attemptId = scopedAttemptId;
+    let attemptRef = db.collection('exam_attempts').doc(attemptId);
     // Mật khẩu em nhập chỉ để rules đối chiếu với mật khẩu phòng thi; không ai đọc lại được
     await db.collection('exam_keys').doc(uid).set({
       password: String(data.password || '').trim().toLowerCase(),
       at: FieldValue.serverTimestamp()
     });
 
-    const readOwnAttempt = () => attemptRef.get({ source: 'server' })
+    const readAttempt = (ref) => ref.get({ source: 'server' })
       .then((snap) => (snap.exists ? snap.data() : null))
       .catch(() => null);
     const denied = new Error('Không vào được phòng thi: mật khẩu chưa đúng, lớp chưa mở ca thi hoặc mã đề chưa được bật. Em báo Thầy/Cô giám thị.');
 
-    let attempt = await readOwnAttempt();
+    let attempt = await readAttempt(attemptRef);
+    // Nếu chưa có lượt mới theo lớp, kiểm tra lượt cũ theo mã LMS nhưng chỉ nhận nếu trùng đúng lớp
+    if (!attempt && scopedAttemptId !== legacyAttemptId) {
+      const legacyRef = db.collection('exam_attempts').doc(legacyAttemptId);
+      const legacyAttempt = await readAttempt(legacyRef);
+      if (legacyAttempt && legacyAttempt.studentClass === data.studentClass) {
+        attemptId = legacyAttemptId;
+        attemptRef = legacyRef;
+        attempt = legacyAttempt;
+      }
+    }
+
     // UID mới chưa đọc được lượt ở máy cũ. Nhận lại lượt trước khi đòi mã cho lượt MỚI;
     // rules vẫn kiểm mật khẩu và ca thi, chỉ thay uid/deviceChanges, không đổi mã hay số lượt.
     if (!attempt && cfg.codeAllocationMode === 'student_choice') {
       try {
         await attemptRef.update({ uid, deviceChanges: FieldValue.increment(1) });
-        attempt = await readOwnAttempt();
+        attempt = await readAttempt(attemptRef);
       } catch (e) { /* Không có lượt hoặc chưa được phép nhận lại: tiếp tục kiểm lượt mới bên dưới. */ }
+      if (!attempt && scopedAttemptId !== legacyAttemptId) {
+        try {
+          const legacyRef = db.collection('exam_attempts').doc(legacyAttemptId);
+          await legacyRef.update({ uid, deviceChanges: FieldValue.increment(1) });
+          const legacyAttempt = await readAttempt(legacyRef);
+          if (legacyAttempt && legacyAttempt.studentClass === data.studentClass) {
+            attemptId = legacyAttemptId;
+            attemptRef = legacyRef;
+            attempt = legacyAttempt;
+          }
+        } catch (e) { /* bỏ qua */ }
+      }
     }
     if (!attempt) {
       const code = pickExamCode(cfg, grade, data.studentClass, data.examCode);
@@ -473,7 +513,7 @@
           throw denied;
         }
       }
-      attempt = await readOwnAttempt();
+      attempt = await readAttempt(attemptRef);
       if (!attempt) throw denied;
     }
 
@@ -507,7 +547,7 @@
       } catch (e) {
         throw denied;
       }
-      attempt = await readOwnAttempt();
+      attempt = await readAttempt(attemptRef);
       if (!attempt) throw denied;
     }
 
@@ -517,6 +557,7 @@
     const extraTimeSeconds = Number.isSafeInteger(attempt.extraTimeSeconds) && attempt.extraTimeSeconds >= 0 ? attempt.extraTimeSeconds : 0;
     const startedAtMs = toMillis(attempt.startedAt) || Date.now();
     const base = {
+      attemptId,
       examCode: attempt.examCode,
       baseDurationSeconds,
       extraTimeSeconds,
@@ -539,12 +580,42 @@
     return examSnap.data().exam;
   }
 
-  function attemptRefFor(grade, studentId) {
-    return db.collection('exam_attempts').doc(`g${Number(grade)}_${lmsKey(studentId)}`);
+  function attemptRefFor(grade, studentClass, studentId) {
+    if (typeof grade === 'object' && grade !== null) {
+      const opts = grade;
+      return attemptRefFor(opts.grade, opts.studentClass, opts.studentId);
+    }
+    const g = Number(grade);
+    const key = lmsKey(studentId);
+    const ck = classKey(studentClass);
+    return ck ? db.collection('exam_attempts').doc(`g${g}_${ck}_${key}`) : db.collection('exam_attempts').doc(`g${g}_${key}`);
+  }
+
+  async function resolveAttemptDocRef(grade, studentClass, studentId) {
+    if (typeof grade === 'object' && grade !== null) {
+      const opts = grade;
+      return resolveAttemptDocRef(opts.grade, opts.studentClass, opts.studentId);
+    }
+    const g = Number(grade);
+    const key = lmsKey(studentId);
+    const scopedRef = attemptRefFor(g, studentClass, key);
+    if (!studentClass) return scopedRef;
+    try {
+      const snap = await scopedRef.get();
+      if (snap.exists) return scopedRef;
+    } catch (e) { /* ignore */ }
+    const legacyRef = db.collection('exam_attempts').doc(legacyAttemptIdFor(g, key));
+    try {
+      const legacySnap = await legacyRef.get();
+      if (legacySnap.exists && legacySnap.data().studentClass === studentClass) {
+        return legacyRef;
+      }
+    } catch (e) { /* ignore */ }
+    return scopedRef;
   }
 
   // Ghi vi phạm lên lượt thi: số vi phạm chỉ tăng; lock = true khi đủ 3 lần (rules không cho học sinh tự mở khóa)
-  function reportViolation({ grade, studentId, lock }) {
+  function reportViolation({ grade, studentClass, studentId, lock }) {
     if (!db || !auth || !auth.currentUser) return Promise.resolve(false);
     const FieldValue = firebase.firestore.FieldValue;
     const update = { violations: FieldValue.increment(1) };
@@ -552,38 +623,79 @@
       update.locked = true;
       update.lockCount = FieldValue.increment(1);
     }
-    return attemptRefFor(grade, studentId).update(update)
+    return resolveAttemptDocRef(grade, studentClass, studentId)
+      .then(ref => ref.update(update))
       .then(() => true)
       .catch((e) => { console.warn('[Firestore] Ghi vi phạm thất bại:', e.message); return false; });
   }
 
   // Theo dõi lượt thi của chính mình: trạng thái khóa do máy chủ quyết định
-  function watchAttempt({ grade, studentId }, cb) {
+  function watchAttempt(opts, cb) {
     if (!db) return () => {};
-    return attemptRefFor(grade, studentId).onSnapshot({ includeMetadataChanges: true },
-      // fromServer: dữ liệu đã xác nhận trên máy chủ (không phải ghi tạm trên máy, không phải cache)
+    if (opts?.attemptId) {
+      return db.collection('exam_attempts').doc(opts.attemptId).onSnapshot({ includeMetadataChanges: true },
+        (snap) => { if (snap.exists) cb(snap.data(), { fromServer: !snap.metadata.hasPendingWrites && !snap.metadata.fromCache }); },
+        (e) => console.warn('[Firestore] Theo dõi lượt thi thất bại:', e.message)
+      );
+    }
+    const g = Number(opts?.grade);
+    const key = lmsKey(opts?.studentId);
+    const ck = classKey(opts?.studentClass);
+    if (ck) {
+      return db.collection('exam_attempts').doc(`g${g}_${ck}_${key}`).onSnapshot({ includeMetadataChanges: true },
+        (snap) => { if (snap.exists) cb(snap.data(), { fromServer: !snap.metadata.hasPendingWrites && !snap.metadata.fromCache }); },
+        (e) => console.warn('[Firestore] Theo dõi lượt thi thất bại:', e.message)
+      );
+    }
+    const uid = auth?.currentUser?.uid;
+    if (uid && typeof db.collection === 'function') {
+      let unsubAttempt = null;
+      let isUnsub = false;
+      const unsubSession = db.collection('exam_sessions').doc(uid).onSnapshot(sSnap => {
+        if (isUnsub) return;
+        const targetId = sSnap?.exists ? sSnap.data().attemptId : `g${g}_${key}`;
+        if (unsubAttempt) unsubAttempt();
+        unsubAttempt = db.collection('exam_attempts').doc(targetId).onSnapshot({ includeMetadataChanges: true },
+          (snap) => { if (snap.exists) cb(snap.data(), { fromServer: !snap.metadata.hasPendingWrites && !snap.metadata.fromCache }); },
+          (e) => console.warn('[Firestore] Theo dõi lượt thi thất bại:', e.message)
+        );
+      }, () => {
+        if (!unsubAttempt && !isUnsub) {
+          unsubAttempt = db.collection('exam_attempts').doc(`g${g}_${key}`).onSnapshot({ includeMetadataChanges: true },
+            (snap) => { if (snap.exists) cb(snap.data(), { fromServer: !snap.metadata.hasPendingWrites && !snap.metadata.fromCache }); }
+          );
+        }
+      });
+      return () => {
+        isUnsub = true;
+        if (unsubSession) unsubSession();
+        if (unsubAttempt) unsubAttempt();
+      };
+    }
+    return db.collection('exam_attempts').doc(`g${g}_${key}`).onSnapshot({ includeMetadataChanges: true },
       (snap) => { if (snap.exists) cb(snap.data(), { fromServer: !snap.metadata.hasPendingWrites && !snap.metadata.fromCache }); },
       (e) => console.warn('[Firestore] Theo dõi lượt thi thất bại:', e.message)
     );
   }
 
   // Giáo viên khóa / mở khóa lượt thi (chỉ isTeacher() được đặt locked = false)
-  function setAttemptLock({ grade, studentId, locked }) {
+  async function setAttemptLock({ grade, studentClass, studentId, locked }) {
     const FieldValue = firebase.firestore.FieldValue;
-    return attemptRefFor(grade, studentId).update(locked
+    const ref = await resolveAttemptDocRef(grade, studentClass, studentId);
+    return ref.update(locked
       ? { locked: true, lockReason: 'proctor_lock', lockCount: FieldValue.increment(1) }
       : { locked: false, lockReason: FieldValue.delete() });
   }
 
   // Giáo viên gia hạn trên lượt thi, không phụ thuộc một tab/session cụ thể.
   // Transaction đọc trạng thái mới nhất nên ca đã nộp không được cộng giờ và hai giám thị không ghi đè nhau.
-  async function extendExamTime({ grade, studentId, minutes }) {
+  async function extendExamTime({ grade, studentClass, studentId, minutes }) {
     await waitForUser();
     const extra = Number(minutes) * 60;
     if (![8, 9, 10].includes(Number(grade)) || !lmsKey(studentId) || !Number.isSafeInteger(extra) || extra <= 0) {
       throw new Error('Khối, mã LMS hoặc số phút gia hạn chưa hợp lệ.');
     }
-    const ref = attemptRefFor(grade, studentId);
+    const ref = await resolveAttemptDocRef(grade, studentClass, studentId);
     return db.runTransaction(async (tx) => {
       const snap = await tx.get(ref);
       if (!snap.exists) throw new Error('Không tìm thấy lượt thi để gia hạn.');
@@ -602,13 +714,37 @@
   async function submitExam(data) {
     const user = await waitForUser();
     const grade = Number(data.grade);
-    const attemptId = `g${grade}_${lmsKey(data.studentId)}`;
-    const attemptRef = db.collection('exam_attempts').doc(attemptId);
+    const key = lmsKey(data.studentId);
+    const scopedId = attemptIdFor(grade, data.studentClass, key);
+    const legacyId = legacyAttemptIdFor(grade, key);
+    let attemptId = scopedId;
+    let attemptRef = db.collection('exam_attempts').doc(attemptId);
     let snap;
     try {
       snap = await attemptRef.get({ source: 'server' });
     } catch (e) {
-      throw new Error('Lượt làm bài này đang mở trên thiết bị khác. Em báo giám thị.');
+      // Bỏ qua lỗi lúc đầu nếu do scoped chưa có hoặc quyền
+    }
+    // Nếu chưa thấy scoped attempt hoặc không tồn tại, kiểm tra legacy
+    if ((!snap || !snap.exists) && scopedId !== legacyId) {
+      try {
+        const legacyRef = db.collection('exam_attempts').doc(legacyId);
+        const legacySnap = await legacyRef.get({ source: 'server' });
+        if (legacySnap.exists && (!data.studentClass || legacySnap.data().studentClass === data.studentClass)) {
+          attemptId = legacyId;
+          attemptRef = legacyRef;
+          snap = legacySnap;
+        }
+      } catch (e) {
+        // Bỏ qua lỗi đọc legacy
+      }
+    }
+    if (!snap) {
+      try {
+        snap = await attemptRef.get({ source: 'server' });
+      } catch (e) {
+        throw new Error('Lượt làm bài này đang mở trên thiết bị khác. Em báo giám thị.');
+      }
     }
     // Cache/pending write không phải bằng chứng máy chủ đã nhận bài (đặc biệt sau timeout).
     if (snap.metadata && (snap.metadata.fromCache || snap.metadata.hasPendingWrites)) {
@@ -680,6 +816,29 @@
     };
   }
 
+  function watchSubmission(opts, cb) {
+    const subId = typeof opts === 'string' ? opts : opts?.submissionId;
+    if (!db || !subId || typeof db.collection !== 'function') return () => {};
+    return db.collection('submissions').doc(subId).onSnapshot({ includeMetadataChanges: true },
+      (snap) => {
+        if (snap.exists) cb(snap.data(), { fromServer: !snap.metadata.hasPendingWrites && !snap.metadata.fromCache });
+      },
+      (e) => console.warn('[Firestore] Theo dõi bài nộp thất bại:', e.message)
+    );
+  }
+
+  async function confirmSubmissionScore(opts) {
+    const subId = typeof opts === 'string' ? opts : opts?.submissionId;
+    if (!db || !subId) return false;
+    await waitForUser();
+    const FieldValue = firebase.firestore.FieldValue;
+    await db.collection('submissions').doc(subId).update({
+      scoreConfirmed: true,
+      scoreConfirmedAt: FieldValue.serverTimestamp()
+    });
+    return true;
+  }
+
   if (typeof window !== 'undefined') {
     window.firebaseApp = app;
     window.firebaseDb = db;
@@ -707,7 +866,7 @@
       }
     };
 
-    window.AsianSchoolCloud = { startExam, submitExam, loadExam, reportViolation, watchAttempt, setAttemptLock, extendExamTime };
+    window.AsianSchoolCloud = { startExam, submitExam, loadExam, reportViolation, watchAttempt, setAttemptLock, extendExamTime, watchSubmission, confirmSubmissionScore };
 
     const pathname = (window.location && window.location.pathname) || '';
     const isStudentPortal = pathname.includes('/test');

@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useStudent } from '../StudentContext.js';
 import ResultCard from '../result/ResultCard.jsx';
 import AnswerReview from '../result/AnswerReview.jsx';
 
 // 4. MÀN HÌNH KẾT QUẢ BÀI LÀM (CHUẨN TƯƠNG PHẢN, CHỤP ẢNH TÊN CHUẨN, MỞ ĐÁP ÁN TỰ LUẬN)
 export default function ResultScreen() {
-  const { mode, examState, scoreResult, isCapturing, handleCaptureScreenshot, handleRestartPractice } = useStudent();
+  const { mode, examState, scoreResult, isCapturing, handleCaptureScreenshot, handleRestartPractice,
+    config } = useStudent();
+  const [showExamReview, setShowExamReview] = useState(false);
 
   if (!(examState === 'submitted' && scoreResult)) return null;
 
@@ -52,7 +54,64 @@ export default function ResultScreen() {
 
       {/* PHẦN ĐÁNH GIÁ ĐÚNG/SAI & MỞ ĐÁP ÁN TỰ LUẬN CHO HỌC SINH */}
       <div className="min-w-0">
-        <AnswerReview />
+        {mode === 'practice' ? (
+          <AnswerReview />
+        ) : config?.allowStudentReviewOfficialExam ? (
+          showExamReview ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between bg-white p-4 rounded-2xl border-2 border-blue-200 shadow-sm">
+                <span className="text-xs font-black text-blue-950 uppercase flex items-center space-x-1.5">
+                  <span>📖</span>
+                  <span>ĐANG XEM CHI TIẾT BÀI THI & ĐỐI SOÁT CHỐT ĐIỂM</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowExamReview(false)}
+                  className="text-xs text-slate-600 hover:text-slate-900 font-bold px-3 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-100 transition"
+                >
+                  Thu Gọn ✕
+                </button>
+              </div>
+              <AnswerReview />
+            </div>
+          ) : (
+            <div className="bg-white border-2 border-blue-200 rounded-3xl p-6 sm:p-8 space-y-4 shadow-sm text-center">
+              <div className="w-16 h-16 bg-emerald-100 text-emerald-700 rounded-2xl mx-auto flex items-center justify-center text-3xl">
+                🔓
+              </div>
+              <h3 className="text-base sm:text-lg font-black text-blue-950 uppercase">
+                Giáo Viên Đã Mở Quyền Xem Lại Bài Thi
+              </h3>
+              <p className="text-slate-600 text-xs sm:text-sm max-w-md mx-auto leading-relaxed font-medium">
+                Thầy đã mở chức năng đối soát bài làm. Em hãy mở xem lại toàn bộ câu hỏi và đáp án để chốt điểm số chính xác của mình.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowExamReview(true)}
+                className="px-6 py-3.5 bg-[#0267B1] hover:bg-[#025694] active:scale-95 text-white font-black text-xs sm:text-sm rounded-2xl shadow-lg shadow-blue-700/30 transition inline-flex items-center space-x-2"
+              >
+                <span>🔍</span>
+                <span>Xem Chi Tiết Bài Làm & Chốt Điểm</span>
+              </button>
+            </div>
+          )
+        ) : (
+          <div className="bg-white border-2 border-slate-200 rounded-3xl p-6 sm:p-8 space-y-4 shadow-sm text-center">
+            <div className="w-16 h-16 bg-blue-100 text-blue-700 rounded-2xl mx-auto flex items-center justify-center text-3xl">
+              🔒
+            </div>
+            <h3 className="text-base sm:text-lg font-black text-blue-950 uppercase">
+              Chi Tiết Bài Thi Đang Được Bảo Mật
+            </h3>
+            <p className="text-slate-600 text-xs sm:text-sm max-w-md mx-auto leading-relaxed font-medium">
+              Chi tiết bài thi và đáp án đang được giáo viên bảo mật trong suốt ca thi. Sau khi toàn bộ ca thi hoàn tất, Thầy sẽ mở chức năng để em xem lại bài làm và đối soát chốt điểm.
+            </p>
+            <div className="inline-flex items-center space-x-2 text-xs font-bold text-amber-800 bg-amber-50 border border-amber-300 px-4 py-2 rounded-xl">
+              <span>⏳</span>
+              <span>Trạng thái: Chờ Thầy mở quyền xem lại bài thi</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

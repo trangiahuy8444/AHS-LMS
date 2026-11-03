@@ -54,6 +54,11 @@
     // Khóa màn hình khi vi phạm an toàn bài thi (chuyển tab, thoát toàn màn hình 3 lần)
     lockOnExamViolation: true, // Thi chính thức: Mặc định KHÓA sau 3 lần vi phạm
     lockOnPracticeViolation: false, // Ôn tập đề cương: Mặc định KHÔNG KHÓA (chỉ cảnh báo vi phạm rèn luyện)
+
+    // Chống nộp bài sớm & Quyền xem lại bài thi chính thức
+    preventEarlySubmission: true,
+    minExamMinutes: 15, // Thời gian tối thiểu (phút) được phép nộp bài thi
+    allowStudentReviewOfficialExam: false, // Mặc định khóa xem lại chi tiết bài thi chính thức
     
     // Cấu hình Google Drive Webhook & Vòng đời lưu trữ (Retention)
     googleDriveWebhookUrl: '', // URL Web App Google Apps Script kết nối Google Drive / Sheets
@@ -659,6 +664,20 @@
       return list.find(s => s.id === id) || null;
     }
 
+    confirmScore(subId) {
+      const list = this.getSubmissions();
+      const idx = list.findIndex(s => s.id === subId || s.submissionId === subId);
+      const now = new Date().toISOString();
+      if (idx !== -1) {
+        list[idx].scoreConfirmed = true;
+        list[idx].scoreConfirmedAt = now;
+        localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(list));
+        this.notify(this.submissionListeners, list);
+        this.syncRowToGoogleDrive(list[idx]);
+      }
+      return { success: true, confirmedAt: now };
+    }
+
     exportSubmissionsJSON() {
       const list = this.getSubmissions();
       return JSON.stringify(list, null, 2);
@@ -910,16 +929,24 @@
           studentClass: subDoc.studentClass || '',
           examCode: subDoc.examCode || (isPractice ? `ÔN TẬP — LẦN ${subDoc.attemptNumber || 1}` : '101'),
           mcqPoints: subDoc.mcqPoints !== undefined ? subDoc.mcqPoints : (subDoc.score || 0),
+          tfPoints: subDoc.tfPoints || 0,
           essayTotal: subDoc.essayTotal || 0,
           finalScore: subDoc.finalScore !== undefined ? subDoc.finalScore : (subDoc.score || 0),
+          scoreConfirmed: subDoc.scoreConfirmed ? 'Đã xác nhận' : 'Chưa xác nhận',
+          scoreConfirmedAt: subDoc.scoreConfirmedAt || '',
+          attemptNumber: subDoc.attemptNumber || 1,
+          deviceChanges: subDoc.deviceChanges || 0,
           violations: subDoc.violations || 0,
-          durationFormatted: subDoc.durationFormatted || '30 phút',
-          submittedAt: subDoc.submittedAt || new Date().toISOString()
+          durationFormatted: subDoc.durationFormatted || (isPractice ? '30 phút' : '45 phút'),
+          submittedAt: subDoc.submittedAt || new Date().toISOString(),
+          lateNote: subDoc.overtimeSeconds ? `Nộp muộn +${subDoc.overtimeSeconds}s` : 'Đúng hạn',
+          mode: subDoc.mode || 'exam'
         };
         const payload = {
-          action: 'sync_row',
+          action: isPractice ? 'sync_practice' : 'sync_exam',
           token: (cfg.googleDriveWebhookToken || '').trim(),
           submission: formattedSub,
+          answers: subDoc.answers || null,
           syncedAt: new Date().toISOString()
         };
         const res = await this.postToWebhook(url, payload);
@@ -1005,12 +1032,15 @@
 
       const all = this.getSubmissions();
       const examSubs = all.filter(s => s.mode === 'exam');
+      const practiceSubs = this.getPracticeSubmissions();
 
       try {
         const payload = {
-          action: 'backup_file',
+          action: 'sync_all',
           token: (cfg.googleDriveWebhookToken || '').trim(),
           examCount: examSubs.length,
+          submissions: examSubs,
+          practiceSubmissions: practiceSubs,
           jsonContent: JSON.stringify(all, null, 2),
           csvContent: this.exportSubmissionsCSV(),
           timestamp: new Date().toISOString()
@@ -1018,8 +1048,8 @@
 
         const res = await this.postToWebhook(url, payload);
         if (!res.success) return { success: false, error: res.error };
-        this.logAudit('Đồng bộ Google Drive', `Đã sao lưu ${examSubs.length} bài thi lên Google Drive (${(res.data && res.data.file) || 'tệp JSON'})`);
-        return { success: true, count: examSubs.length };
+        this.logAudit('Đồng bộ Google Drive', `Đã đồng bộ toàn bộ 5 tab và sao lưu ${examSubs.length} bài thi lên Google Drive (${(res.data && res.data.file) || 'tệp JSON'})`);
+        return { success: true, count: examSubs.length, practiceCount: practiceSubs.length };
       } catch (err) {
         return { success: false, error: err.message };
       }

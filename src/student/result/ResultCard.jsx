@@ -60,7 +60,7 @@ export default function ResultCard() {
       {/* Khối Điểm Số Nổi Bật (High Contrast, Padding Đáy Đầy Đủ Chống Che Chữ Khi Chụp) */}
       <div className="text-center py-6 px-4 bg-blue-50/80 rounded-3xl border-2 border-blue-200 shadow-sm space-y-3 pb-8">
         <p className="text-xs text-blue-900 font-black uppercase tracking-widest">
-          {mode === 'practice' ? 'ĐIỂM ĐẠT ĐƯỢC' : 'BÀI THI CHÍNH THỨC'}
+          {mode === 'practice' ? 'ĐIỂM ĐẠT ĐƯỢC' : 'BÀI THI CHÍNH THỨC — ĐIỂM TRẮC NGHIỆM'}
         </p>
         {mode === 'practice' ? (
           <div className="text-5xl sm:text-6xl font-black text-red-600 my-1">
@@ -68,7 +68,22 @@ export default function ResultCard() {
             <span className="text-xl text-slate-600 font-bold"> / {maxScore}</span>
           </div>
         ) : (
-          <div className="text-3xl sm:text-4xl font-black text-emerald-700 my-1">✅ ĐÃ NỘP BÀI THÀNH CÔNG</div>
+          <div className="space-y-1">
+            {scoreResult.mcqPoints !== undefined ? (
+              <div className="text-4xl sm:text-5xl font-black text-blue-900 my-1">
+                {scoreResult.mcqPoints}
+                <span className="text-xl text-slate-600 font-bold"> / {grade === 10 ? 7.75 : 7.0} đ</span>
+              </div>
+            ) : (
+              <div className="text-3xl sm:text-4xl font-black text-emerald-700 my-1">✅ ĐÃ NỘP BÀI THÀNH CÔNG</div>
+            )}
+            {scoreResult.scoreConfirmed && (
+              <div className="inline-flex items-center space-x-1 px-3 py-1 bg-emerald-100 border border-emerald-400 rounded-full text-emerald-800 text-xs font-black shadow-sm mt-1">
+                <span>✓</span>
+                <span>ĐÃ XÁC NHẬN CHỐT ĐIỂM</span>
+              </div>
+            )}
+          </div>
         )}
         <div className="space-y-2">
           <p className="text-xs text-slate-700 font-bold">
@@ -77,6 +92,11 @@ export default function ResultCard() {
               : `Thời gian làm bài: ${scoreResult.durationFormatted || '45 phút'} • Nộp lúc: ${new Date(scoreResult.submittedAt).toLocaleTimeString('vi-VN')} • Số lần vi phạm: ${scoreResult.violations} lần`
             }
           </p>
+          {mode === 'exam' && scoreResult.correctMcq !== undefined && (
+            <p className="text-xs text-emerald-700 font-bold">
+              ✓ Số câu trắc nghiệm đúng: {scoreResult.correctMcq} câu
+            </p>
+          )}
           {mode === 'practice' && (
             <div className="pt-2">
               <div className="inline-block px-6 py-2.5 bg-amber-100 border-2 border-amber-500 rounded-2xl text-amber-950 text-sm sm:text-base font-black shadow-md">

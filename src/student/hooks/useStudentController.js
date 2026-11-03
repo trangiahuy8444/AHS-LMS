@@ -73,6 +73,59 @@ export function useStudentController() {
   const [scoreResult, setScoreResult] = useState(null);
   const [isCapturing, setIsCapturing] = useState(false);
 
+  // Lắng nghe cập nhật điểm và trạng thái bài nộp thời gian thực
+  useEffect(() => {
+    const subId = scoreResult?.submissionId || scoreResult?.id;
+    if (!subId || !window.AsianSchoolCloud?.watchSubmission) return;
+    const unsub = window.AsianSchoolCloud.watchSubmission({ submissionId: subId }, (sub) => {
+      if (!sub) return;
+      setScoreResult(prev => ({
+        ...prev,
+        ...sub,
+        mcqPoints: sub.mcqPoints !== undefined ? sub.mcqPoints : prev?.mcqPoints,
+        finalScore: sub.finalScore !== undefined ? sub.finalScore : prev?.finalScore,
+        correctMcq: sub.correctMcq !== undefined ? sub.correctMcq : prev?.correctMcq,
+        scoreConfirmed: sub.scoreConfirmed !== undefined ? sub.scoreConfirmed : prev?.scoreConfirmed,
+        scoreConfirmedAt: sub.scoreConfirmedAt || prev?.scoreConfirmedAt
+      }));
+    });
+    return () => unsub();
+  }, [scoreResult?.submissionId, scoreResult?.id]);
+
+  const handleConfirmScore = () => {
+    const subId = scoreResult?.submissionId || scoreResult?.id;
+    if (!subId) return;
+    const currentScore = scoreResult?.finalScore !== undefined ? scoreResult.finalScore : (scoreResult?.mcqPoints !== undefined ? scoreResult.mcqPoints : scoreResult?.score);
+    showDialog(
+      'Xác Nhận Điểm Số Chính Xác ✅',
+      `Em xác nhận kết quả ${currentScore !== undefined ? `${currentScore} điểm` : 'bài thi'} là hoàn toàn chính xác và không có thắc mắc nào khác?`,
+      'warning',
+      async () => {
+        try {
+          if (window.AsianSchoolCloud && window.AsianSchoolCloud.confirmSubmissionScore) {
+            await window.AsianSchoolCloud.confirmSubmissionScore({ submissionId: subId });
+          }
+        } catch (e) {
+          console.warn('Firestore confirm error:', e);
+        }
+        if (window.AsianSchoolStorage && window.AsianSchoolStorage.confirmScore) {
+          window.AsianSchoolStorage.confirmScore(subId);
+        }
+        const now = new Date().toISOString();
+        setScoreResult(prev => ({
+          ...prev,
+          scoreConfirmed: true,
+          scoreConfirmedAt: now
+        }));
+        showDialog(
+          'Đã Xác Nhận Thành Công 🎉',
+          'Em đã hoàn tất chốt điểm bài thi. Kết quả đã được ghi nhận vào hệ thống khảo thí của Nhà trường.',
+          'success'
+        );
+      }
+    );
+  };
+
   // Hệ thống Thông Báo Nội Bộ Tĩnh (Thay thế alert, không hiệu ứng nhảy giật)
   const [customDialog, setCustomDialog] = useState(null); // { title, message, type: 'info'|'warning'|'error'|'success', onConfirm }
   const showDialog = (title, message, type = 'info', onConfirm = null) => {
@@ -426,6 +479,7 @@ export function useStudentController() {
     practiceItems,
     examItems,
     handleDismissWarning,
+    handleConfirmScore,
   };
   Object.assign(s, createPracticeSubmitActions(s));
   latestPracticeSubmitRef.current = s.handleSubmitPractice;

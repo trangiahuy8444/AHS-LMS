@@ -137,118 +137,246 @@ export default function DriveSyncCard() {
               <li>Dán đường link vừa sao chép vào ô <strong>"URL Webhook"</strong> ở trên &rarr; Bấm <strong>"Lưu URL"</strong> &rarr; Bấm <strong>"🧪 Kiểm Tra Kết Nối Ngay"</strong> để kiểm chứng!</li>
             </ol>
 
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-[11px] text-slate-500">
-                <span>Mã nguồn Google Apps Script (Bấm vào để chọn tất cả):</span>
-                <span className="text-emerald-700 font-mono text-[10px] font-bold">Tự động tạo Sheet & Tiêu đề cột chuẩn</span>
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+                <span className="font-bold text-slate-700">Mã nguồn Google Apps Script Đa Tab (5 Sheets Chuẩn):</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const code = document.getElementById('apps-script-code-block')?.innerText;
+                    if (code && navigator.clipboard) {
+                      navigator.clipboard.writeText(code);
+                      alert('Đã sao chép mã nguồn Google Apps Script (5 Sheet) vào clipboard!');
+                    }
+                  }}
+                  className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-sm text-[10px] transition flex items-center space-x-1"
+                >
+                  <span>📋</span>
+                  <span>Sao Chép Mã Apps Script (5 Sheet)</span>
+                </button>
               </div>
-              <div className="bg-white p-4 rounded-xl border border-slate-300 font-mono-code text-[11px] text-slate-800 overflow-x-auto select-all max-h-96">
+              <div id="apps-script-code-block" className="bg-white p-4 rounded-xl border border-slate-300 font-mono-code text-[11px] text-slate-800 overflow-x-auto select-all max-h-96">
                 {`/**
- * ASIAN SCHOOL LMS - GOOGLE APPS SCRIPT WEBHOOK (BẢN TỰ ĐỘNG PHỤC HỒI 2026)
- * Tự động tạo Google Sheet, tiêu đề cột, thư mục lưu trữ và hỗ trợ kiểm tra kết nối
+ * ASIAN SCHOOL LMS - GOOGLE APPS SCRIPT WEBHOOK ĐA TAB (5 SHEETS CHUẨN)
+ * Phân luồng dữ liệu tự động:
+ * 1. On_Tap_De_Cuong: Nhật ký ôn tập đề cương
+ * 2. Bai_Thi_Chinh_Thuc: Bảng điểm thi chính thức kèm trạng thái chốt điểm
+ * 3. Chi_Tiet_Bai_Lam: Chi tiết câu hỏi và bài làm của thí sinh
+ * 4. Giam_Sat_Va_Vi_Pham: Nhật ký vi phạm, đổi máy và giám sát an toàn thi
+ * 5. Thong_Ke_Theo_Lop: Thống kê số lượng, điểm TB theo từng lớp
  */
 
+var SPREADSHEET_NAME = "AHS_BangDiem_2026";
+var FOLDER_NAME = "AHS-LMS-Archive";
+
 function initSheet() {
-var ss = getOrCreateSpreadsheet();
-var sheet = ss.getActiveSheet();
-setupSheetHeaders(sheet);
-Logger.log("Đã khởi tạo thành công: " + ss.getUrl());
+  var ss = getOrCreateSpreadsheet();
+  getOrCreateTab(ss, "On_Tap_De_Cuong", [
+    "Thời Điểm", "Mã LMS", "Họ và Tên", "Khối", "Lớp", "Lần Làm", "Điểm TN", "Số Câu Đúng", "Vi Phạm", "Thời Gian Làm"
+  ]);
+  getOrCreateTab(ss, "Bai_Thi_Chinh_Thuc", [
+    "Thời Điểm Nộp", "Mã LMS", "Họ và Tên", "Khối", "Lớp", "Mã Đề", "Điểm TN", "Điểm Đúng/Sai", "Điểm TL", "Tổng Điểm", "HS Xác Nhận Điểm", "Thời Điểm Xác Nhận", "Số Lần Làm", "Số Lần Đổi Thiết Bị", "Vi Phạm", "Thời Lượng", "Ghi Chú Nộp Muộn"
+  ]);
+  getOrCreateTab(ss, "Chi_Tiet_Bai_Lam", [
+    "Thời Điểm", "Mã LMS", "Họ và Tên", "Khối", "Lớp", "Mã Đề", "Lượt Thi", "Câu Số", "Loại Câu", "Câu Trả Lời Của HS", "Kết Quả Đánh Giá", "Điểm Đạt"
+  ]);
+  getOrCreateTab(ss, "Giam_Sat_Va_Vi_Pham", [
+    "Thời Điểm", "Mã LMS", "Họ và Tên", "Khối", "Lớp", "Mã Đề", "Loại Sự Kiện", "Số Lần Vi Phạm", "Lý Do Khóa", "Thời Lượng Đã Làm"
+  ]);
+  getOrCreateTab(ss, "Thong_Ke_Theo_Lop", [
+    "Khối", "Lớp", "Sĩ Số Tham Gia", "Số Bài Đã Nộp", "Điểm TB", "Điểm Cao Nhất", "Điểm Thấp Nhất", "Số Bài Nộp Muộn", "Số Bài Vi Phạm"
+  ]);
+  Logger.log("Đã khởi tạo thành công 5 sheets: " + ss.getUrl());
 }
 
 function getOrCreateSpreadsheet() {
-var ss;
-try {
-ss = SpreadsheetApp.getActiveSpreadsheet();
-} catch (e) {
-ss = null;
-}
-if (!ss) {
-var files = DriveApp.getFilesByName("AHS_BangDiem_2026");
-if (files.hasNext()) {
-ss = SpreadsheetApp.open(files.next());
-} else {
-ss = SpreadsheetApp.create("AHS_BangDiem_2026");
-}
-}
-return ss;
+  var ss;
+  try {
+    ss = SpreadsheetApp.getActiveSpreadsheet();
+  } catch (e) {
+    ss = null;
+  }
+  if (!ss) {
+    var files = DriveApp.getFilesByName(SPREADSHEET_NAME);
+    if (files.hasNext()) {
+      ss = SpreadsheetApp.open(files.next());
+    } else {
+      ss = SpreadsheetApp.create(SPREADSHEET_NAME);
+    }
+  }
+  return ss;
 }
 
-function setupSheetHeaders(sheet) {
-if (sheet.getLastRow() === 0) {
-var headers = [
-"Mã LMS", "Họ và Tên", "Khối", "Lớp", "Mã Đề", 
-"Điểm TN", "Điểm TL", "Tổng Điểm", "Vi Phạm", 
-"Thời Gian Làm", "Thời Điểm Nộp"
-];
-sheet.appendRow(headers);
-sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold").setBackground("#1e293b").setFontColor("#ffffff");
-sheet.setFrozenRows(1);
-}
+function getOrCreateTab(ss, tabName, headers) {
+  var sheet = ss.getSheetByName(tabName);
+  if (!sheet) {
+    sheet = ss.insertSheet(tabName);
+  }
+  if (sheet.getLastRow() === 0 && headers && headers.length) {
+    sheet.appendRow(headers);
+    sheet.getRange(1, 1, 1, headers.length)
+      .setFontWeight("bold")
+      .setBackground("#0267B1")
+      .setFontColor("#ffffff");
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
 }
 
 function doPost(e) {
-try {
-var data = JSON.parse(e.postData.contents);
-var ss = getOrCreateSpreadsheet();
-var sheet = ss.getActiveSheet();
-setupSheetHeaders(sheet);
+  try {
+    var data = JSON.parse(e.postData.contents);
+    var ss = getOrCreateSpreadsheet();
 
-// 1. Lệnh kiểm tra kết nối từ Admin
-if (data.action === 'test_connection') {
-var t = data.testRow || {};
-sheet.appendRow([
-  t.studentId || "TEST_LMS",
-  t.fullName || "Kiểm Tra Kết Nối",
-  t.grade || "10",
-  t.studentClass || "10/14",
-  t.examCode || "101",
-  t.mcqPoints || 7.0,
-  t.essayTotal || 3.0,
-  t.finalScore || 10.0,
-  t.violations || 0,
-  t.durationFormatted || "00:01",
-  t.submittedAt || new Date().toISOString()
-]);
-return ContentService.createTextOutput(JSON.stringify({ success: true, message: "Kết nối thành công!" }))
-  .setMimeType(ContentService.MimeType.JSON);
-}
+    // 1. Kiểm tra kết nối
+    if (data.action === 'test_connection') {
+      var tSheet = getOrCreateTab(ss, "Bai_Thi_Chinh_Thuc", [
+        "Thời Điểm Nộp", "Mã LMS", "Họ và Tên", "Khối", "Lớp", "Mã Đề", "Điểm TN", "Điểm Đúng/Sai", "Điểm TL", "Tổng Điểm", "HS Xác Nhận Điểm", "Thời Điểm Xác Nhận", "Số Lần Làm", "Số Lần Đổi Thiết Bị", "Vi Phạm", "Thời Lượng", "Ghi Chú Nộp Muộn"
+      ]);
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        message: "Kết nối thành công tới 5 tab Google Sheets!",
+        spreadsheetName: ss.getName()
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
 
-// 2. Đồng bộ từng dòng khi học sinh nộp bài thi
-if (data.action === 'sync_row' && data.submission) {
-var s = data.submission;
-sheet.appendRow([
-  s.studentId || s.studentCode || "",
-  s.fullName || "",
-  s.grade || "",
-  s.studentClass || "",
-  s.examCode || "",
-  s.mcqPoints !== undefined ? s.mcqPoints : (s.score || 0),
-  s.essayTotal || 0,
-  s.finalScore !== undefined ? s.finalScore : (s.score || 0),
-  s.violations || 0,
-  s.durationFormatted || "45 phút",
-  s.submittedAt || new Date().toISOString()
-]);
-return ContentService.createTextOutput(JSON.stringify({ success: true }))
-  .setMimeType(ContentService.MimeType.JSON);
-}
+    // 2. Ôn tập đề cương -> Ghi vào On_Tap_De_Cuong
+    if (data.action === 'sync_practice' && data.submission) {
+      var p = data.submission;
+      var sheetPractice = getOrCreateTab(ss, "On_Tap_De_Cuong", [
+        "Thời Điểm", "Mã LMS", "Họ và Tên", "Khối", "Lớp", "Lần Làm", "Điểm TN", "Số Câu Đúng", "Vi Phạm", "Thời Gian Làm"
+      ]);
+      sheetPractice.appendRow([
+        p.submittedAt || new Date().toISOString(),
+        p.studentId || p.studentCode || "",
+        p.fullName || "",
+        p.grade || "",
+        p.studentClass || "",
+        p.attemptNumber || 1,
+        p.mcqPoints !== undefined ? p.mcqPoints : (p.score || 0),
+        p.correctCount !== undefined ? p.correctCount : "",
+        p.violations || 0,
+        p.durationFormatted || "30 phút"
+      ]);
+      return ContentService.createTextOutput(JSON.stringify({ success: true, sheet: "On_Tap_De_Cuong" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
 
-// 3. Sao lưu toàn bộ kỳ thi thành tệp JSON vào Google Drive
-if (data.action === 'backup_file') {
-var folders = DriveApp.getFoldersByName("AHS-LMS-Archive");
-var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder("AHS-LMS-Archive");
-var fileName = "Backup_AHS_" + Utilities.formatDate(new Date(), "GMT+7", "yyyy_MM_dd_HHmm") + ".json";
-folder.createFile(fileName, data.jsonContent);
-return ContentService.createTextOutput(JSON.stringify({ success: true, file: fileName }))
-  .setMimeType(ContentService.MimeType.JSON);
-}
+    // 3. Thi chính thức -> Ghi vào Bai_Thi_Chinh_Thuc, Chi_Tiet_Bai_Lam, Giam_Sat_Va_Vi_Pham
+    if ((data.action === 'sync_exam' || data.action === 'sync_row') && data.submission) {
+      var s = data.submission;
+      var isPractice = s.mode === 'practice';
+      if (isPractice) {
+        var sheetP = getOrCreateTab(ss, "On_Tap_De_Cuong", [
+          "Thời Điểm", "Mã LMS", "Họ và Tên", "Khối", "Lớp", "Lần Làm", "Điểm TN", "Số Câu Đúng", "Vi Phạm", "Thời Gian Làm"
+        ]);
+        sheetP.appendRow([
+          s.submittedAt || new Date().toISOString(),
+          s.studentId || s.studentCode || "",
+          s.fullName || "",
+          s.grade || "",
+          s.studentClass || "",
+          s.attemptNumber || 1,
+          s.mcqPoints !== undefined ? s.mcqPoints : (s.score || 0),
+          s.correctCount !== undefined ? s.correctCount : "",
+          s.violations || 0,
+          s.durationFormatted || "30 phút"
+        ]);
+        return ContentService.createTextOutput(JSON.stringify({ success: true, sheet: "On_Tap_De_Cuong" }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
 
-return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Hành động không xác định" }))
-.setMimeType(ContentService.MimeType.JSON);
-} catch (err) {
-return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.toString() }))
-.setMimeType(ContentService.MimeType.JSON);
-}
+      var sheetExam = getOrCreateTab(ss, "Bai_Thi_Chinh_Thuc", [
+        "Thời Điểm Nộp", "Mã LMS", "Họ và Tên", "Khối", "Lớp", "Mã Đề", "Điểm TN", "Điểm Đúng/Sai", "Điểm TL", "Tổng Điểm", "HS Xác Nhận Điểm", "Thời Điểm Xác Nhận", "Số Lần Làm", "Số Lần Đổi Thiết Bị", "Vi Phạm", "Thời Lượng", "Ghi Chú Nộp Muộn"
+      ]);
+      sheetExam.appendRow([
+        s.submittedAt || new Date().toISOString(),
+        s.studentId || s.studentCode || "",
+        s.fullName || "",
+        s.grade || "",
+        s.studentClass || "",
+        s.examCode || "101",
+        s.mcqPoints !== undefined ? s.mcqPoints : (s.score || 0),
+        s.tfPoints || 0,
+        s.essayTotal || 0,
+        s.finalScore !== undefined ? s.finalScore : (s.score || 0),
+        s.scoreConfirmed || "Chưa xác nhận",
+        s.scoreConfirmedAt || "",
+        s.attemptNumber || 1,
+        s.deviceChanges || 0,
+        s.violations || 0,
+        s.durationFormatted || "45 phút",
+        s.lateNote || "Đúng hạn"
+      ]);
+
+      // Ghi giám sát an toàn thi nếu có vi phạm hoặc đổi máy
+      if (s.violations > 0 || s.deviceChanges > 0) {
+        var sheetMon = getOrCreateTab(ss, "Giam_Sat_Va_Vi_Pham", [
+          "Thời Điểm", "Mã LMS", "Họ và Tên", "Khối", "Lớp", "Mã Đề", "Loại Sự Kiện", "Số Lần Vi Phạm", "Lý Do Khóa", "Thời Lượng Đã Làm"
+        ]);
+        sheetMon.appendRow([
+          s.submittedAt || new Date().toISOString(),
+          s.studentId || "",
+          s.fullName || "",
+          s.grade || "",
+          s.studentClass || "",
+          s.examCode || "",
+          s.violations >= 3 ? "Khóa Màn Hình Vi Phạm" : (s.deviceChanges > 0 ? "Đổi Thiết Bị" : "Cảnh Báo Vi Phạm"),
+          s.violations || 0,
+          s.violations >= 3 ? "Chuyển tab / Thoát toàn màn hình quá 3 lần" : "",
+          s.durationFormatted || ""
+        ]);
+      }
+
+      // Ghi chi tiết câu trả lời nếu có
+      if (data.answers && typeof data.answers === 'object') {
+        var sheetAns = getOrCreateTab(ss, "Chi_Tiet_Bai_Lam", [
+          "Thời Điểm", "Mã LMS", "Họ và Tên", "Khối", "Lớp", "Mã Đề", "Lượt Thi", "Câu Số", "Loại Câu", "Câu Trả Lời Của HS", "Kết Quả Đánh Giá", "Điểm Đạt"
+        ]);
+        var mcq = data.answers.mcq || {};
+        var letters = ['A', 'B', 'C', 'D'];
+        for (var qNum in mcq) {
+          sheetAns.appendRow([
+            s.submittedAt || new Date().toISOString(),
+            s.studentId || "",
+            s.fullName || "",
+            s.grade || "",
+            s.studentClass || "",
+            s.examCode || "",
+            s.attemptNumber || 1,
+            qNum,
+            "Trắc nghiệm",
+            letters[mcq[qNum]] || String(mcq[qNum]),
+            "",
+            ""
+          ]);
+        }
+      }
+
+      return ContentService.createTextOutput(JSON.stringify({ success: true, sheet: "Bai_Thi_Chinh_Thuc" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 4. Đồng bộ toàn bộ dữ liệu & Thống kê theo lớp -> sync_all
+    if (data.action === 'sync_all' || data.action === 'backup_file') {
+      if (data.jsonContent) {
+        var folders = DriveApp.getFoldersByName(FOLDER_NAME);
+        var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(FOLDER_NAME);
+        var fileName = "Backup_AHS_" + Utilities.formatDate(new Date(), "GMT+7", "yyyy_MM_dd_HHmm") + ".json";
+        folder.createFile(fileName, data.jsonContent);
+      }
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        message: "Đã đồng bộ dữ liệu và sao lưu lên Google Drive!"
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Hành động không xác định" }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
 }`}
               </div>
             </div>

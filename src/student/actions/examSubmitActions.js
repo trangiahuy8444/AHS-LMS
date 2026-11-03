@@ -13,6 +13,23 @@ export function createExamSubmitActions(s) {
     // Hết giờ có thể gọi nộp bài 2 lần (hộp thoại + gọi trực tiếp): chỉ gửi 1 lần
     if (submittingExamRef.current) return;
 
+    if (!isForced && config.preventEarlySubmission !== false) {
+      const minMinutes = (config.minExamMinutes !== undefined && config.minExamMinutes !== null) ? Number(config.minExamMinutes) : 15;
+      const elapsed = s.elapsedSeconds || 0;
+      const requiredSeconds = minMinutes * 60;
+      if (elapsed < requiredSeconds) {
+        const remaining = requiredSeconds - elapsed;
+        const mins = Math.floor(remaining / 60);
+        const secs = remaining % 60;
+        showDialog(
+          'Chưa Đến Thời Gian Nộp Bài ⏱️',
+          `⚠️ Chưa đến thời gian cho phép nộp bài thi!\n\nTheo quy chế, em cần tập trung làm bài và kiểm tra lại bài làm tối thiểu ${minMinutes} phút trước khi nộp.\n\nThời gian cần làm thêm: ${mins > 0 ? `${mins} phút ` : ''}${secs} giây. Em hãy rà soát kỹ lại từng câu hỏi nhé!`,
+          'warning'
+        );
+        return;
+      }
+    }
+
     if (!isForced && config.requireAllQuestionsAnswered) {
       const missing = [];
       if (grade === 8 || grade === 9) {
@@ -83,7 +100,7 @@ export function createExamSubmitActions(s) {
     let finalResult;
     setIsContactingServer(true);
     try {
-      finalResult = await window.AsianSchoolCloud.submitExam({ grade, studentId, sessionId, answers: examAnswers, violations });
+      finalResult = await window.AsianSchoolCloud.submitExam({ grade, studentClass, studentId, sessionId, answers: examAnswers, violations });
     } catch (err) {
       setIsContactingServer(false);
       submittingExamRef.current = false;

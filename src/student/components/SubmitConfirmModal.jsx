@@ -4,7 +4,13 @@ import { useStudent } from '../StudentContext.js';
 // MODAL XÁC NHẬN NỘP BÀI THI
 export default function SubmitConfirmModal() {
   const { mode, showSubmitModal, setShowSubmitModal, practiceItems, examItems, handleSubmitPractice,
-    handleSubmitExam } = useStudent();
+    handleSubmitExam, config, elapsedSeconds, formatElapsed } = useStudent();
+
+  const minExamMinutes = (config?.minExamMinutes !== undefined && config?.minExamMinutes !== null) ? Number(config.minExamMinutes) : 15;
+  const remainingEarlyLockSeconds = (mode === 'exam' && config?.preventEarlySubmission !== false)
+    ? Math.max(0, (minExamMinutes * 60) - (elapsedSeconds || 0))
+    : 0;
+  const isEarlyLockActive = remainingEarlyLockSeconds > 0;
 
   if (!(showSubmitModal)) return null;
 
@@ -43,9 +49,18 @@ export default function SubmitConfirmModal() {
           );
         })()}
 
-        <p className="text-xs text-slate-500 text-center font-medium">
-          Em có chắc chắn muốn nộp bài ngay bây giờ để hệ thống chấm điểm và xuất kết quả không?
-        </p>
+        {isEarlyLockActive ? (
+          <div className="p-3 bg-amber-50 border-2 border-amber-300 rounded-2xl text-xs text-amber-900 font-bold text-center space-y-1">
+            <p>⏱️ Chưa đủ thời gian làm bài tối thiểu {minExamMinutes} phút!</p>
+            <p className="text-[11px] text-amber-800 font-normal">
+              Thời gian cần làm thêm: <strong>{formatElapsed(remainingEarlyLockSeconds)}</strong>. Em hãy kiểm tra kỹ lại bài làm trước khi nộp.
+            </p>
+          </div>
+        ) : (
+          <p className="text-xs text-slate-500 text-center font-medium">
+            Em có chắc chắn muốn nộp bài ngay bây giờ để hệ thống chấm điểm và xuất kết quả không?
+          </p>
+        )}
 
         <div className="grid grid-cols-2 gap-3 pt-2">
           <button
@@ -57,6 +72,7 @@ export default function SubmitConfirmModal() {
           </button>
           <button
             type="button"
+            disabled={isEarlyLockActive}
             onClick={() => {
               if (mode === 'practice') {
                 handleSubmitPractice();
@@ -65,10 +81,12 @@ export default function SubmitConfirmModal() {
               }
             }}
             className={`py-3 rounded-xl text-white font-extrabold text-sm transition shadow-md uppercase tracking-wide ${
-              mode === 'practice' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'
+              isEarlyLockActive
+                ? 'bg-slate-300 cursor-not-allowed text-slate-500 shadow-none'
+                : (mode === 'practice' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700')
             }`}
           >
-            Đồng Ý Nộp Bài
+            {isEarlyLockActive ? `Chờ ${formatElapsed(remainingEarlyLockSeconds)}` : 'Đồng Ý Nộp Bài'}
           </button>
         </div>
       </div>

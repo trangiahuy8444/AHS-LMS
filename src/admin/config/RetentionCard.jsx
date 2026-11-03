@@ -11,21 +11,15 @@ export default function RetentionCard() {
       <div className="flex items-center justify-between border-b border-slate-100 pb-3">
         <h3 className="font-black text-sm text-blue-950 uppercase tracking-wider flex items-center space-x-2">
           <span>🗄️</span>
-          <span>QUẢN LÝ VÒNG ĐỜI KỲ THI & DỌN DẸP DỮ LIỆU (2-3 TUẦN)</span>
+          <span>LƯU TRỮ DỮ LIỆU BÀI THI & DỌN DẸP AN TOÀN</span>
         </h3>
-        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
-          retentionSummary.isExpired
-            ? 'bg-red-100 text-red-800 border-red-300'
-            : (retentionSummary.isNearExpiry
-                ? 'bg-amber-100 text-amber-800 border-amber-300'
-                : 'bg-blue-100 text-blue-900 border-blue-200')
-        }`}>
-          {retentionSummary.daysActive} ngày lưu trữ
+        <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border bg-emerald-100 text-emerald-800 border-emerald-300">
+          🟢 Lưu Trữ Vĩnh Viễn
         </span>
       </div>
 
       <p className="text-xs text-slate-500 font-medium">
-        Theo quy chuẩn lưu trữ của bộ môn: Dữ liệu bài thi chính thức được lưu trữ an toàn trong 2–3 tuần (tối đa 21 ngày) để phục vụ chấm tự luận và vào điểm. Sau đó có thể dọn dẹp để chuẩn bị cho đợt thi mới.
+        Dữ liệu thi chính thức của học sinh được bảo toàn cẩn thận trên hệ thống và không bao giờ tự động xóa. Khi cần dọn dẹp để chuẩn bị cho đợt thi mới, hệ thống sẽ tự động sao lưu tệp Excel CSV + JSON về máy tính và yêu cầu Thầy nhập mã xác nhận bảo mật <strong>XAC NHAN XOA</strong>.
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs">
@@ -71,7 +65,7 @@ export default function RetentionCard() {
             className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow transition flex items-center space-x-1.5"
           >
             <span>🗑️</span>
-            <span>2. Dọn Dẹp Kỳ Thi Cũ (Xóa Dữ Liệu Sau 2-3 Tuần)</span>
+            <span>2. Dọn Dẹp Kỳ Thi Cũ (Bảo Mật Nhập XAC NHAN XOA)</span>
           </button>
         </div>
         <p className="text-[11px] text-slate-500 italic">

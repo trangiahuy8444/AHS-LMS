@@ -4,7 +4,14 @@ import { useStudent } from '../StudentContext.js';
 // CỘT PHẢI (1 CỘT): SIDEBAR DANH SÁCH CÂU HỎI & NỘP BÀI (TRẮNG SÁNG, NỔI BẬT)
 export default function QuestionSidebar() {
   const { mode, assignedCode, activeQuestionIdx, setActiveQuestionIdx, setShowSubmitModal,
-    timeLeftStr, examStartTime, elapsedSeconds, formatElapsed, config, practiceItems, examItems } = useStudent();
+    timeLeftStr, examStartTime, elapsedSeconds, formatElapsed, config, practiceItems, examItems,
+    showDialog } = useStudent();
+
+  const minExamMinutes = (config?.minExamMinutes !== undefined && config?.minExamMinutes !== null) ? Number(config.minExamMinutes) : 15;
+  const remainingEarlyLockSeconds = (mode === 'exam' && config?.preventEarlySubmission !== false)
+    ? Math.max(0, (minExamMinutes * 60) - (elapsedSeconds || 0))
+    : 0;
+  const isEarlyLockActive = remainingEarlyLockSeconds > 0;
 
   return (
     <div className="lg:col-span-1" id="question-palette-sidebar">
@@ -127,14 +134,32 @@ export default function QuestionSidebar() {
         <div className="pt-2">
           <button
             type="button"
-            onClick={() => setShowSubmitModal(true)}
+            onClick={() => {
+              if (isEarlyLockActive) {
+                const mins = Math.floor(remainingEarlyLockSeconds / 60);
+                const secs = remainingEarlyLockSeconds % 60;
+                showDialog(
+                  'Chưa Đến Thời Gian Nộp Bài ⏱️',
+                  `⚠️ Chưa đến thời gian cho phép nộp bài thi!\n\nTheo quy chế, em cần tập trung làm bài và kiểm tra lại bài làm tối thiểu ${minExamMinutes} phút trước khi nộp.\n\nThời gian cần làm thêm: ${mins > 0 ? `${mins} phút ` : ''}${secs} giây. Em hãy rà soát kỹ lại từng câu hỏi nhé!`,
+                  'warning'
+                );
+                return;
+              }
+              setShowSubmitModal(true);
+            }}
             className={`w-full py-3.5 rounded-2xl font-black text-xs transition shadow-xl uppercase tracking-wider ${
               mode === 'practice'
                 ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/30'
-                : 'bg-red-600 hover:bg-red-700 text-white shadow-red-600/30'
+                : (isEarlyLockActive
+                    ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/30'
+                    : 'bg-red-600 hover:bg-red-700 text-white shadow-red-600/30')
             }`}
           >
-            {mode === 'practice' ? 'NỘP BÀI & XEM ĐÁNH GIÁ' : 'NỘP BÀI THI CHÍNH THỨC'}
+            {mode === 'practice'
+              ? 'NỘP BÀI & XEM ĐÁNH GIÁ'
+              : (isEarlyLockActive
+                  ? `CHƯA THỂ NỘP (CÒN ${formatElapsed(remainingEarlyLockSeconds)})`
+                  : 'NỘP BÀI THI CHÍNH THỨC')}
           </button>
         </div>
 

@@ -64,11 +64,11 @@ export function useAdminController() {
   const [cloudStatus, setCloudStatus] = useState(window.AsianSchoolCloudSyncStatus || { connected: false });
 
   // Config Tab States
-  const [newExamPassword, setNewExamPassword] = useState(config.examPassword || '');
   const [examBankStatus, setExamBankStatus] = useState('');
   const [, setExamBankVersion] = useState(0);
   const [maxExamAttempts, setMaxExamAttempts] = useState(config.maxExamAttempts || 1);
   const [attemptGrade, setAttemptGrade] = useState('9');
+  const [attemptClass, setAttemptClass] = useState('');
   const [attemptLms, setAttemptLms] = useState('');
   const [attemptStatus, setAttemptStatus] = useState('');
   const [configSavedNotice, setConfigSavedNotice] = useState('');
@@ -82,6 +82,9 @@ export function useAdminController() {
   const [requireAllQuestionsAnswered, setRequireAllQuestionsAnswered] = useState(config.requireAllQuestionsAnswered || false);
   const [lockOnExamViolation, setLockOnExamViolation] = useState(config.lockOnExamViolation !== false);
   const [lockOnPracticeViolation, setLockOnPracticeViolation] = useState(Boolean(config.lockOnPracticeViolation));
+  const [preventEarlySubmission, setPreventEarlySubmission] = useState(config.preventEarlySubmission !== false);
+  const [minExamMinutes, setMinExamMinutes] = useState(config.minExamMinutes !== undefined ? config.minExamMinutes : 15);
+  const [allowStudentReviewOfficialExam, setAllowStudentReviewOfficialExam] = useState(Boolean(config.allowStudentReviewOfficialExam));
 
   // Google Drive & Retention States
   const [googleDriveUrl, setGoogleDriveUrl] = useState(config.googleDriveWebhookUrl || '');
@@ -180,8 +183,6 @@ export function useAdminController() {
     ALL_CLASSES_BY_GRADE,
     cloudStatus,
     setCloudStatus,
-    newExamPassword,
-    setNewExamPassword,
     examBankStatus,
     setExamBankStatus,
     setExamBankVersion,
@@ -189,6 +190,8 @@ export function useAdminController() {
     setMaxExamAttempts,
     attemptGrade,
     setAttemptGrade,
+    attemptClass,
+    setAttemptClass,
     attemptLms,
     setAttemptLms,
     attemptStatus,
@@ -211,6 +214,12 @@ export function useAdminController() {
     setLockOnExamViolation,
     lockOnPracticeViolation,
     setLockOnPracticeViolation,
+    preventEarlySubmission,
+    setPreventEarlySubmission,
+    minExamMinutes,
+    setMinExamMinutes,
+    allowStudentReviewOfficialExam,
+    setAllowStudentReviewOfficialExam,
     googleDriveUrl,
     setGoogleDriveUrl,
     googleDriveToken,

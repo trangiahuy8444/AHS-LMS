@@ -180,7 +180,7 @@ export function createStartActions(s) {
         if (v.count >= 3 && shouldLock) {
           if (mode === 'practice') savePracticeLock(grade, studentId, totalViolations);
           if (mode === 'exam' && window.AsianSchoolCloud && window.AsianSchoolCloud.reportViolation) {
-            window.AsianSchoolCloud.reportViolation({ grade, studentId, lock: true });
+            window.AsianSchoolCloud.reportViolation({ grade, studentClass, studentId, lock: true });
           }
           // Khóa AntiCheat lại để không bắn thêm vi phạm khi đang ở màn hình khóa
           if (window.AsianSchoolAntiCheat && window.AsianSchoolAntiCheat.setLocked) {
@@ -208,7 +208,7 @@ export function createStartActions(s) {
           });
         } else {
           if (mode === 'exam' && window.AsianSchoolCloud && window.AsianSchoolCloud.reportViolation) {
-            window.AsianSchoolCloud.reportViolation({ grade, studentId, lock: false });
+            window.AsianSchoolCloud.reportViolation({ grade, studentClass, studentId, lock: false });
           }
           const warningMsg = (v.count >= 3 && !shouldLock)
             ? `Cảnh báo vi phạm lần ${v.count}: Em vừa rời giao diện làm bài hoặc thoát toàn màn hình! Vì đang ở chế độ ôn tập rèn luyện, hệ thống chỉ nhắc nhở cảnh báo (không khóa màn hình). Em hãy tập trung làm bài!`

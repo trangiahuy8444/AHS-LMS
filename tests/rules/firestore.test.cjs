@@ -179,3 +179,14 @@ test('student-choice takeover changes only device owner and keeps original code 
   require('node:assert/strict').equal(saved.attemptsUsed,1);
   await assertFails(updateDoc(doc(db('owner'), 'exam_attempts/g8_100001'), { uid:'owner',deviceChanges:2,examCode:'102' }));
 });
+
+test('resuming an active exam requires the current room password', async () => {
+  await seedActive();
+  const d = db('owner');
+  const session = doc(d, 'exam_sessions/owner');
+  const data = { attemptId: 'g8_100001', examDocId: 'g8_101' };
+  await assertSucceeds(setDoc(doc(d, 'exam_keys/owner'), { password: 'wrong' }));
+  await assertFails(setDoc(session, data));
+  await assertSucceeds(setDoc(doc(d, 'exam_keys/owner'), { password: ' FAKE-ROOM ' }));
+  await assertSucceeds(setDoc(session, data));
+});

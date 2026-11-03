@@ -92,8 +92,10 @@ service cloud.firestore {
                                  'attemptsUsed', 'submitted', 'startedAt', 'deviceChanges', 'durationMinutes', 'extraTimeSeconds'])
           && d.grade in [8, 9, 10]
           && d.studentId is string && d.studentId.matches('[A-Z0-9_-]{1,30}')
-          && attemptId == 'g' + string(d.grade) + '_' + d.studentId
           && d.studentClass is string && d.studentClass.matches(string(d.grade) + '/[0-9]{1,3}')
+          && (attemptId == 'g' + string(d.grade) + '_' + d.studentClass.replace('/', '_') + '_' + d.studentId
+              || attemptId == 'g' + string(d.grade) + '_' + d.studentClass.replace('/', '-') + '_' + d.studentId
+              || attemptId == 'g' + string(d.grade) + '_' + d.studentId)
           && d.fullName is string && d.fullName.size() > 0 && d.fullName.size() <= 80
           && d.uid == request.auth.uid
           && d.attemptsUsed == 1
@@ -175,6 +177,7 @@ service cloud.firestore {
       allow read: if signedIn() && uid == request.auth.uid;
       allow create, update: if signedIn() && uid == request.auth.uid
         && request.resource.data.keys().hasOnly(['attemptId', 'examDocId'])
+        && roomPasswordOk()
         && attemptAfter(request.resource.data.attemptId).uid == request.auth.uid
         && attemptAfter(request.resource.data.attemptId).submitted == false
         && request.resource.data.examDocId == 'g' + string(attemptAfter(request.resource.data.attemptId).grade)
@@ -228,8 +231,16 @@ service cloud.firestore {
           && d.sessionId is string && d.submittedAt is string
           && d.isGraded == false && d.essayScores == {} && d.essayTotal == 0 && d.teacherFeedback == '';
       }
-      allow read, update, delete: if isTeacher();
+      allow read: if isTeacher() || (signedIn() && resource.data.uid == request.auth.uid);
       allow create: if signedIn() && validSubmission(request.resource.data);
+      allow update: if isTeacher() || (
+        signedIn()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['scoreConfirmed', 'scoreConfirmedAt'])
+        && request.resource.data.scoreConfirmed == true
+        && request.resource.data.scoreConfirmedAt == request.time
+      );
+      allow delete: if isTeacher();
     }
 
     // Hàng chờ điểm ôn tập: học sinh ghi dòng của mình, trang quản trị đẩy lên Google Sheets rồi xóa.
