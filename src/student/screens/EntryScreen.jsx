@@ -8,7 +8,8 @@ export default function EntryScreen() {
   const { grade, setGrade, mode, setMode, examState, fullName, setFullName, studentClass,
     setStudentClass, studentId, setStudentId, isContactingServer, examPasswordInput,
     setExamPasswordInput, showExamPassword, setShowExamPassword, showDialog, classAccessMode,
-    handleStart, handleReviewLookup, config = {}, selectedExamCode, setSelectedExamCode } = useStudent();
+    handleStart, handleReviewLookup, config = {}, selectedExamCode, setSelectedExamCode,
+    isEmergencyLmsOverride, setIsEmergencyLmsOverride } = useStudent();
 
   const [isManualName, setIsManualName] = useState(false);
   const classRoster = getStudentsByClass(studentClass);
@@ -407,7 +408,7 @@ export default function EntryScreen() {
               </span>
               {matchedStudent && (
                 <span className="text-[11px] text-emerald-800 font-mono-code font-bold">
-                  Gợi ý: {matchedStudent.loginId ? `${matchedStudent.loginId.slice(0, 5)}****` : 'Nhập mã của em'}
+                  Gợi ý: {matchedStudent.loginId ? matchedStudent.loginId : 'Nhập toàn bộ mã của em'}
                 </span>
               )}
             </div>
@@ -416,23 +417,23 @@ export default function EntryScreen() {
               <div className="sm:col-span-7">
                 <input
                   type="text"
-                  inputMode="numeric"
                   value={studentId}
                   onChange={e => {
                     const val = e.target.value;
-                    const clean = window.AsianSchoolNormalize ? window.AsianSchoolNormalize.normalizeLmsCode(val) : val.replace(/\D/g, '');
+                    // Cho phép nhập số và dấu gạch ngang '-', không bị tự động xóa khi gõ
+                    const clean = val.replace(/[^0-9-]/g, '').slice(0, 20);
                     setStudentId(clean);
+                    if (isEmergencyLmsOverride) setIsEmergencyLmsOverride(false);
 
-                    // Auto-fill: Nếu chưa chọn tên nhưng gõ đúng mã LMS thì tự động chọn đúng học sinh!
-                    if (!fullName && clean.length >= 4) {
+                    // Auto-fill: Nếu chưa chọn tên nhưng gõ đúng toàn bộ mã LMS (dù có hoặc không có dấu '-') thì tự động chọn đúng học sinh!
+                    if (!fullName && clean.replace(/-/g, '').length >= 7) {
                       const autoFound = findStudentInClassByLms(studentClass, clean);
                       if (autoFound) {
                         setFullName(autoFound.fullName);
                       }
                     }
                   }}
-                  onBlur={e => window.AsianSchoolNormalize && setStudentId(window.AsianSchoolNormalize.normalizeLmsCode(e.target.value))}
-                  placeholder="Nhập Mã LMS hoặc 4 số cuối (Ví dụ: 0002)"
+                  placeholder="Nhập toàn bộ Mã LMS (Ví dụ: 01-19-0002 hoặc 01190002)"
                   className="w-full px-4 py-3 rounded-xl border-2 border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-600 text-sm font-black font-mono-code bg-white text-emerald-950 shadow-sm"
                 />
               </div>
@@ -457,15 +458,49 @@ export default function EntryScreen() {
                     <span className="text-base">✅</span>
                     <span>ĐÃ XÁC THỰC CHÍNH CHỦ: <strong>{fullName}</strong> (STT {matchedStudent.stt} - Lớp {studentClass}). Sẵn sàng vào thi!</span>
                   </div>
+                ) : isEmergencyLmsOverride ? (
+                  <div className="p-3 rounded-2xl bg-amber-100 border-2 border-amber-400 text-amber-950 space-y-1">
+                    <div className="flex items-center space-x-2 font-black text-xs text-amber-950 uppercase">
+                      <span>⚡</span><span>ĐÃ KÍCH HOẠT XÁC NHẬN MÃ KHẨN CẤP (CHO PHÉP VÀO THI)</span>
+                    </div>
+                    <p className="text-[11px] text-amber-900 font-medium pl-6 leading-relaxed">
+                      Em được phép vào làm bài thi với Mã LMS: <strong>{studentId}</strong>. Hệ thống đã lưu trữ ghi nhận để Giám thị Thầy Trần Gia Huy đối soát sau giờ thi.
+                    </p>
+                  </div>
                 ) : studentId ? (
-                  <div className="p-2.5 rounded-xl bg-rose-100 border border-rose-300 text-rose-950 font-bold flex items-center space-x-2">
-                    <span className="text-base">⛔</span>
-                    <span>MÃ LMS CHƯA KHỚP với học sinh <strong>{fullName}</strong>. Em vui lòng kiểm tra lại thẻ học sinh (Bạn khác không thể vào thi hộ)!</span>
+                  <div className="p-3.5 rounded-2xl bg-rose-50 border-2 border-rose-300 text-rose-950 space-y-2.5">
+                    <div className="flex items-start space-x-2">
+                      <span className="text-xl">⛔</span>
+                      <div className="text-xs">
+                        <div className="font-black text-rose-950 uppercase">
+                          MÃ LMS CHƯA TRÙNG KHỚP VỚI HỒ SƠ DANH SÁCH LỚP
+                        </div>
+                        <p className="text-[11px] text-rose-800 mt-1 leading-relaxed">
+                          Mã <strong>"{studentId}"</strong> không khớp với hồ sơ lưu của bạn <strong>{fullName}</strong>. Em vui lòng kiểm tra lại thẻ học sinh để nhập đúng toàn bộ mã.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* NÚT CỨU HỘ DỰ PHÒNG KHI DỮ LIỆU NHÀ TRƯỜNG BỊ SAI SÓT */}
+                    <div className="bg-white p-3 rounded-xl border border-rose-200 text-xs space-y-2">
+                      <div className="text-[11px] text-slate-600 font-semibold flex items-center space-x-1">
+                        <span>💡</span>
+                        <span>Lỡ danh sách của trường bị sai sót hoặc mã của em mới đổi?</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsEmergencyLmsOverride(true)}
+                        className="w-full py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-98 text-slate-950 font-black text-xs shadow transition flex items-center justify-center space-x-1.5"
+                      >
+                        <span>⚡</span>
+                        <span>Em cam đoan đây là Mã LMS đúng của em — Báo Giám thị & Cho phép vào thi ngay</span>
+                      </button>
+                    </div>
                   </div>
                 ) : (
-                  <div className="p-2.5 rounded-xl bg-amber-100/80 border border-amber-300 text-amber-950 font-medium flex items-center space-x-2">
+                  <div className="p-2.5 rounded-xl bg-blue-50 border border-blue-300 text-blue-950 font-medium flex items-center space-x-2 text-xs">
                     <span className="text-base">🔑</span>
-                    <span>Vui lòng nhập Mã LMS (hoặc 4 số cuối mã) để xác nhận chính chủ trước khi bắt đầu.</span>
+                    <span>Vui lòng nhập toàn bộ Mã LMS (có thể nhập có hoặc không có dấu gạch '-') để xác nhận chính chủ.</span>
                   </div>
                 )}
               </div>

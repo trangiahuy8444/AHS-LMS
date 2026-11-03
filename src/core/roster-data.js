@@ -1883,11 +1883,11 @@ export function cleanLmsCode(val) {
 }
 
 /**
- * Đối soát xem Mã LMS nhập vào có khớp với học sinh đã chọn hay không
- * Chấp nhận:
- * 1. Khớp chính xác mã LMS số (ví dụ: '01190002')
- * 2. Khớp mã ID đăng nhập có dấu gạch (ví dụ: '01-19-0002')
- * 3. Khớp 4 chữ số cuối (ví dụ: '0002') nếu độ dài >= 4
+ * Đối soát xem Mã LMS nhập vào có khớp với học sinh đã chọn hay không.
+ * Quy định kiểm tra: Bắt buộc nhập toàn bộ mã LMS (không chấp nhận chỉ nhập 4 số cuối).
+ * Hỗ trợ linh hoạt:
+ * 1. Mã số thuần (ví dụ: '01190002')
+ * 2. Mã có dấu gạch ngang (ví dụ: '01-19-0002')
  */
 export function verifyStudentLms(student, inputLms) {
   if (!student || !inputLms) return false;
@@ -1897,23 +1897,12 @@ export function verifyStudentLms(student, inputLms) {
   const stdLms = cleanLmsCode(student.studentId);
   const stdLogin = cleanLmsCode(student.loginId);
 
-  // 1. Khớp hoàn toàn
-  if (cleanInput === stdLms || cleanInput === stdLogin) {
-    return true;
-  }
-
-  // 2. Khớp 4 số cuối của mã LMS
-  if (cleanInput.length >= 4) {
-    if (stdLms.endsWith(cleanInput) || stdLogin.endsWith(cleanInput)) {
-      return true;
-    }
-  }
-
-  return false;
+  // Bắt buộc khớp toàn bộ mã (không cho phép chỉ gõ 4 số cuối)
+  return cleanInput === stdLms || cleanInput === stdLogin;
 }
 
 /**
- * Tìm học sinh trong lớp theo Mã LMS (dùng cho Auto-Fill khi học sinh gõ mã trước)
+ * Tìm học sinh trong lớp theo Mã LMS (dùng cho Auto-Fill khi học sinh gõ toàn bộ mã trước)
  */
 export function findStudentInClassByLms(className, inputLms) {
   const students = getStudentsByClass(className);

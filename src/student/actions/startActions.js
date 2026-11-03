@@ -59,12 +59,15 @@ export function createStartActions(s) {
       const classRoster = getStudentsByClass(studentClass);
       const matched = classRoster.find(st => st.fullName === fullName);
       if (matched && !verifyStudentLms(matched, studentId)) {
-        showDialog(
-          'Xác Thực Danh Tính Thí Sinh ⛔',
-          `Mã LMS "${studentId}" không khớp với học sinh "${fullName}" (Lớp ${studentClass}).\n\nQuy chế khảo thí Asian School không cho phép bạn khác vào thi hộ. Em vui lòng kiểm tra lại thẻ học sinh hoặc báo Giám thị nhé!`,
-          'error'
-        );
-        return;
+        // NẾU HỌC SINH ĐÃ XÁC NHẬN MÃ KHẨN CẤP (DO DỮ LIỆU NHÀ TRƯỜNG SAI SÓT HOẶC MÃ MỚI ĐỔI)
+        if (!s.isEmergencyLmsOverride) {
+          showDialog(
+            'Xác Thực Danh Tính Thí Sinh ⛔',
+            `Mã LMS "${s.studentId}" không khớp với hồ sơ lưu của học sinh "${fullName}" (Lớp ${studentClass}).\n\nNếu danh sách trường bị sai sót và em chắc chắn đây là mã của mình, em vui lòng bấm nút "Xác nhận mã LMS đúng" ở khung thông báo để được vào thi ngay nhé!`,
+            'warning'
+          );
+          return;
+        }
       }
     }
 

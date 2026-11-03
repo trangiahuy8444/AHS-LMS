@@ -30,6 +30,7 @@ export function useStudentController() {
   const [studentId, setStudentId] = useState(() => {
     try { return (typeof localStorage !== 'undefined' && localStorage.getItem('ahs_student_lms_v1')) || ''; } catch { return ''; }
   });
+  const [isEmergencyLmsOverride, setIsEmergencyLmsOverride] = useState(false);
   const [sessionId, setSessionId] = useState('');
   const [assignedCode, setAssignedCode] = useState('101');
   const [selectedExamCode, setSelectedExamCode] = useState('');
@@ -478,6 +479,8 @@ export function useStudentController() {
     currentOfficialExam,
     practiceItems,
     examItems,
+    isEmergencyLmsOverride,
+    setIsEmergencyLmsOverride,
     handleDismissWarning,
     handleConfirmScore,
   };

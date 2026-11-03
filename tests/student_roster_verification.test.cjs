@@ -26,25 +26,25 @@ test('Xác thực 2 lớp danh tính học sinh từ Roster chuẩn Asian School
   assert.equal(hs1.studentId, '01190002');
   assert.equal(hs1.loginId, '01-19-0002');
 
-  // a. Khớp mã số thuần
+  // a. Khớp mã số thuần (đủ toàn bộ mã)
   assert.equal(verifyStudentLms(hs1, '01190002'), true);
-  // b. Khớp mã có dấu gạch
+  // b. Khớp mã có dấu gạch ngang (đủ toàn bộ mã)
   assert.equal(verifyStudentLms(hs1, '01-19-0002'), true);
-  // c. Khớp 4 số cuối
-  assert.equal(verifyStudentLms(hs1, '0002'), true);
+  // c. Yêu cầu nhập toàn bộ mã — TỪ CHỐI nếu chỉ gõ 4 số cuối
+  assert.equal(verifyStudentLms(hs1, '0002'), false, 'Bắt buộc nhập toàn bộ mã, không chấp nhận 4 số cuối');
   // d. Từ chối mã sai hoặc của bạn khác (bảo vệ chống thi hộ)
   assert.equal(verifyStudentLms(hs1, '15240009'), false, 'Mã của bạn khác phải bị từ chối');
   assert.equal(verifyStudentLms(hs1, '99999999'), false, 'Mã không tồn tại phải bị từ chối');
   assert.equal(verifyStudentLms(hs1, '1234'), false, 'Mã sai phải bị từ chối');
 
-  // 3. Thử nghiệm Auto-Fill: Gõ mã LMS -> Tự nhận diện đúng tên
+  // 3. Thử nghiệm Auto-Fill: Gõ toàn bộ mã LMS -> Tự nhận diện đúng tên
   const found = findStudentInClassByLms('8/19', '01190002');
   assert.ok(found);
   assert.equal(found.fullName, 'Trần Thái Bình');
 
-  const foundByLast4 = findStudentInClassByLms('8/19', '0002');
-  assert.ok(foundByLast4);
-  assert.equal(foundByLast4.fullName, 'Trần Thái Bình');
+  const foundWithHyphen = findStudentInClassByLms('8/19', '01-19-0002');
+  assert.ok(foundWithHyphen);
+  assert.equal(foundWithHyphen.fullName, 'Trần Thái Bình');
 
   // 4. Thử nghiệm Khối 10: Lớp 10/14
   const s1014 = getStudentsByClass('10/14');
