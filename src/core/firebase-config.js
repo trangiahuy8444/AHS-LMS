@@ -435,7 +435,7 @@
     const cfg = cfgSnap.exists ? cfgSnap.data() : {};
     const classMode = (cfg.classAccessControl || {})[data.studentClass] || cfg.defaultClassMode || 'practice_only';
     if (!['exam_only', 'both_open'].includes(classMode)) {
-      throw new Error(`Lớp ${data.studentClass} chưa được mở ca thi chính thức.`);
+      throw new Error(`Lớp ${data.studentClass} hiện chưa được mở ca thi chính thức (đang ở chế độ ${classMode === 'practice_only' ? 'Ôn tập đề cương' : 'Tạm khóa'}). Thầy/Cô giám thị cần bấm "Bật Thi" cho Lớp ${data.studentClass} trong Bảng điều phối ca thi trên trang Quản Trị.`);
     }
 
     const scopedAttemptId = attemptIdFor(grade, data.studentClass, key);
@@ -506,10 +506,16 @@
           extraTimeSeconds: 0
         });
       } catch (createErr) {
+        console.warn('[startExam] Lượt thi mới không tạo được, thử nhận lại lượt từ máy khác:', createErr?.message || createErr);
         // Mã LMS này đã có lượt thi từ máy khác: nhận lại lượt bằng mật khẩu phòng thi
         try {
           await attemptRef.update({ uid, deviceChanges: FieldValue.increment(1) });
         } catch (takeoverErr) {
+          console.warn('[startExam] Nhận lại lượt thất bại:', takeoverErr?.message || takeoverErr);
+          const isPerm = (createErr && createErr.code === 'permission-denied') || (takeoverErr && takeoverErr.code === 'permission-denied');
+          if (isPerm) {
+            throw new Error('Mật khẩu phòng thi chưa chính xác hoặc Thầy/Cô chưa mở ca thi cho lớp này. Em kiểm tra lại mật khẩu do Thầy/Cô giám thị cung cấp.');
+          }
           throw denied;
         }
       }
