@@ -839,6 +839,70 @@
     return true;
   }
 
+  async function lookupSubmissionForReview(data) {
+    await waitForUser();
+    const grade = Number(data.grade);
+    const key = lmsKey(data.studentId);
+    if (![8, 9, 10].includes(grade) || !key) {
+      throw new Error('Khối hoặc Mã LMS chưa hợp lệ. Em vui lòng kiểm tra lại.');
+    }
+
+    const cfgSnap = await db.collection('exam_config').doc('global_config').get();
+    const cfg = cfgSnap.exists ? cfgSnap.data() : {};
+    if (!cfg.allowStudentReviewOfficialExam) {
+      throw new Error('Chức năng xem lại bài làm và chốt điểm hiện chưa được mở. Em vui lòng chờ Thầy Trần Gia Huy thông báo nhé!');
+    }
+
+    const scopedId = attemptIdFor(grade, data.studentClass, key);
+    const legacyId = legacyAttemptIdFor(grade, key);
+    let subDoc = null;
+    let subId = null;
+
+    const candidateIds = [
+      `${scopedId}_1`,
+      `${scopedId}_2`,
+      `${legacyId}_1`,
+      `${legacyId}_2`
+    ];
+
+    for (const candId of candidateIds) {
+      try {
+        const snap = await db.collection('submissions').doc(candId).get();
+        if (snap.exists) {
+          const d = snap.data();
+          if (!data.studentClass || !d.studentClass || d.studentClass === data.studentClass) {
+            subDoc = d;
+            subId = candId;
+            break;
+          }
+        }
+      } catch (e) { /* bỏ qua */ }
+    }
+
+    if (!subDoc) {
+      throw new Error(`Không tìm thấy bài thi chính thức của Mã LMS ${key} thuộc Lớp ${data.studentClass || 'đã chọn'}. Em vui lòng kiểm tra lại đúng Khối, Lớp và Mã LMS.`);
+    }
+
+    let examData = null;
+    if (subDoc.examCode) {
+      const examDocId = `g${grade}_${subDoc.examCode}`;
+      try {
+        const examSnap = await db.collection('exam_public').doc(examDocId).get();
+        if (examSnap.exists) {
+          examData = examSnap.data();
+        }
+      } catch (e) {
+        console.warn('[Firestore] Không tải được exam_public:', e.message);
+      }
+    }
+
+    return {
+      submission: subDoc,
+      exam: examData,
+      subId
+    };
+  }
+
   if (typeof window !== 'undefined') {
     window.firebaseApp = app;
     window.firebaseDb = db;
@@ -866,7 +930,7 @@
       }
     };
 
-    window.AsianSchoolCloud = { startExam, submitExam, loadExam, reportViolation, watchAttempt, setAttemptLock, extendExamTime, watchSubmission, confirmSubmissionScore };
+    window.AsianSchoolCloud = { startExam, submitExam, loadExam, reportViolation, watchAttempt, setAttemptLock, extendExamTime, watchSubmission, confirmSubmissionScore, lookupSubmissionForReview };
 
     const pathname = (window.location && window.location.pathname) || '';
     const isStudentPortal = pathname.includes('/test');

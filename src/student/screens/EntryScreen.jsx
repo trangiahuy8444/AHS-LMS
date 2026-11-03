@@ -7,7 +7,7 @@ export default function EntryScreen() {
   const { grade, setGrade, mode, setMode, examState, fullName, setFullName, studentClass,
     setStudentClass, studentId, setStudentId, isContactingServer, examPasswordInput,
     setExamPasswordInput, showExamPassword, setShowExamPassword, showDialog, classAccessMode,
-    handleStart, config = {}, selectedExamCode, setSelectedExamCode } = useStudent();
+    handleStart, handleReviewLookup, config = {}, selectedExamCode, setSelectedExamCode } = useStudent();
 
   if (!(examState === 'entry')) return null;
 
@@ -17,7 +17,7 @@ export default function EntryScreen() {
     : [];
 
   return (
-    <div className="max-w-xl mx-auto bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
+    <div className="max-w-2xl mx-auto bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
       <div className="bg-gradient-to-r from-blue-900 to-indigo-900 text-white p-6 sm:p-8 text-center">
         <span className="px-3.5 py-1 rounded-full text-xs font-extrabold bg-blue-500/30 text-blue-200 border border-blue-400/30 uppercase tracking-widest inline-block mb-2">
           CỔNG KHẢO THÍ HỌC SINH
@@ -30,7 +30,7 @@ export default function EntryScreen() {
 
       <div className="p-6 sm:p-8 space-y-6">
       
-        {/* Chọn Chế Độ: Ôn Tập hay Thi */}
+        {/* Chọn Chế Độ: Ôn Tập, Thi hoặc Xem lại bài & Chốt điểm */}
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
@@ -45,7 +45,7 @@ export default function EntryScreen() {
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {/* NÚT ÔN TẬP ĐỀ CƯƠNG */}
             <button
               type="button"
@@ -57,11 +57,11 @@ export default function EntryScreen() {
                 setMode('practice');
               }}
               disabled={classAccessMode === 'closed'}
-              className={`p-4 rounded-2xl border-2 text-left transition relative ${
+              className={`p-3.5 sm:p-4 rounded-2xl border-2 text-left transition relative ${
                 classAccessMode === 'exam_only'
                   ? 'opacity-40 border-slate-200 bg-slate-100 cursor-not-allowed'
                   : (mode === 'practice'
-                      ? 'border-blue-600 bg-blue-50/70 shadow-sm'
+                      ? 'border-blue-600 bg-blue-50/70 shadow-sm ring-2 ring-blue-500/20'
                       : 'border-slate-200 hover:border-slate-300 bg-slate-50')
               }`}
             >
@@ -71,13 +71,13 @@ export default function EntryScreen() {
               </div>
               <p className="text-xs text-slate-600 mt-1 font-medium leading-relaxed">
                 {grade === 10
-                  ? 'Bộ đề ngẫu nhiên: 19 câu Trắc nghiệm + 3 câu Đúng/Sai (tính điểm thang 7.75) + 3 câu Tự luận để tự luyện (không tính điểm).'
-                  : 'Bộ đề ngẫu nhiên: 28 câu Trắc nghiệm (tính điểm thang 7) + 3 câu Tự luận để tự luyện (không tính điểm).'
+                  ? 'Bộ đề ngẫu nhiên: 19 TN + 3 Đúng/Sai (thang 7.75) + 3 Tự luận tự luyện.'
+                  : 'Bộ đề ngẫu nhiên: 28 TN (thang 7) + 3 Tự luận tự luyện.'
                 }
               </p>
               {classAccessMode === 'exam_only' && (
                 <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                  ⚠️ Tạm đóng (Lớp đang thi)
+                  ⚠️ Tạm đóng
                 </span>
               )}
             </button>
@@ -93,11 +93,11 @@ export default function EntryScreen() {
                 setMode('exam');
               }}
               disabled={classAccessMode === 'closed'}
-              className={`p-4 rounded-2xl border-2 text-left transition relative ${
+              className={`p-3.5 sm:p-4 rounded-2xl border-2 text-left transition relative ${
                 classAccessMode === 'practice_only'
                   ? 'opacity-40 border-slate-200 bg-slate-100 cursor-not-allowed'
                   : (mode === 'exam'
-                      ? 'border-red-600 bg-red-50/70 shadow-sm'
+                      ? 'border-red-600 bg-red-50/70 shadow-sm ring-2 ring-red-500/20'
                       : 'border-slate-200 hover:border-slate-300 bg-slate-50')
               }`}
             >
@@ -106,16 +106,54 @@ export default function EntryScreen() {
                 <span className="font-bold text-sm text-red-950">THI GIỮA HK1</span>
               </div>
               <p className="text-xs text-slate-600 mt-1 font-medium leading-relaxed">
-                Kiểm tra chính thức 45 phút, cần mật khẩu phòng thi, bảo mật chống gian lận đa tầng.
+                Kiểm tra 45 phút, cần mật khẩu phòng thi, bảo mật chống gian lận.
               </p>
               {classAccessMode === 'practice_only' && (
                 <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700 border border-slate-300">
-                  🔒 Chưa mở ca thi của lớp
+                  🔒 Chưa mở ca thi
                 </span>
               )}
               {classAccessMode === 'exam_only' && (
                 <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-300 animate-pulse">
-                  🔴 Ca thi đang diễn ra!
+                  🔴 Đang thi!
+                </span>
+              )}
+            </button>
+
+            {/* NÚT XEM LẠI BÀI THI & CHỐT ĐIỂM */}
+            <button
+              type="button"
+              onClick={() => {
+                if (!config?.allowStudentReviewOfficialExam) {
+                  showDialog(
+                    'Chức Năng Chưa Mở ⏳',
+                    'Thầy Trần Gia Huy hiện đang chấm bài và chưa mở chức năng xem lại bài làm.\n\nEm vui lòng chờ Thầy thông báo sau khi hoàn tất chấm điểm nhé!',
+                    'info'
+                  );
+                  return;
+                }
+                setMode('review');
+              }}
+              className={`p-3.5 sm:p-4 rounded-2xl border-2 text-left transition relative ${
+                mode === 'review'
+                  ? 'border-indigo-600 bg-indigo-50/70 shadow-sm ring-2 ring-indigo-500/20'
+                  : 'border-slate-200 hover:border-slate-300 bg-slate-50'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <span className="text-2xl">📋</span>
+                <span className="font-bold text-sm text-indigo-950">XEM BÀI & CHỐT ĐIỂM</span>
+              </div>
+              <p className="text-xs text-slate-600 mt-1 font-medium leading-relaxed">
+                Xem lại bài thi đã nộp, đối soát điểm trắc nghiệm, tự luận và chốt điểm chính thức.
+              </p>
+              {config?.allowStudentReviewOfficialExam ? (
+                <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  🟢 Đang mở xem bài
+                </span>
+              ) : (
+                <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700 border border-slate-300">
+                  🔒 Đang chờ chấm
                 </span>
               )}
             </button>
@@ -251,7 +289,21 @@ export default function EntryScreen() {
         </div>
 
         {/* KHUNG HƯỚNG DẪN THỰC TẾ TRÊN LMS ASIAN SCHOOL */}
-        {mode === 'practice' ? (
+        {mode === 'review' ? (
+          <div className="border-2 border-indigo-400 bg-indigo-50/70 rounded-2xl p-4 text-slate-800 space-y-2">
+            <div className="flex items-center space-x-2">
+              <span className="text-xl">📋</span>
+              <h4 className="text-xs font-black text-indigo-950 uppercase tracking-wider">
+                HƯỚNG DẪN ĐỐI SOÁT BÀI THI & CHỐT ĐIỂM
+              </h4>
+            </div>
+            <div className="text-xs space-y-1.5 pl-7 text-slate-700 font-medium leading-relaxed">
+              <p>• Hệ thống sẽ tải lại bài thi chính thức của em cùng điểm trắc nghiệm và điểm tự luận đã được Thầy chấm.</p>
+              <p>• Em kiểm tra kỹ từng câu hỏi, lời phê của Thầy và bấm <strong>"XÁC NHẬN ĐIỂM SỐ CHÍNH XÁC"</strong> để hoàn tất.</p>
+              <p className="text-indigo-900 font-bold">💡 Chức năng này không yêu cầu Mật khẩu phòng thi.</p>
+            </div>
+          </div>
+        ) : mode === 'practice' ? (
           <div className="border-2 border-blue-400 bg-blue-50/70 rounded-2xl p-4 text-slate-800 space-y-2">
             <div className="flex items-center space-x-2">
               <span className="text-xl">📌</span>
@@ -290,19 +342,30 @@ export default function EntryScreen() {
 
         <button
           type="button"
-          onClick={handleStart}
+          onClick={mode === 'review' ? handleReviewLookup : handleStart}
           disabled={isContactingServer}
           className={`w-full py-4 disabled:opacity-60 text-white font-black rounded-2xl shadow-lg transition duration-200 flex items-center justify-center space-x-2 text-sm sm:text-base uppercase tracking-wider ${
-            mode === 'exam'
-              ? 'bg-red-600 hover:bg-red-700 shadow-red-500/25'
-              : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/25'
+            mode === 'review'
+              ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-500/25'
+              : (mode === 'exam'
+                  ? 'bg-red-600 hover:bg-red-700 shadow-red-500/25'
+                  : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/25')
           }`}
         >
-          <span>{isContactingServer ? 'ĐANG KẾT NỐI MÁY CHỦ...' : (mode === 'exam' ? 'BẮT ĐẦU VÀO PHÒNG THI' : 'BẮT ĐẦU ÔN TẬP ĐỀ CƯƠNG')}</span>
+          <span>
+            {isContactingServer
+              ? 'ĐANG KẾT NỐI MÁY CHỦ...'
+              : (mode === 'review'
+                  ? 'TRA CỨU BÀI LÀM & CHỐT ĐIỂM'
+                  : (mode === 'exam' ? 'BẮT ĐẦU VÀO PHÒNG THI' : 'BẮT ĐẦU ÔN TẬP ĐỀ CƯƠNG'))}
+          </span>
           <span>→</span>
         </button>
         <p className="text-[11px] text-slate-500 italic mt-2 text-center">
-          🖥️ Hệ thống sẽ tự động chuyển sang chế độ <strong>Toàn Màn Hình</strong> ngay khi bấm bắt đầu làm bài.
+          {mode === 'review'
+            ? '🔍 Tra cứu nhanh chóng, minh bạch kết quả theo chuẩn Asian School.'
+            : <>🖥️ Hệ thống sẽ tự động chuyển sang chế độ <strong>Toàn Màn Hình</strong> ngay khi bấm bắt đầu làm bài.</>
+          }
         </p>
       </div>
     </div>

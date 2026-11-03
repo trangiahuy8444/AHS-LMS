@@ -184,7 +184,7 @@ service cloud.firestore {
              + '_' + attemptAfter(request.resource.data.attemptId).examCode;
     }
 
-    // Đề đã bỏ đáp án: học sinh chỉ đọc đúng mã đề của lượt đang làm, khi chưa nộp
+    // Đề đã bỏ đáp án: học sinh đọc được đề của lượt đang làm hoặc khi giáo viên mở xem lại bài thi
     match /exam_public/{docId} {
       function sessionAllows() {
         let s = get(/databases/$(database)/documents/exam_sessions/$(request.auth.uid)).data;
@@ -192,13 +192,17 @@ service cloud.firestore {
         // Lượt đang bị khóa thì không đọc được đề (tải lại trang không thoát được khóa)
         return s.examDocId == docId && a.uid == request.auth.uid && a.submitted == false && a.get('locked', false) == false;
       }
-      allow get: if isTeacher() || (signedIn() && sessionAllows());
+      allow get: if isTeacher() || (signedIn() && (sessionAllows() || cfg().get('allowStudentReviewOfficialExam', false) == true));
       allow list: if isTeacher();
       allow write: if bankWriteAllowed();
     }
 
     // Bài nộp chính thức: học sinh chỉ gửi bài làm, không có trường điểm; giáo viên chấm
     match /submissions/{subId} {
+      function canStudentReview() {
+        return signedIn() && cfg().get('allowStudentReviewOfficialExam', false) == true;
+      }
+
       function validSubmission(d) {
         let a = attemptAfter(d.attemptId);
         return d.keys().hasOnly(['id', 'uid', 'attemptId', 'sessionId', 'fullName', 'studentClass', 'studentId',
@@ -231,11 +235,11 @@ service cloud.firestore {
           && d.sessionId is string && d.submittedAt is string
           && d.isGraded == false && d.essayScores == {} && d.essayTotal == 0 && d.teacherFeedback == '';
       }
-      allow read: if isTeacher() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow read: if isTeacher() || (signedIn() && resource.data.uid == request.auth.uid) || canStudentReview();
       allow create: if signedIn() && validSubmission(request.resource.data);
       allow update: if isTeacher() || (
         signedIn()
-        && resource.data.uid == request.auth.uid
+        && (resource.data.uid == request.auth.uid || canStudentReview())
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['scoreConfirmed', 'scoreConfirmedAt'])
         && request.resource.data.scoreConfirmed == true
         && request.resource.data.scoreConfirmedAt == request.time

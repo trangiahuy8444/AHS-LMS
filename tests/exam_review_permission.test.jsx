@@ -2,6 +2,7 @@ import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, fireEvent } from '@testing-library/react';
 import { StudentContext } from '../src/student/StudentContext.js';
+import EntryScreen from '../src/student/screens/EntryScreen.jsx';
 import ResultScreen from '../src/student/screens/ResultScreen.jsx';
 import AnswerReview from '../src/student/result/AnswerReview.jsx';
 
@@ -125,6 +126,36 @@ describe('Bảo mật xem lại bài thi chính thức & Xác nhận điểm s�
 
     expect(screen.getByText(/EM ĐÃ XÁC NHẬN ĐIỂM SỐ CHÍNH XÁC/i)).toBeTruthy();
     expect(screen.getByText(/ĐÃ CHỐT ĐIỂM THÀNH CÔNG/i)).toBeTruthy();
-    expect(screen.queryByText(/XÁC NHẬN ĐIỂM SỐ CHÍNH XÁC/i)).toBeNull();
+    expect(screen.queryByRole('button', { name: /XÁC NHẬN ĐIỂM SỐ CHÍNH XÁC/i })).toBeNull();
+  });
+
+  it('EntryScreen cho phép tra cứu bài làm & chốt điểm khi ở chế độ review', () => {
+    const handleReviewLookup = vi.fn();
+    const value = {
+      ...baseStudentState,
+      examState: 'entry',
+      mode: 'review',
+      studentClass: '8/20',
+      studentId: '111',
+      config: { allowStudentReviewOfficialExam: true },
+      handleReviewLookup,
+      isContactingServer: false,
+      setMode: vi.fn(),
+      setStudentClass: vi.fn(),
+      setStudentId: vi.fn(),
+      classAccessMode: 'exam_only'
+    };
+
+    render(
+      <StudentContext.Provider value={value}>
+        <EntryScreen />
+      </StudentContext.Provider>
+    );
+
+    const lookupBtn = screen.getByRole('button', { name: /TRA CỨU BÀI LÀM & CHỐT ĐIỂM/i });
+    expect(lookupBtn).toBeTruthy();
+
+    fireEvent.click(lookupBtn);
+    expect(handleReviewLookup).toHaveBeenCalledTimes(1);
   });
 });

@@ -104,6 +104,15 @@ export function createStartActions(s) {
         });
       } catch (err) {
         setIsContactingServer(false);
+        if (config?.allowStudentReviewOfficialExam && String(err.message || '').includes('đã dùng hết')) {
+          showDialog(
+            'Đã Hoàn Thành Bài Thi 📝',
+            `Em đã hoàn thành bài thi chính thức này rồi!\n\nHiện Thầy Trần Gia Huy đã mở chức năng XEM LẠI BÀI THI & CHỐT ĐIỂM. Em có muốn xem lại bài làm và điểm số của mình ngay bây giờ không?`,
+            'info',
+            () => handleReviewLookup()
+          );
+          return;
+        }
         showDialog('Chưa Vào Được Phòng Thi', `❌ ${err.message || 'Không kết nối được máy chủ.'}\n\nNếu em chắc chắn đã nhập đúng mật khẩu, hãy báo Thầy/Cô giám thị.`, 'error');
         return;
       }
@@ -343,5 +352,80 @@ export function createStartActions(s) {
     setExamState('in_progress');
   };
 
-  return { handleStart };
+  // Tra cứu bài thi chính thức để xem lại bài làm và xác nhận chốt điểm (ví dụ: 1 tuần sau khi thi)
+  const handleReviewLookup = async () => {
+    const N = window.AsianSchoolNormalize;
+    const studentId = N ? N.normalizeLmsCode(s.studentId) : String(s.studentId || '').trim();
+    if (s.setStudentId) s.setStudentId(studentId);
+    if (!studentId) {
+      showDialog('Yêu Cầu Nhập Mã LMS', 'Vui lòng nhập Mã LMS của em (chỉ gồm các chữ số) để tra cứu bài thi!', 'warning');
+      return;
+    }
+
+    setIsContactingServer(true);
+    try {
+      let result = null;
+      if (window.AsianSchoolCloud && window.AsianSchoolCloud.lookupSubmissionForReview) {
+        result = await window.AsianSchoolCloud.lookupSubmissionForReview({
+          grade,
+          studentClass,
+          studentId,
+          fullName: s.fullName
+        });
+      } else if (window.AsianSchoolStorage && window.AsianSchoolStorage.lookupLocalSubmission) {
+        const local = window.AsianSchoolStorage.lookupLocalSubmission(grade, studentClass, studentId);
+        if (local) result = { submission: local, exam: null, subId: local.id };
+      }
+
+      if (!result || !result.submission) {
+        throw new Error(`Không tìm thấy bài thi của Mã LMS ${studentId} (Lớp ${studentClass}).`);
+      }
+
+      const sub = result.submission;
+      setIsContactingServer(false);
+
+      if (setOfficialExam) setOfficialExam(result.exam || null);
+      if (setExamAnswers) setExamAnswers(sub.answers || { mcq: {}, tf: {}, essay: {} });
+      if (s.setAssignedCode) s.setAssignedCode(sub.examCode || '101');
+      if (s.setFullName && sub.fullName) s.setFullName(sub.fullName);
+
+      const mcqPoints = sub.mcqPoints !== undefined
+        ? sub.mcqPoints
+        : (sub.finalScore !== undefined ? Math.max(0, sub.finalScore - (sub.essayTotal || 0)) : (sub.score || 0));
+
+      const reviewScore = {
+        mode: 'exam',
+        isOfficialReview: true,
+        submissionId: result.subId || sub.id,
+        id: result.subId || sub.id,
+        examCode: sub.examCode || '101',
+        studentClass: sub.studentClass || studentClass,
+        studentId: sub.studentId || studentId,
+        fullName: sub.fullName || s.fullName,
+        grade: sub.grade || grade,
+        score: mcqPoints,
+        mcqPoints,
+        correctMcq: sub.correctMcq,
+        essayScores: sub.essayScores || {},
+        essayTotal: sub.essayTotal || 0,
+        finalScore: sub.finalScore !== undefined ? sub.finalScore : mcqPoints,
+        teacherFeedback: sub.teacherFeedback || '',
+        isGraded: Boolean(sub.isGraded),
+        scoreConfirmed: Boolean(sub.scoreConfirmed),
+        scoreConfirmedAt: sub.scoreConfirmedAt || null,
+        violations: sub.violations || 0,
+        submittedAt: sub.submittedAt || new Date().toISOString(),
+        durationFormatted: sub.durationFormatted || '45 phút'
+      };
+
+      if (setScoreResult) setScoreResult(reviewScore);
+      if (s.setMode) s.setMode('exam');
+      if (setExamState) setExamState('submitted');
+    } catch (err) {
+      setIsContactingServer(false);
+      showDialog('Tra Cứu Bài Thi', `⚠️ ${err.message || 'Không thể mở bài thi vào lúc này.'}`, 'error');
+    }
+  };
+
+  return { handleStart, handleReviewLookup };
 }
