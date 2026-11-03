@@ -678,6 +678,16 @@
       return { success: true, confirmedAt: now };
     }
 
+    lookupLocalSubmission(grade, studentClass, studentId) {
+      const list = this.getSubmissions();
+      const normId = String(studentId || '').replace(/\D/g, '');
+      return list.find(s =>
+        Number(s.grade) === Number(grade) &&
+        String(s.studentClass || '').trim() === String(studentClass || '').trim() &&
+        String(s.studentId || '').replace(/\D/g, '') === normId
+      ) || null;
+    }
+
     exportSubmissionsJSON() {
       const list = this.getSubmissions();
       return JSON.stringify(list, null, 2);

@@ -36,6 +36,17 @@ export default function ResultScreen() {
               <span>🔄</span>
               <span>Làm Lại Bài Ôn Tập</span>
             </button>
+          ) : scoreResult?.isOfficialReview ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== 'undefined') window.location.reload();
+              }}
+              className="px-5 sm:px-6 py-3 bg-indigo-700 hover:bg-indigo-800 active:scale-95 text-white font-bold text-xs sm:text-sm rounded-2xl transition shadow-md flex items-center space-x-1.5"
+            >
+              <span>↩️</span>
+              <span>Về Trang Đăng Nhập</span>
+            </button>
           ) : (
             <button
               type="button"
@@ -57,20 +68,26 @@ export default function ResultScreen() {
         {mode === 'practice' ? (
           <AnswerReview />
         ) : config?.allowStudentReviewOfficialExam ? (
-          showExamReview ? (
+          (showExamReview || scoreResult?.isOfficialReview) ? (
             <div className="space-y-4">
               <div className="flex items-center justify-between bg-white p-4 rounded-2xl border-2 border-blue-200 shadow-sm">
                 <span className="text-xs font-black text-blue-950 uppercase flex items-center space-x-1.5">
                   <span>📖</span>
                   <span>ĐANG XEM CHI TIẾT BÀI THI & ĐỐI SOÁT CHỐT ĐIỂM</span>
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setShowExamReview(false)}
-                  className="text-xs text-slate-600 hover:text-slate-900 font-bold px-3 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-100 transition"
-                >
-                  Thu Gọn ✕
-                </button>
+                {scoreResult?.isOfficialReview ? (
+                  <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-xl border border-indigo-200">
+                    Phòng khảo thí trực tuyến
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowExamReview(false)}
+                    className="text-xs text-slate-600 hover:text-slate-900 font-bold px-3 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-100 transition"
+                  >
+                    Thu Gọn ✕
+                  </button>
+                )}
               </div>
               <AnswerReview />
             </div>

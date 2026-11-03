@@ -60,7 +60,9 @@ export default function ResultCard() {
       {/* Khối Điểm Số Nổi Bật (High Contrast, Padding Đáy Đầy Đủ Chống Che Chữ Khi Chụp) */}
       <div className="text-center py-6 px-4 bg-blue-50/80 rounded-3xl border-2 border-blue-200 shadow-sm space-y-3 pb-8">
         <p className="text-xs text-blue-900 font-black uppercase tracking-widest">
-          {mode === 'practice' ? 'ĐIỂM ĐẠT ĐƯỢC' : 'BÀI THI CHÍNH THỨC — ĐIỂM TRẮC NGHIỆM'}
+          {mode === 'practice'
+            ? 'ĐIỂM ĐẠT ĐƯỢC'
+            : (scoreResult.isGraded ? 'BÀI THI CHÍNH THỨC — TỔNG KẾT ĐIỂM SỐ' : 'BÀI THI CHÍNH THỨC — ĐIỂM TRẮC NGHIỆM')}
         </p>
         {mode === 'practice' ? (
           <div className="text-5xl sm:text-6xl font-black text-red-600 my-1">
@@ -68,8 +70,23 @@ export default function ResultCard() {
             <span className="text-xl text-slate-600 font-bold"> / {maxScore}</span>
           </div>
         ) : (
-          <div className="space-y-1">
-            {scoreResult.mcqPoints !== undefined ? (
+          <div className="space-y-2">
+            {scoreResult.isGraded ? (
+              <div className="space-y-2">
+                <div className="text-5xl sm:text-6xl font-black text-blue-900 my-1">
+                  {scoreResult.finalScore !== undefined ? scoreResult.finalScore : scoreResult.score}
+                  <span className="text-xl text-slate-600 font-bold"> / 10.0 đ</span>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-bold text-slate-700">
+                  <span className="px-3 py-1 bg-blue-100 text-blue-900 rounded-full border border-blue-300">
+                    Trắc nghiệm: {scoreResult.mcqPoints !== undefined ? scoreResult.mcqPoints : (scoreResult.score || 0)} đ
+                  </span>
+                  <span className="px-3 py-1 bg-indigo-100 text-indigo-900 rounded-full border border-indigo-300">
+                    Tự luận (Thầy chấm): {scoreResult.essayTotal || 0} đ
+                  </span>
+                </div>
+              </div>
+            ) : scoreResult.mcqPoints !== undefined ? (
               <div className="text-4xl sm:text-5xl font-black text-blue-900 my-1">
                 {scoreResult.mcqPoints}
                 <span className="text-xl text-slate-600 font-bold"> / {grade === 10 ? 7.75 : 7.0} đ</span>
@@ -111,15 +128,30 @@ export default function ResultCard() {
           )}
 
           {mode === 'exam' && (
-            <div className="mt-3 p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl text-xs text-amber-900 font-semibold space-y-1 text-left">
-              <div className="flex items-center space-x-1.5 font-black text-amber-950 text-xs">
-                <span>📝</span>
-                <span>BÀI LÀM ĐÃ ĐƯỢC GHI NHẬN, ĐANG CHỜ GIÁO VIÊN CHẤM</span>
+            scoreResult.isGraded ? (
+              <div className="mt-3 p-4 bg-emerald-50 border-2 border-emerald-300 rounded-2xl text-xs text-emerald-950 font-semibold space-y-1.5 text-left">
+                <div className="flex items-center space-x-1.5 font-black text-emerald-950 text-xs uppercase">
+                  <span>👨‍🏫</span>
+                  <span>NHẬN XÉT & LỜI PHÊ CỦA THẦY TRẦN GIA HUY:</span>
+                </div>
+                <p className="text-xs sm:text-sm text-emerald-900 font-bold leading-relaxed italic bg-white/80 p-3 rounded-xl border border-emerald-200">
+                  "{scoreResult.teacherFeedback?.trim() || 'Thầy ghi nhận bài làm tốt, đạt yêu cầu!'}"
+                </p>
+                <p className="text-[11px] text-emerald-800 font-medium">
+                  Tổng điểm chính thức: <strong>{scoreResult.finalScore} / 10.0 điểm</strong> (Trắc nghiệm: {scoreResult.mcqPoints}đ + Tự luận: {scoreResult.essayTotal}đ).
+                </p>
               </div>
-              <p className="text-[11px] text-amber-800 leading-relaxed font-medium">
-                Mã đề {scoreResult.examCode}. Thầy Trần Gia Huy sẽ chấm phần trắc nghiệm và tự luận, sau đó công bố điểm 10 chính thức trên LMS.
-              </p>
-            </div>
+            ) : (
+              <div className="mt-3 p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl text-xs text-amber-900 font-semibold space-y-1 text-left">
+                <div className="flex items-center space-x-1.5 font-black text-amber-950 text-xs">
+                  <span>📝</span>
+                  <span>BÀI LÀM ĐÃ ĐƯỢC GHI NHẬN, ĐANG CHỜ GIÁO VIÊN CHẤM TỰ LUẬN</span>
+                </div>
+                <p className="text-[11px] text-amber-800 leading-relaxed font-medium">
+                  Mã đề {scoreResult.examCode}. Thầy Trần Gia Huy đang chấm phần tự luận và sẽ công bố điểm 10 chính thức trên LMS.
+                </p>
+              </div>
+            )
           )}
         </div>
       </div>
