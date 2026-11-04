@@ -6,6 +6,7 @@ import ExamAllocationCard from '../config/ExamAllocationCard.jsx';
 import RoomPasswordCard from '../config/RoomPasswordCard.jsx';
 import ExamBankCard from '../config/ExamBankCard.jsx';
 import AttemptsCard from '../config/AttemptsCard.jsx';
+import GeminiConfigCard from '../config/GeminiConfigCard.jsx';
 import DriveSyncCard from '../config/DriveSyncCard.jsx';
 import RetentionCard from '../config/RetentionCard.jsx';
 import AuditLogCard from '../config/AuditLogCard.jsx';
@@ -39,6 +40,9 @@ export default function ConfigTab() {
 
       {/* LƯỢT THI CHÍNH THỨC THEO MÃ LMS */}
       <AttemptsCard />
+
+      {/* TRỢ LÝ CHẤM BÀI TỰ LUẬN GEMINI AI */}
+      <GeminiConfigCard />
 
       {/* 3. KẾT NỐI GOOGLE DRIVE & GOOGLE SHEETS */}
       <DriveSyncCard />

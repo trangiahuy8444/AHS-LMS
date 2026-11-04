@@ -2,7 +2,8 @@
 // s: state của Cổng Quản Trị (xem hooks/useAdminController.js)
 export function createGradingActions(s) {
   const { setSubmissions, gradingSubmission, setGradingSubmission, tempEssayScores,
-    setTempEssayScores, tempFeedback, setTempFeedback, setGradingSuccessAlert, showDialog } = s;
+    setTempEssayScores, tempFeedback, setTempFeedback, setGradingSuccessAlert, showDialog,
+    setAiSuggestions } = s;
 
   // --- CHẤM ĐIỂM TỰ LUẬN ---
 
@@ -10,6 +11,7 @@ export function createGradingActions(s) {
     setGradingSubmission(sub);
     setTempEssayScores(sub.essayScores || {});
     setTempFeedback(sub.teacherFeedback || '');
+    if (setAiSuggestions) setAiSuggestions({});
     setGradingSuccessAlert(false);
   };
 

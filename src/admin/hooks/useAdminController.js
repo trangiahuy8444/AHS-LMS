@@ -5,6 +5,14 @@ import { createGradingActions } from '../actions/gradingActions.js';
 import { createExportActions } from '../actions/exportActions.js';
 import { createExamBankActions } from '../actions/examBankActions.js';
 import { createSettingsActions } from '../actions/settingsActions.js';
+import {
+  getGeminiApiKey,
+  setGeminiApiKey as saveGeminiKeyToStorage,
+  getGeminiModel,
+  setGeminiModel as saveGeminiModelToStorage,
+  testGeminiConnection,
+  DEFAULT_GEMINI_MODEL
+} from '../../core/gemini-grading-service.js';
 
 // State, đồng bộ dữ liệu và hàm xử lý của Cổng Quản Trị. Mỗi nhóm hàm xử lý nằm trong src/admin/actions/.
 export function useAdminController() {
@@ -103,6 +111,44 @@ export function useAdminController() {
   }, [submissions, config]);
 
   const fileInputRef = useRef(null);
+
+  // Gemini AI Grading States & Handlers
+  const [geminiApiKey, setGeminiApiKeyState] = useState(getGeminiApiKey());
+  const [geminiModel, setGeminiModelState] = useState(getGeminiModel());
+  const [isTestingGemini, setIsTestingGemini] = useState(false);
+  const [geminiTestNotice, setGeminiTestNotice] = useState(null);
+  const [geminiSavedNotice, setGeminiSavedNotice] = useState('');
+  const [isGeminiGrading, setIsGeminiGrading] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState({});
+
+  const setGeminiApiKey = (key) => {
+    setGeminiApiKeyState(key);
+    saveGeminiKeyToStorage(key);
+  };
+
+  const setGeminiModel = (m) => {
+    setGeminiModelState(m);
+    saveGeminiModelToStorage(m);
+  };
+
+  const handleSaveGeminiConfig = () => {
+    saveGeminiKeyToStorage(geminiApiKey);
+    saveGeminiModelToStorage(geminiModel);
+    setGeminiSavedNotice('Đã lưu cấu hình Gemini API thành công!');
+    setTimeout(() => setGeminiSavedNotice(''), 3000);
+  };
+
+  const handleTestGeminiConnection = async () => {
+    setIsTestingGemini(true);
+    setGeminiTestNotice(null);
+    const res = await testGeminiConnection(geminiApiKey, geminiModel);
+    setIsTestingGemini(false);
+    if (res.success) {
+      setGeminiTestNotice({ success: true, message: res.message });
+    } else {
+      setGeminiTestNotice({ success: false, message: res.error });
+    }
+  };
 
   // Toast & Dialog Tĩnh (Không nhảy giật, thay thế hoàn toàn alert/confirm)
   const [adminToast, setAdminToast] = useState(null);
@@ -245,6 +291,22 @@ export function useAdminController() {
     toastTimerRef,
     showToast,
     showDialog,
+    geminiApiKey,
+    setGeminiApiKey,
+    geminiModel,
+    setGeminiModel,
+    isTestingGemini,
+    setIsTestingGemini,
+    geminiTestNotice,
+    setGeminiTestNotice,
+    geminiSavedNotice,
+    setGeminiSavedNotice,
+    isGeminiGrading,
+    setIsGeminiGrading,
+    aiSuggestions,
+    setAiSuggestions,
+    handleSaveGeminiConfig,
+    handleTestGeminiConnection,
   };
   const { handleExtendTime, handleExtendTimeAll, handleForceSubmit, handleLockSession, handleUnlockSession, handleSendBroadcast } = createProctorActions(s);
   const {
