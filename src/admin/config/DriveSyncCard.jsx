@@ -243,6 +243,13 @@ function doPost(e) {
     // 2. Ôn tập đề cương -> Ghi vào On_Tap_De_Cuong
     if (data.action === 'sync_practice' && data.submission) {
       var p = data.submission;
+      var pAttempts = Number(p.attemptNumber) || 1;
+      if (pAttempts > 20) pAttempts = 1;
+      var pMcq = (p.mcqPoints !== undefined && Number(p.mcqPoints) > 0) ? Number(p.mcqPoints) : (Number(p.finalScore) || Number(p.score) || 0);
+      if (pMcq === 0 && Number(p.correctCount) > 0) {
+        var pTot = Number(p.totalQuestions) || (Number(p.grade) === 10 ? 19 : 28);
+        pMcq = Math.round((Number(p.correctCount) / pTot) * 10 * 10) / 10;
+      }
       var sheetPractice = getOrCreateTab(ss, "On_Tap_De_Cuong", [
         "Thời Điểm", "Mã LMS", "Họ và Tên", "Khối", "Lớp", "Lần Làm", "Điểm TN", "Số Câu Đúng", "Vi Phạm", "Thời Gian Làm"
       ]);
@@ -252,8 +259,8 @@ function doPost(e) {
         p.fullName || "",
         p.grade || "",
         p.studentClass || "",
-        p.attemptNumber || 1,
-        p.mcqPoints !== undefined ? p.mcqPoints : (p.score || 0),
+        pAttempts,
+        pMcq,
         p.correctCount !== undefined ? p.correctCount : "",
         p.violations || 0,
         p.durationFormatted || "30 phút"
@@ -267,6 +274,13 @@ function doPost(e) {
       var s = data.submission;
       var isPractice = s.mode === 'practice';
       if (isPractice) {
+        var sAttempts = Number(s.attemptNumber) || 1;
+        if (sAttempts > 20) sAttempts = 1;
+        var sMcq = (s.mcqPoints !== undefined && Number(s.mcqPoints) > 0) ? Number(s.mcqPoints) : (Number(s.finalScore) || Number(s.score) || 0);
+        if (sMcq === 0 && Number(s.correctCount) > 0) {
+          var sTot = Number(s.totalQuestions) || (Number(s.grade) === 10 ? 19 : 28);
+          sMcq = Math.round((Number(s.correctCount) / sTot) * 10 * 10) / 10;
+        }
         var sheetP = getOrCreateTab(ss, "On_Tap_De_Cuong", [
           "Thời Điểm", "Mã LMS", "Họ và Tên", "Khối", "Lớp", "Lần Làm", "Điểm TN", "Số Câu Đúng", "Vi Phạm", "Thời Gian Làm"
         ]);
@@ -276,8 +290,8 @@ function doPost(e) {
           s.fullName || "",
           s.grade || "",
           s.studentClass || "",
-          s.attemptNumber || 1,
-          s.mcqPoints !== undefined ? s.mcqPoints : (s.score || 0),
+          sAttempts,
+          sMcq,
           s.correctCount !== undefined ? s.correctCount : "",
           s.violations || 0,
           s.durationFormatted || "30 phút"
@@ -427,14 +441,21 @@ function doPost(e) {
         var pRows = [];
         for (var j = 0; j < practiceList.length; j++) {
           var p = practiceList[j];
+          var pAttempts = Number(p.attemptNumber) || 1;
+          if (pAttempts > 20) pAttempts = 1;
+          var pMcq = (p.mcqPoints !== undefined && Number(p.mcqPoints) > 0) ? Number(p.mcqPoints) : (Number(p.finalScore) || Number(p.score) || 0);
+          if (pMcq === 0 && Number(p.correctCount) > 0) {
+            var pTot = Number(p.totalQuestions) || (Number(p.grade) === 10 ? 19 : 28);
+            pMcq = Math.round((Number(p.correctCount) / pTot) * 10 * 10) / 10;
+          }
           pRows.push([
             p.submittedAt || "",
             p.studentId || p.studentCode || "",
             p.fullName || "",
             p.grade || "",
             p.studentClass || "",
-            p.attemptNumber || 1,
-            p.mcqPoints !== undefined ? p.mcqPoints : (p.score || 0),
+            pAttempts,
+            pMcq,
             p.correctCount !== undefined ? p.correctCount : "",
             p.violations || 0,
             p.durationFormatted || "30 phút"

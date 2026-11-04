@@ -407,7 +407,33 @@
 
     getPracticeSubmissions() {
       try {
-        return JSON.parse(localStorage.getItem(PRACTICE_SUBMISSIONS_KEY) || '[]');
+        const raw = JSON.parse(localStorage.getItem(PRACTICE_SUBMISSIONS_KEY) || '[]');
+        if (!Array.isArray(raw)) return [];
+        let modified = false;
+        const normalized = raw.map(item => {
+          if (!item) return item;
+          let changed = false;
+          // Chuẩn hóa lần làm bất thường (> 20 do lỗi lặp snapshot hàng chờ)
+          if ((Number(item.attemptNumber) || 0) > 20 || (Number(item.totalAttempts) || 0) > 20) {
+            item = { ...item, attemptNumber: 1, totalAttempts: 1 };
+            changed = true;
+          }
+          // Chuẩn hóa điểm trắc nghiệm nếu = 0 nhưng có số câu đúng
+          const scoreVal = Number(item.finalScore !== undefined ? item.finalScore : item.score);
+          const mcqVal = Number(item.mcqPoints);
+          if ((isNaN(mcqVal) || mcqVal === 0) && (scoreVal > 0 || Number(item.correctCount) > 0)) {
+            const tot = Number(item.totalQuestions) || (Number(item.grade) === 10 ? 19 : 28);
+            const recovered = scoreVal > 0 ? scoreVal : Math.round((Number(item.correctCount) / tot) * 10 * 10) / 10;
+            item = { ...item, mcqPoints: recovered, score: Math.max(scoreVal, recovered), finalScore: Math.max(scoreVal, recovered) };
+            changed = true;
+          }
+          if (changed) modified = true;
+          return item;
+        });
+        if (modified) {
+          localStorage.setItem(PRACTICE_SUBMISSIONS_KEY, JSON.stringify(normalized));
+        }
+        return normalized;
       } catch {
         return [];
       }
@@ -427,21 +453,46 @@
         Number(s.grade) === sGrade
       );
 
+      // Tính điểm trắc nghiệm chuẩn xác
+      const rawMcq = subDoc.mcqPoints !== undefined ? Number(subDoc.mcqPoints) : 0;
+      const rawScore = subDoc.finalScore !== undefined ? Number(subDoc.finalScore) : Number(subDoc.score || 0);
+      let calculatedMcq = rawMcq > 0 ? rawMcq : rawScore;
+      if (calculatedMcq === 0 && Number(subDoc.correctCount) > 0) {
+        const tot = Number(subDoc.totalQuestions) || (sGrade === 10 ? 19 : 28);
+        calculatedMcq = Math.round((Number(subDoc.correctCount) / tot) * 10 * 10) / 10;
+      }
+
       if (idx >= 0) {
         const existing = list[idx];
-        const newScore = subDoc.finalScore !== undefined ? subDoc.finalScore : (subDoc.score || 0);
-        const oldScore = existing.finalScore !== undefined ? existing.finalScore : (existing.score || 0);
+        const newScore = Math.max(rawScore, calculatedMcq);
+        const oldScore = existing.finalScore !== undefined ? Number(existing.finalScore) : Number(existing.score || 0);
         const isBetter = newScore >= oldScore;
-        const totalAttempts = Math.max((existing.attemptNumber || 1), (existing.totalAttempts || 1)) + 1;
+
+        // Kiểm tra xem có phải cùng 1 bài nộp hay không (tránh cộng dồn vô tận khi snapshot Firestore re-entrant)
+        const isSame = (existing.id && subDoc.id && existing.id === subDoc.id) ||
+                       (existing._queueId && subDoc.id && existing._queueId === subDoc.id) ||
+                       (existing.submittedAt && subDoc.submittedAt && existing.submittedAt === subDoc.submittedAt) ||
+                       (existing.lastSubmittedAt && subDoc.submittedAt && existing.lastSubmittedAt === subDoc.submittedAt);
+
+        let totalAttempts;
+        if (isSame) {
+          totalAttempts = Math.min(20, Math.max(1, Number(existing.attemptNumber) || 1));
+        } else if (subDoc.attemptNumber && Number(subDoc.attemptNumber) > (Number(existing.attemptNumber) || 1)) {
+          totalAttempts = Math.min(20, Number(subDoc.attemptNumber));
+        } else {
+          totalAttempts = Math.min(20, (Number(existing.attemptNumber) || 1) + 1);
+        }
 
         const merged = {
           ...existing,
           ...(isBetter ? subDoc : {}),
           id: existing.id || subDoc.id,
+          _queueId: subDoc.id || existing._queueId,
           attemptNumber: totalAttempts,
           totalAttempts,
           score: Math.max(oldScore, newScore),
           finalScore: Math.max(oldScore, newScore),
+          mcqPoints: Math.max(Number(existing.mcqPoints) || 0, calculatedMcq),
           lastSubmittedAt: subDoc.submittedAt || new Date().toISOString(),
           submittedAt: isBetter ? (subDoc.submittedAt || new Date().toISOString()) : existing.submittedAt,
           durationFormatted: isBetter ? subDoc.durationFormatted : existing.durationFormatted,
@@ -451,10 +502,15 @@
         };
         list[idx] = merged;
       } else {
+        const safeAttempt = Math.min(20, Math.max(1, Number(subDoc.attemptNumber) || 1));
         const newRecord = {
           ...subDoc,
-          attemptNumber: subDoc.attemptNumber || 1,
-          totalAttempts: subDoc.attemptNumber || 1
+          _queueId: subDoc.id,
+          attemptNumber: safeAttempt,
+          totalAttempts: safeAttempt,
+          mcqPoints: calculatedMcq,
+          score: Math.max(rawScore, calculatedMcq),
+          finalScore: Math.max(rawScore, calculatedMcq)
         };
         list.unshift(newRecord);
       }
@@ -1204,6 +1260,13 @@
       const normName = (v) => N.normalizeStudentName(v);
       const num = (v) => (typeof v === 'number' && isFinite(v) ? v : 0);
       const text = (v, n) => String(v === undefined || v === null ? '' : v).slice(0, n);
+      const rawMcq = doc.mcqPoints !== undefined ? Number(doc.mcqPoints) : 0;
+      const rawScore = doc.finalScore !== undefined ? Number(doc.finalScore) : Number(doc.score || 0);
+      let calculatedMcq = rawMcq > 0 ? rawMcq : rawScore;
+      if (calculatedMcq === 0 && Number(doc.correctCount) > 0) {
+        const tot = Number(doc.totalQuestions) || (Number(doc.grade) === 10 ? 19 : 28);
+        calculatedMcq = Math.round((Number(doc.correctCount) / tot) * 10 * 10) / 10;
+      }
       return {
         id: text(doc.id, 80),
         mode: 'practice',
@@ -1212,9 +1275,9 @@
         studentClass: text(doc.studentClass, 10),
         grade: num(Number(doc.grade)),
         attemptNumber: num(doc.attemptNumber) || 1,
-        score: num(typeof doc.score === 'number' ? doc.score : parseFloat(doc.score)),
-        finalScore: num(typeof doc.finalScore === 'number' ? doc.finalScore : parseFloat(doc.finalScore)),
-        mcqPoints: num(doc.mcqPoints),
+        score: num(Math.max(rawScore, calculatedMcq)),
+        finalScore: num(Math.max(rawScore, calculatedMcq)),
+        mcqPoints: num(calculatedMcq),
         tfPoints: num(doc.tfPoints),
         correctCount: num(doc.correctCount),
         totalQuestions: num(doc.totalQuestions),
@@ -1241,13 +1304,14 @@
       const cfg = this.getConfig();
       const hasWebhook = (cfg.googleDriveWebhookUrl || '').trim().startsWith('http');
       this._practiceQueueSeen = this._practiceQueueSeen || new Set();
-      const known = new Set(this.getPracticeSubmissions().map(s => s.id));
+      const known = new Set(this.getPracticeSubmissions().flatMap(s => [s.id, s._queueId, s.submittedAt]).filter(Boolean));
       let pushed = 0;
       for (const row of rows || []) {
         if (!row || !row.id) continue;
         if (!known.has(row.id)) {
           this.savePracticeSubmission({ ...row, isPracticeOnly: true, isGraded: true, penaltyPoints: 0 });
           known.add(row.id);
+          if (row.submittedAt) known.add(row.submittedAt);
         }
         if (!hasWebhook || this._practiceQueueSeen.has(row.id)) continue;
         this._practiceQueueSeen.add(row.id);
@@ -1271,7 +1335,25 @@
 
       const all = this.getSubmissions();
       const examSubs = all.filter(s => s.mode === 'exam');
-      const practiceSubs = this.getPracticeSubmissions();
+      const practiceSubs = this.getPracticeSubmissions().map(p => {
+        let attempts = Number(p.attemptNumber) || Number(p.totalAttempts) || 1;
+        if (attempts > 20) attempts = 1;
+        const rawMcq = p.mcqPoints !== undefined ? Number(p.mcqPoints) : 0;
+        const rawScore = p.finalScore !== undefined ? Number(p.finalScore) : Number(p.score || 0);
+        let mcq = rawMcq > 0 ? rawMcq : rawScore;
+        if (mcq === 0 && Number(p.correctCount) > 0) {
+          const tot = Number(p.totalQuestions) || (Number(p.grade) === 10 ? 19 : 28);
+          mcq = Math.round((Number(p.correctCount) / tot) * 10 * 10) / 10;
+        }
+        return {
+          ...p,
+          attemptNumber: attempts,
+          totalAttempts: attempts,
+          mcqPoints: mcq,
+          finalScore: mcq,
+          score: mcq
+        };
+      });
 
       try {
         const payload = {
