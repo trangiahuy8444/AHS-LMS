@@ -223,6 +223,54 @@ function getOrCreateTab(ss, tabName, headers) {
   return sheet;
 }
 
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('⚡ Tiện ích AHS')
+    .addItem('🧹 Chuẩn hóa Lần Làm & Điểm Ôn Tập (Sửa số 130, 256... và Điểm 0)', 'chuanHoaDuLieuOnTap')
+    .addToUi();
+}
+
+function chuanHoaDuLieuOnTap() {
+  var ss = getOrCreateSpreadsheet();
+  var sheet = ss.getSheetByName("On_Tap_De_Cuong");
+  if (!sheet) {
+    SpreadsheetApp.getUi().alert("Không tìm thấy tab On_Tap_De_Cuong!");
+    return;
+  }
+  var lastRow = sheet.getLastRow();
+  if (lastRow <= 1) {
+    SpreadsheetApp.getUi().alert("Chưa có dữ liệu học sinh trong tab On_Tap_De_Cuong!");
+    return;
+  }
+  
+  var range = sheet.getRange(2, 1, lastRow - 1, 10);
+  var values = range.getValues();
+  var updatedCount = 0;
+  
+  for (var i = 0; i < values.length; i++) {
+    var row = values[i];
+    var grade = Number(row[3]) || 10;
+    var attempt = Number(row[5]);
+    var score = Number(row[6]);
+    var correct = Number(row[7]);
+    
+    if (attempt > 20 || isNaN(attempt) || attempt <= 0) {
+      row[5] = 1;
+      updatedCount++;
+    }
+    
+    if ((score === 0 || isNaN(score)) && correct > 0) {
+      var totalQ = (grade === 10 ? 19 : 28);
+      var calcScore = Math.round((correct / totalQ) * 10 * 10) / 10;
+      row[6] = calcScore;
+      updatedCount++;
+    }
+  }
+  
+  range.setValues(values);
+  SpreadsheetApp.getUi().alert("✅ Đã chuẩn hóa thành công " + updatedCount + " ô dữ liệu trên tab On_Tap_De_Cuong!");
+}
+
 function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
