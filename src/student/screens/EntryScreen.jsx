@@ -320,7 +320,7 @@ export default function EntryScreen() {
           <div>
             <div className="mb-1">
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                5. Mã LMS (Bắt buộc để xác thực chính chủ) <span className="text-red-500">*</span>
+                5. Mã LMS / SIS ID (Bắt buộc nhập đầy đủ) <span className="text-red-500">*</span>
               </label>
             </div>
             <input
@@ -333,7 +333,7 @@ export default function EntryScreen() {
                 if (isEmergencyLmsOverride) setIsEmergencyLmsOverride(false);
                 if (setShowLmsMismatch) setShowLmsMismatch(false);
               }}
-              placeholder="Nhập Mã LMS (Ví dụ: 01-19-0002, 14-19-0055, hoặc 4 số cuối thẻ)"
+              placeholder="Nhập toàn bộ Mã LMS hoặc SIS ID (Ví dụ: 01-19-0002 hoặc 01190002)"
               className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold font-mono-code bg-white text-slate-900"
             />
 
