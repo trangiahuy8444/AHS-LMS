@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useStudent } from '../StudentContext.js';
 import { CLASS_LISTS } from '../constants.js';
-import { getStudentsByClass, verifyStudentLms, findStudentInClassByLms, findStudentEverywhereByLms, searchStudentsByLms } from '../../core/roster-data.js';
+import { getStudentsByClass } from '../../core/roster-data.js';
 
 // 1. MÀN HÌNH CHỌN CHẾ ĐỘ & ĐĂNG KÝ VÀO PHÒNG LÀM BÀI
 export default function EntryScreen() {
@@ -14,48 +14,9 @@ export default function EntryScreen() {
     lmsErrorCount, setLmsErrorCount } = useStudent();
 
   const [isManualName, setIsManualName] = useState(false);
-  const [lmsSearchQuery, setLmsSearchQuery] = useState('');
-  const [lmsSearchResults, setLmsSearchResults] = useState([]);
 
   const classRoster = getStudentsByClass(studentClass);
   const matchedStudent = classRoster.find(s => s.fullName === fullName);
-  const isLmsVerified = matchedStudent ? verifyStudentLms(matchedStudent, studentId) : false;
-
-  const handleLmsSearchChange = (query) => {
-    setLmsSearchQuery(query);
-    if (setShowLmsMismatch) setShowLmsMismatch(false);
-    if (isEmergencyLmsOverride) setIsEmergencyLmsOverride(false);
-
-    const trimmed = query.trim();
-    if (trimmed.length < 2) {
-      setLmsSearchResults([]);
-      return;
-    }
-
-    const matches = searchStudentsByLms(trimmed, studentClass);
-    setLmsSearchResults(matches);
-
-    // Nếu tìm thấy duy nhất 1 kết quả khớp chính xác -> tự động chọn ngay!
-    if (matches.length === 1) {
-      const best = matches[0];
-      setGrade(best.grade);
-      setStudentClass(best.studentClass);
-      setFullName(best.fullName);
-      setStudentId(best.loginId || trimmed);
-      setIsManualName(false);
-    }
-  };
-
-  const handleSelectCandidate = (candidate) => {
-    setGrade(candidate.grade);
-    setStudentClass(candidate.studentClass);
-    setFullName(candidate.fullName);
-    setStudentId(candidate.loginId || candidate.studentId);
-    setIsManualName(false);
-    setLmsSearchQuery(candidate.loginId || candidate.studentId);
-    setLmsSearchResults([]);
-    if (setShowLmsMismatch) setShowLmsMismatch(false);
-  };
 
   if (!(examState === 'entry')) return null;
 
@@ -268,88 +229,6 @@ export default function EntryScreen() {
 
         {/* Nhập Thông tin Học sinh */}
         <div className="space-y-4 pt-2 border-t border-slate-200">
-
-          {/* TRA CỨU / TÌM NHANH HỌC SINH THEO MÃ LMS / THẺ HỌC SINH */}
-          <div className="p-3.5 bg-blue-50/70 rounded-2xl border border-blue-200 space-y-2">
-            <div className="flex items-center justify-between">
-              <label htmlFor="quick-lms-search" className="block text-xs font-black text-blue-900 uppercase tracking-wider flex items-center space-x-1.5">
-                <span>🔍</span>
-                <span>Tìm nhanh học sinh bằng Mã LMS / Thẻ học sinh</span>
-              </label>
-              <span className="text-[10px] text-blue-700 font-bold bg-white px-2 py-0.5 rounded-full border border-blue-200">
-                ⚡ Tự động điền Khối, Lớp, Họ Tên
-              </span>
-            </div>
-            <div className="relative">
-              <input
-                id="quick-lms-search"
-                type="text"
-                value={lmsSearchQuery}
-                onChange={e => handleLmsSearchChange(e.target.value)}
-                placeholder="Gõ Mã LMS (VD: 01-19-0002, 14190055, hoặc 4 số cuối thẻ)..."
-                className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm font-semibold font-mono-code bg-white text-slate-900 placeholder:text-slate-400 placeholder:font-sans"
-              />
-              <span className="absolute left-3 top-2.5 text-slate-400 text-sm">🔍</span>
-              {lmsSearchQuery && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLmsSearchQuery('');
-                    setLmsSearchResults([]);
-                  }}
-                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 text-sm font-bold"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-
-            {/* HIỂN THỊ KẾT QUẢ KHI TÌM THẤY DUY NHẤT 1 BẠN */}
-            {fullName && matchedStudent && isLmsVerified && (
-              <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs font-bold flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <span className="text-base">✅</span>
-                  <span>Đã nhận diện: <strong>{fullName}</strong> — Lớp <strong>{studentClass}</strong> (STT {matchedStudent.stt})</span>
-                </div>
-                <span className="px-2 py-0.5 rounded bg-emerald-200 text-emerald-900 text-[10px] uppercase font-black">Chính chủ</span>
-              </div>
-            )}
-
-            {/* HIỂN THỊ DANH SÁCH ỨNG VIÊN KHI TRÙNG MÃ ĐUÔI GIỮA CÁC LỚP */}
-            {lmsSearchResults.length > 1 && (
-              <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-300 text-xs space-y-1.5">
-                <div className="font-bold text-amber-900 flex items-center space-x-1">
-                  <span>⚠️</span>
-                  <span>Có {lmsSearchResults.length} học sinh có mã tương tự. Em vui lòng bấm vào đúng tên mình:</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-44 overflow-y-auto pt-1">
-                  {lmsSearchResults.map(item => (
-                    <button
-                      key={`${item.studentClass}-${item.student.stt}`}
-                      type="button"
-                      onClick={() => handleSelectCandidate(item)}
-                      className="p-2 rounded-lg bg-white border border-amber-200 hover:bg-blue-50 hover:border-blue-500 text-left transition flex items-center justify-between group shadow-sm"
-                    >
-                      <div>
-                        <div className="font-bold text-slate-900 group-hover:text-blue-700">{item.fullName}</div>
-                        <div className="text-[11px] text-slate-500">Lớp {item.studentClass} • STT {item.stt} • {item.loginId}</div>
-                      </div>
-                      <span className="text-xs text-blue-600 font-bold opacity-0 group-hover:opacity-100">Chọn ➔</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* BÁO CHƯA TÌM THẤY NẾU GÕ ĐỦ DÀI */}
-            {lmsSearchQuery.trim().length >= 4 && lmsSearchResults.length === 0 && !matchedStudent && (
-              <div className="p-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 text-xs flex items-center justify-between">
-                <span>Chưa tìm thấy học sinh với mã "<strong>{lmsSearchQuery}</strong>".</span>
-                <span className="text-[11px] text-blue-700 font-semibold">Em chọn thủ công Lớp và Họ tên bên dưới nhé</span>
-              </div>
-            )}
-          </div>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label htmlFor="student-class-select" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
@@ -449,36 +328,19 @@ export default function EntryScreen() {
               value={studentId}
               onChange={e => {
                 const val = e.target.value;
-                // Cho phép nhập số, chữ cái, gạch ngang, chấm, @
                 const clean = val.replace(/[^0-9a-zA-Z.@_-]/g, '').slice(0, 30);
                 setStudentId(clean);
                 if (isEmergencyLmsOverride) setIsEmergencyLmsOverride(false);
                 if (setShowLmsMismatch) setShowLmsMismatch(false);
-
-                // Auto-fill thông minh: Nếu chưa chọn tên nhưng gõ mã LMS thì tự động tìm kiếm trên toàn trường!
-                if (!fullName && clean.length >= 2) {
-                  const autoFound = findStudentEverywhereByLms(clean, studentClass, grade);
-                  if (autoFound) {
-                    if (autoFound.grade && autoFound.grade !== grade) setGrade(autoFound.grade);
-                    if (autoFound.studentClass && autoFound.studentClass !== studentClass) setStudentClass(autoFound.studentClass);
-                    setFullName(autoFound.fullName);
-                    setIsManualName(false);
-                  }
-                }
               }}
-              placeholder="Nhập Mã LMS (Ví dụ: 01-19-0002, 14190055, hoặc 4 số cuối thẻ)"
+              placeholder="Nhập Mã LMS (Ví dụ: 01-19-0002, 14-19-0055, hoặc 4 số cuối thẻ)"
               className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold font-mono-code bg-white text-slate-900"
             />
 
-            {/* CHỈ BÁO XÁC THỰC 2 LỚP */}
+            {/* CHỈ BÁO XÁC THỰC 2 LỚP - KHÔNG HIỂN THỊ KHI ĐÚNG ĐỂ TRÁNH DÒ MÃ */}
             {fullName && matchedStudent && (
               <div className="mt-2 text-xs">
-                {isLmsVerified ? (
-                  <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 font-bold flex items-center space-x-2">
-                    <span className="text-base">✅</span>
-                    <span>ĐÃ XÁC THỰC CHÍNH CHỦ: <strong>{fullName}</strong> (STT {matchedStudent.stt} - Lớp {studentClass}). Sẵn sàng vào thi!</span>
-                  </div>
-                ) : isEmergencyLmsOverride ? (
+                {isEmergencyLmsOverride ? (
                   <div className="p-3 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 space-y-1">
                     <div className="flex items-center space-x-2 font-black text-xs text-amber-900 uppercase">
                       <span>⚡</span><span>ĐÃ KÍCH HOẠT XÁC NHẬN MÃ KHẨN CẤP (CHO PHÉP VÀO THI)</span>
