@@ -79,4 +79,62 @@ test('Gemini Grading Service: Quản lý API Key, Model & Prompt Sư phạm 100%
 
   assert.equal(noKeyResult.success, false);
   assert.match(noKeyResult.error, /Chưa cấu hình Gemini API Key/);
+
+  // 6. Kiểm tra helper trích xuất câu hỏi tự luận theo bài nộp (getEssayQuestionsForSubmission)
+  const { getEssayQuestionsForSubmission, gradeSubmissionWithGemini } = service;
+  const mockExamData = {
+    8: {
+      officialExams: {
+        '101': {
+          essayQuestions: [
+            { num: 1, points: 1.0, question: 'Câu 1 K8', modelAnswer: 'Barem 1' },
+            { num: 2, points: 1.0, question: 'Câu 2 K8', modelAnswer: 'Barem 2' },
+            { num: 3, points: 1.0, question: 'Câu 3 K8', modelAnswer: 'Barem 3' }
+          ]
+        }
+      }
+    },
+    10: {
+      officialExams: {
+        '101': {
+          part3_essay: [
+            { num: 1, points: 1.0, context: 'Câu 1 K10', subItems: [{ letter: 'a', text: 'ý a' }], modelAnswer: 'Barem K10' }
+          ]
+        }
+      }
+    }
+  };
+
+  const subK8 = { grade: 8, examCode: '101', mode: 'exam' };
+  const qsK8 = getEssayQuestionsForSubmission(subK8, mockExamData);
+  assert.equal(qsK8.length, 3);
+  assert.equal(qsK8[0].num, 1);
+
+  const subK10 = { studentClass: '10/14', examCode: '101', mode: 'exam' };
+  const qsK10 = getEssayQuestionsForSubmission(subK10, mockExamData);
+  assert.equal(qsK10.length, 1);
+  assert.equal(qsK10[0].context, 'Câu 1 K10');
+
+  // 7. Kiểm tra hàm chấm toàn bài với tiến trình (gradeSubmissionWithGemini) khi học sinh bỏ trống
+  const progressCalls = [];
+  const blankSubResult = await gradeSubmissionWithGemini({
+    submission: {
+      answers: { essay: {} }
+    },
+    essayQuestions: qsK8,
+    apiKey: 'AIzaFakeKey',
+    onProgress: (current, total, q) => {
+      progressCalls.push({ current, total, num: q.num });
+    }
+  });
+
+  assert.equal(blankSubResult.success, true);
+  assert.equal(blankSubResult.essayTotal, 0);
+  assert.equal(blankSubResult.maxPossiblePoints, 3.0);
+  assert.equal(blankSubResult.essayScores[1], 0);
+  assert.equal(blankSubResult.essayScores[2], 0);
+  assert.equal(blankSubResult.essayScores[3], 0);
+  assert.equal(progressCalls.length, 3);
+  assert.deepEqual(progressCalls[0], { current: 1, total: 3, num: 1 });
+  assert.deepEqual(progressCalls[2], { current: 3, total: 3, num: 3 });
 });

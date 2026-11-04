@@ -237,3 +237,79 @@ export async function gradeSingleEssayWithGemini({
     return { success: false, error: `Lỗi trong quá trình chấm: ${err.message || String(err)}` };
   }
 }
+
+/**
+ * Lấy danh sách câu hỏi tự luận tương ứng với một bài nộp
+ */
+export function getEssayQuestionsForSubmission(sub, examDataByGrade) {
+  if (!sub) return [];
+  const grade = Number(sub.grade || (sub.studentClass ? sub.studentClass.split('/')[0] : 8));
+  const gradeObj = examDataByGrade
+    ? examDataByGrade[grade]
+    : (typeof window !== 'undefined'
+        ? (grade === 8 ? window.EXAM_DATA_G8 : (grade === 9 ? window.EXAM_DATA_G9 : window.EXAM_DATA_G10))
+        : null);
+
+  if (!gradeObj) return [];
+  if (sub.mode === 'practice') {
+    return gradeObj.practiceEssayQuestions || [];
+  }
+  const examObj = gradeObj.officialExams?.[sub.examCode || '101'];
+  return grade === 10 ? (examObj?.part3_essay || []) : (examObj?.essayQuestions || []);
+}
+
+/**
+ * Chấm toàn bộ các câu tự luận trong 1 bài nộp bằng Gemini
+ */
+export async function gradeSubmissionWithGemini({
+  submission,
+  essayQuestions = [],
+  apiKey,
+  model,
+  onProgress
+}) {
+  const essayScores = {};
+  const feedbackParts = [];
+  let totalPoints = 0;
+  let maxPossiblePoints = 0;
+
+  for (let i = 0; i < essayQuestions.length; i++) {
+    const q = essayQuestions[i];
+    const qNum = q.num;
+    const maxPoints = Number(q.points) || 1.0;
+    maxPossiblePoints += maxPoints;
+
+    if (onProgress) {
+      onProgress(i + 1, essayQuestions.length, q);
+    }
+
+    const studentAnswer = submission.answers?.essay?.[qNum] || '';
+    const res = await gradeSingleEssayWithGemini({
+      question: q.context || q.question,
+      subItems: q.subItems,
+      studentAnswer,
+      modelAnswer: q.modelAnswer,
+      maxPoints,
+      apiKey,
+      model
+    });
+
+    if (res.success) {
+      essayScores[qNum] = res.score;
+      totalPoints += res.score;
+      feedbackParts.push(`[Câu ${qNum} (${res.score}/${maxPoints}đ)]: ${res.feedback}`);
+    } else {
+      essayScores[qNum] = 0;
+      feedbackParts.push(`[Câu ${qNum}]: Lỗi chấm AI (${res.error})`);
+    }
+  }
+
+  const teacherFeedback = feedbackParts.join('\n\n');
+  return {
+    success: true,
+    essayScores,
+    essayTotal: Math.round(totalPoints * 100) / 100,
+    maxPossiblePoints: Math.round(maxPossiblePoints * 100) / 100,
+    teacherFeedback
+  };
+}

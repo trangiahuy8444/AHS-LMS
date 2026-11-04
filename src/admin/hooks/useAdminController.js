@@ -121,6 +121,24 @@ export function useAdminController() {
   const [isGeminiGrading, setIsGeminiGrading] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState({});
 
+  // Trạng thái Chấm Nhanh Cả Lớp bằng Gemini API
+  const [batchGradingState, setBatchGradingState] = useState({
+    isRunning: false,
+    targetClass: '',
+    currentIndex: 0,
+    totalCount: 0,
+    currentStudentName: '',
+    currentStudentId: '',
+    currentQuestionIndex: 0,
+    totalQuestionsInSub: 0,
+    percent: 0,
+    completedCount: 0,
+    skippedBlankCount: 0,
+    errorCount: 0,
+    logs: []
+  });
+  const cancelBatchGradingRef = useRef(false);
+
   const setGeminiApiKey = (key) => {
     setGeminiApiKeyState(key);
     saveGeminiKeyToStorage(key);
@@ -305,6 +323,9 @@ export function useAdminController() {
     setIsGeminiGrading,
     aiSuggestions,
     setAiSuggestions,
+    batchGradingState,
+    setBatchGradingState,
+    cancelBatchGradingRef,
     handleSaveGeminiConfig,
     handleTestGeminiConnection,
   };
@@ -323,7 +344,12 @@ export function useAdminController() {
     handleSetGradeReviewMode,
     handleSetAllClassReviewMode
   } = createClassAccessActions(s);
-  const { openGradingModal, handleSaveGrading } = createGradingActions(s);
+  const {
+    openGradingModal,
+    handleSaveGrading,
+    handleStartBatchGrading,
+    handleCancelBatchGrading
+  } = createGradingActions(s);
   const { handleExportCSV, handleExportJSON, handleImportJSON, handleClearAllData } = createExportActions(s);
   const { handleUploadExamBank, attemptDocRef, describeAttempt, handleLookupAttempt, handleGrantAttempt, handleSaveMaxAttempts, handleToggleExamBankLock, handleToggleExamCode } = createExamBankActions(s);
   const { handleSaveExamConfig, handleSaveGoogleDriveUrl, handleTestGoogleDrive, handleSyncAllGoogleDrive, handlePurgeExamData } = createSettingsActions(s);
@@ -585,6 +611,8 @@ export function useAdminController() {
     handleSetAllClassReviewMode,
     openGradingModal,
     handleSaveGrading,
+    handleStartBatchGrading,
+    handleCancelBatchGrading,
     handleExportCSV,
     handleExportJSON,
     handleImportJSON,

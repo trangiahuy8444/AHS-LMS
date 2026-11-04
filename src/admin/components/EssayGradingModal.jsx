@@ -24,6 +24,7 @@ export default function EssayGradingModal() {
 
   // Trạng thái đang gọi AI cho từng câu cụ thể: { [qNum]: boolean }
   const [loadingQuestions, setLoadingQuestions] = useState({});
+  const [singleProgress, setSingleProgress] = useState({ current: 0, total: 0 });
 
   if (!gradingSubmission) return null;
 
@@ -86,10 +87,13 @@ export default function EssayGradingModal() {
     }
 
     setIsGeminiGrading(true);
+    setSingleProgress({ current: 0, total: essayQuestions.length });
     const newSuggestions = { ...aiSuggestions };
 
-    for (const q of essayQuestions) {
+    for (let i = 0; i < essayQuestions.length; i++) {
+      const q = essayQuestions[i];
       const qNum = q.num;
+      setSingleProgress({ current: i + 1, total: essayQuestions.length });
       const studentText = gradingSubmission.answers?.essay?.[qNum] || '';
       setLoadingQuestions(prev => ({ ...prev, [qNum]: true }));
 
@@ -277,6 +281,27 @@ export default function EssayGradingModal() {
             </button>
           </div>
         </div>
+
+        {/* THANH TRẠNG THÁI TIẾN ĐỘ CHẤM TỪNG CÂU */}
+        {isGeminiGrading && (
+          <div className="bg-purple-50 p-3 rounded-2xl border border-purple-200 space-y-1.5 animate-fadeIn">
+            <div className="flex justify-between items-center text-xs font-bold text-purple-900">
+              <span className="flex items-center space-x-1.5">
+                <span className="inline-block w-2 h-2 rounded-full bg-purple-600 animate-ping" />
+                <span>Đang đối soát barem câu {singleProgress.current} / {singleProgress.total}...</span>
+              </span>
+              <span className="font-mono font-black text-purple-700">
+                {singleProgress.total > 0 ? Math.round((singleProgress.current / singleProgress.total) * 100) : 0}%
+              </span>
+            </div>
+            <div className="w-full bg-purple-200/80 rounded-full h-2 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-indigo-600 to-purple-600 h-full rounded-full transition-all duration-300"
+                style={{ width: `${singleProgress.total > 0 ? (singleProgress.current / singleProgress.total) * 100 : 0}%` }}
+              />
+            </div>
+          </div>
+        )}
 
         {/* DANH SÁCH CÂU HỎI TỰ LUẬN ĐỂ CHẤM */}
         <div className="space-y-6">

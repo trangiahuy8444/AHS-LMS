@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAdmin } from '../AdminContext.js';
+import ClassGradingStatusBar from '../components/ClassGradingStatusBar.jsx';
 import '../../core/exam-timing.js';
 
 export default function SubmissionsTab() {
@@ -185,6 +186,9 @@ export default function SubmissionsTab() {
           </div>
         </div>
       </div>
+
+      {/* THANH TRẠNG THÁI TIẾN ĐỘ CHẤM TỰ LUẬN & CHẤM NHANH CẢ LỚP */}
+      <ClassGradingStatusBar />
 
       {/* BẢNG CƠ SỞ DỮ LIỆU BÀI THI */}
       <div className="bg-white rounded-3xl border-2 border-slate-200/80 overflow-hidden shadow-sm">
