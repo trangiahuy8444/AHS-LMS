@@ -31,6 +31,7 @@ export function useStudentController() {
     try { return (typeof localStorage !== 'undefined' && localStorage.getItem('ahs_student_lms_v1')) || ''; } catch { return ''; }
   });
   const [isEmergencyLmsOverride, setIsEmergencyLmsOverride] = useState(false);
+  const [showLmsMismatch, setShowLmsMismatch] = useState(false);
   const [sessionId, setSessionId] = useState('');
   const [assignedCode, setAssignedCode] = useState('101');
   const [selectedExamCode, setSelectedExamCode] = useState('');
@@ -481,6 +482,8 @@ export function useStudentController() {
     examItems,
     isEmergencyLmsOverride,
     setIsEmergencyLmsOverride,
+    showLmsMismatch,
+    setShowLmsMismatch,
     handleDismissWarning,
     handleConfirmScore,
   };

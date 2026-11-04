@@ -9,7 +9,8 @@ export default function EntryScreen() {
     setStudentClass, studentId, setStudentId, isContactingServer, examPasswordInput,
     setExamPasswordInput, showExamPassword, setShowExamPassword, showDialog, classAccessMode,
     handleStart, handleReviewLookup, config = {}, selectedExamCode, setSelectedExamCode,
-    isEmergencyLmsOverride, setIsEmergencyLmsOverride } = useStudent();
+    isEmergencyLmsOverride, setIsEmergencyLmsOverride,
+    showLmsMismatch, setShowLmsMismatch } = useStudent();
 
   const [isManualName, setIsManualName] = useState(false);
   const classRoster = getStudentsByClass(studentClass);
@@ -22,6 +23,13 @@ export default function EntryScreen() {
   const availableExamCodes = Array.isArray(configuredCodes)
     ? [...new Set(configuredCodes.filter(code => typeof code === 'string' && code.trim()))]
     : [];
+
+  const onStartClick = () => {
+    if (fullName && matchedStudent && !isLmsVerified && !isEmergencyLmsOverride) {
+      if (setShowLmsMismatch) setShowLmsMismatch(true);
+    }
+    handleStart();
+  };
 
   return (
     <div className="max-w-2xl mx-auto bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
@@ -234,6 +242,7 @@ export default function EntryScreen() {
                 onChange={e => {
                   setStudentClass(e.target.value);
                   setFullName('');
+                  if (setShowLmsMismatch) setShowLmsMismatch(false);
                 }}
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold bg-white text-slate-900"
               >
@@ -282,6 +291,7 @@ export default function EntryScreen() {
                     } else {
                       setFullName(chosen);
                     }
+                    if (setShowLmsMismatch) setShowLmsMismatch(false);
                   }}
                   className="w-full px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold bg-white text-slate-900"
                 >
@@ -322,6 +332,7 @@ export default function EntryScreen() {
                 const clean = val.replace(/[^0-9-]/g, '').slice(0, 20);
                 setStudentId(clean);
                 if (isEmergencyLmsOverride) setIsEmergencyLmsOverride(false);
+                if (setShowLmsMismatch) setShowLmsMismatch(false);
 
                 // Auto-fill: Nếu chưa chọn tên nhưng gõ đúng toàn bộ mã LMS (dù có hoặc không có dấu '-') thì tự động chọn đúng học sinh!
                 if (!fullName && clean.replace(/-/g, '').length >= 7) {
@@ -335,7 +346,7 @@ export default function EntryScreen() {
               className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold font-mono-code bg-white text-slate-900"
             />
 
-            {/* CHỈ BÁO XÁC THỰC 2 LỚP THỜI GIAN THỰC */}
+            {/* CHỈ BÁO XÁC THỰC 2 LỚP */}
             {fullName && matchedStudent && (
               <div className="mt-2 text-xs">
                 {isLmsVerified ? (
@@ -352,7 +363,7 @@ export default function EntryScreen() {
                       Em được phép vào làm bài thi với Mã LMS: <strong>{studentId}</strong>. Hệ thống đã lưu trữ ghi nhận để Giám thị Thầy Trần Gia Huy đối soát sau giờ thi.
                     </p>
                   </div>
-                ) : studentId ? (
+                ) : showLmsMismatch ? (
                   <div className="p-3 rounded-2xl bg-rose-50 border border-rose-300 text-rose-950 space-y-2">
                     <div className="flex items-start space-x-2">
                       <span className="text-base">⛔</span>
@@ -364,7 +375,10 @@ export default function EntryScreen() {
                       <p className="text-[11px] text-slate-600 font-medium">Lỡ danh sách của trường bị sai sót hoặc mã của em mới đổi?</p>
                       <button
                         type="button"
-                        onClick={() => setIsEmergencyLmsOverride(true)}
+                        onClick={() => {
+                          setIsEmergencyLmsOverride(true);
+                          if (setShowLmsMismatch) setShowLmsMismatch(false);
+                        }}
                         className="w-full py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-98 text-slate-950 font-black text-xs shadow transition flex items-center justify-center space-x-1"
                       >
                         <span>⚡</span>
@@ -372,12 +386,7 @@ export default function EntryScreen() {
                       </button>
                     </div>
                   </div>
-                ) : (
-                  <div className="p-2.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 font-medium flex items-center space-x-2">
-                    <span className="text-base">🔑</span>
-                    <span>Vui lòng nhập toàn bộ Mã LMS (có thể nhập có hoặc không có dấu gạch '-') để xác nhận chính chủ trước khi bắt đầu.</span>
-                  </div>
-                )}
+                ) : null}
               </div>
             )}
 
@@ -494,7 +503,7 @@ export default function EntryScreen() {
 
         <button
           type="button"
-          onClick={mode === 'review' ? handleReviewLookup : handleStart}
+          onClick={mode === 'review' ? handleReviewLookup : onStartClick}
           disabled={isContactingServer}
           className={`w-full py-4 disabled:opacity-60 text-white font-black rounded-2xl shadow-lg transition duration-200 flex items-center justify-center space-x-2 text-sm sm:text-base uppercase tracking-wider ${
             mode === 'review'

@@ -55,19 +55,18 @@ export function createStartActions(s) {
     }
 
     // Xác thực 2 lớp danh tính học sinh nếu thuộc danh sách lớp đã số hóa (chống bạn khác thi hộ)
-    if (mode === 'exam') {
-      const classRoster = getStudentsByClass(studentClass);
-      const matched = classRoster.find(st => st.fullName === fullName);
-      if (matched && !verifyStudentLms(matched, studentId)) {
-        // NẾU HỌC SINH ĐÃ XÁC NHẬN MÃ KHẨN CẤP (DO DỮ LIỆU NHÀ TRƯỜNG SAI SÓT HOẶC MÃ MỚI ĐỔI)
-        if (!s.isEmergencyLmsOverride) {
-          showDialog(
-            'Xác Thực Danh Tính Thí Sinh ⛔',
-            `Mã LMS "${s.studentId}" không khớp với hồ sơ lưu của học sinh "${fullName}" (Lớp ${studentClass}).\n\nNếu danh sách trường bị sai sót và em chắc chắn đây là mã của mình, em vui lòng bấm nút "Xác nhận mã LMS đúng" ở khung thông báo để được vào thi ngay nhé!`,
-            'warning'
-          );
-          return;
-        }
+    const classRoster = getStudentsByClass(studentClass);
+    const matched = classRoster.find(st => st.fullName === fullName);
+    if (matched && !verifyStudentLms(matched, studentId)) {
+      // NẾU HỌC SINH ĐÃ XÁC NHẬN MÃ KHẨN CẤP (DO DỮ LIỆU NHÀ TRƯỜNG SAI SÓT HOẶC MÃ MỚI ĐỔI)
+      if (!s.isEmergencyLmsOverride) {
+        if (s.setShowLmsMismatch) s.setShowLmsMismatch(true);
+        showDialog(
+          'Xác Thực Danh Tính Thí Sinh ⛔',
+          `Mã LMS "${s.studentId}" không khớp với hồ sơ lưu của học sinh "${fullName}" (Lớp ${studentClass}).\n\nNếu danh sách trường bị sai sót và em chắc chắn đây là mã của mình, em vui lòng bấm nút "Xác nhận mã LMS đúng" ở khung thông báo để được vào thi ngay nhé!`,
+          'warning'
+        );
+        return;
       }
     }
 
