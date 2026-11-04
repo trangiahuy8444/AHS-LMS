@@ -7,65 +7,66 @@
 const STORAGE_KEY_API_KEY = 'ahs_gemini_api_key';
 const STORAGE_KEY_MODEL = 'ahs_gemini_model';
 const STORAGE_KEY_AUTO_FALLBACK = 'ahs_gemini_auto_fallback';
-export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
+export const DEFAULT_GEMINI_MODEL = 'gemini-3.8-flash';
 
 /**
- * DANH SÁCH MÔ HÌNH GEMINI PHÙ HỢP CHO KHẢO THÍ & CHẤM TỰ LUẬN
+ * DANH SÁCH MÔ HÌNH GEMINI HIỆN HÀNH CHO KHẢO THÍ & CHẤM TỰ LUẬN
  * Tham khảo tài liệu chính thức: https://aistudio.google.com/docs/models?hl=vi
+ * Khuyên dùng: gemini-3.8-flash (thay thế hoàn toàn các model cũ đã ngừng cấp phép)
  */
 export const AVAILABLE_GEMINI_MODELS = [
   {
-    id: 'gemini-2.5-flash',
-    name: 'Gemini 2.5 Flash',
-    badge: 'Khuyên Dùng ⭐',
-    desc: 'Tốc độ nhanh nhất, tư duy phân tích sắc bén, chi phí tối ưu, bám barem 100%. Phù hợp nhất để chấm bài nhanh.',
+    id: 'gemini-3.8-flash',
+    name: 'Gemini 3.8 Flash',
+    badge: 'Khuyên Dùng Chuẩn 2026 ⭐',
+    desc: 'Mô hình Flagship Flash thế hệ mới nhất của Google. Tối ưu chấm bài thi, tốc độ cực nhanh, đối soát barem 100%.',
     category: 'flash',
-    speed: 'Siêu nhanh (< 1s)',
+    speed: 'Siêu tốc (< 0.8s)',
     limits: '15 RPM / 1M TPM (Free tier)'
   },
   {
-    id: 'gemini-2.0-flash',
-    name: 'Gemini 2.0 Flash',
-    badge: 'Tốc Độ Cao ⚡',
-    desc: 'Mô hình thế hệ 2 siêu tốc độ, độ trễ cực thấp và ổn định cao.',
+    id: 'gemini-flash-latest',
+    name: 'Gemini Flash Latest',
+    badge: 'Tự Động Bản Mới Nhất 🔄',
+    desc: 'Alias chính thức luôn tự động trỏ về bản Flash mới nhất của Google, không bao giờ lo model bị lỗi thời.',
     category: 'flash',
-    speed: 'Siêu nhanh (< 1s)',
+    speed: 'Siêu tốc (< 0.8s)',
     limits: '15 RPM / 1M TPM'
   },
   {
-    id: 'gemini-1.5-flash',
-    name: 'Gemini 1.5 Flash',
-    badge: 'Chuẩn Mực & Bền Bỉ 🛡️',
-    desc: 'Mô hình tiêu chuẩn ổn định cao, quota dồi dào, xử lý văn bản tin cậy.',
+    id: 'gemini-3.5-flash',
+    name: 'Gemini 3.5 Flash',
+    badge: 'Tốc Độ Cao & Ổn Định ⚡',
+    desc: 'Mô hình thế hệ 3.5 Flash, cân bằng tuyệt vời giữa độ tin cậy và tốc độ thực thi.',
     category: 'flash',
-    speed: 'Nhanh (1 - 2s)',
+    speed: 'Nhanh (< 1s)',
     limits: '15 RPM / 1M TPM'
   },
   {
-    id: 'gemini-1.5-flash-8b',
-    name: 'Gemini 1.5 Flash-8B',
+    id: 'gemini-3.1-flash-lite',
+    name: 'Gemini 3.1 Flash-Lite',
     badge: 'Siêu Nhẹ (High Throughput) 🚀',
-    desc: 'Mô hình tối giản, cực kỳ nhẹ, tối ưu cho xử lý khối lượng lớn bài thi.',
+    desc: 'Mô hình gọn nhẹ tiết kiệm tài nguyên, thời gian phản hồi tức thì, lý tưởng khi chạy dự phòng.',
     category: 'flash',
-    speed: 'Tức thì (< 0.8s)',
+    speed: 'Tức thì (< 0.5s)',
     limits: '15 RPM / 1M TPM'
   },
   {
-    id: 'gemini-2.5-pro',
-    name: 'Gemini 2.5 Pro',
-    badge: 'Chuyên Sâu (Complex Reasoning) 🧠',
-    desc: 'Mô hình suy luận cao cấp nhất, phân tích chi tiết các bài tự luận phức tạp nhiều bước.',
-    category: 'pro',
-    speed: 'Trung bình (2 - 4s)',
-    limits: '5 RPM / 250k TPM'
+    id: 'gemini-flash-lite-latest',
+    name: 'Gemini Flash-Lite Latest',
+    badge: 'Lite Mới Nhất ⚡',
+    desc: 'Phiên bản Flash-Lite cập nhật liên tục từ Google.',
+    category: 'flash',
+    speed: 'Tức thì (< 0.5s)',
+    limits: '15 RPM / 1M TPM'
   },
   {
-    id: 'gemini-1.5-pro',
-    name: 'Gemini 1.5 Pro',
-    badge: 'Độ Chính Xác Cao 🎯',
-    desc: 'Mô hình chuyên sâu thế hệ 1.5, lý luận sư phạm tỉ mỉ và đối chiếu tiêu chuẩn.',
+    id: 'gemini-pro-latest',
+    name: 'Gemini Pro Latest',
+    badge: 'Chuyên Sâu (Complex Reasoning) 🧠',
+    desc: 'Mô hình Pro đa năng suy luận cao cấp nhất, phân tích chi tiết các bài tự luận phức tạp nhiều bước.',
     category: 'pro',
-    speed: 'Trung bình (2 - 4s)',
+    speed: 'Trung bình (1 - 3s)',
     limits: '5 RPM / 250k TPM'
   }
 ];
@@ -76,11 +77,12 @@ export const AVAILABLE_GEMINI_MODELS = [
  */
 export function getFallbackChain(primaryModel = DEFAULT_GEMINI_MODEL) {
   const defaultChain = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
-    'gemini-1.5-flash-8b',
-    'gemini-2.5-pro'
+    'gemini-3.8-flash',
+    'gemini-flash-latest',
+    'gemini-3.5-flash',
+    'gemini-3.1-flash-lite',
+    'gemini-flash-lite-latest',
+    'gemini-pro-latest'
   ];
   const list = [primaryModel, ...defaultChain.filter(m => m !== primaryModel)];
   return Array.from(new Set(list));
@@ -110,7 +112,15 @@ export function setGeminiApiKey(key) {
 
 export function getGeminiModel() {
   const s = getStorage();
-  return s ? (s.getItem(STORAGE_KEY_MODEL) || DEFAULT_GEMINI_MODEL) : DEFAULT_GEMINI_MODEL;
+  if (!s) return DEFAULT_GEMINI_MODEL;
+  const current = s.getItem(STORAGE_KEY_MODEL);
+  // Tự động nâng cấp các model đã bị Google ngừng cấp phép cho người dùng mới
+  const obsoleteModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.5-pro', 'gemini-1.5-pro'];
+  if (!current || obsoleteModels.includes(current)) {
+    s.setItem(STORAGE_KEY_MODEL, DEFAULT_GEMINI_MODEL);
+    return DEFAULT_GEMINI_MODEL;
+  }
+  return current;
 }
 
 export function setGeminiModel(model) {

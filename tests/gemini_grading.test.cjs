@@ -30,11 +30,12 @@ test('Gemini Grading Service: Quản lý API Key, Model & Prompt Sư phạm 100%
   setGeminiApiKey('');
   assert.equal(getGeminiApiKey(), '');
 
-  // 2. Kiểm tra Model mặc định & Tùy chỉnh
-  assert.equal(getGeminiModel(), 'gemini-2.5-flash');
-  setGeminiModel('gemini-2.5-pro');
-  assert.equal(getGeminiModel(), 'gemini-2.5-pro');
-  setGeminiModel('gemini-2.5-flash');
+  // 2. Kiểm tra Model mặc định & Tùy chỉnh (Tự động nâng cấp lên gemini-3.8-flash)
+  assert.equal(getGeminiModel(), 'gemini-3.8-flash');
+  setGeminiModel('gemini-pro-latest');
+  assert.equal(getGeminiModel(), 'gemini-pro-latest');
+  setGeminiModel('gemini-3.8-flash');
+  assert.equal(getGeminiModel(), 'gemini-3.8-flash');
 
   // 3. Kiểm tra Cấu trúc Prompt xây dựng bám sát 100% Barem
   const prompt = buildGradingPrompt({
@@ -146,19 +147,20 @@ test('Gemini Grading Service: Quản lý API Key, Model & Prompt Sư phạm 100%
     setGeminiAutoFallback
   } = service;
 
-  // Xác nhận danh mục có các model hàng đầu theo tài liệu aistudio.google.com/docs/models
+  // Xác nhận danh mục có các model hàng đầu theo chuẩn 2026 aistudio.google.com/docs/models
   const modelIds = AVAILABLE_GEMINI_MODELS.map(m => m.id);
-  assert.ok(modelIds.includes('gemini-2.5-flash'), 'Phải hỗ trợ gemini-2.5-flash');
-  assert.ok(modelIds.includes('gemini-2.0-flash'), 'Phải hỗ trợ gemini-2.0-flash');
-  assert.ok(modelIds.includes('gemini-1.5-flash'), 'Phải hỗ trợ gemini-1.5-flash');
-  assert.ok(modelIds.includes('gemini-1.5-flash-8b'), 'Phải hỗ trợ gemini-1.5-flash-8b');
-  assert.ok(modelIds.includes('gemini-2.5-pro'), 'Phải hỗ trợ gemini-2.5-pro');
+  assert.ok(modelIds.includes('gemini-3.8-flash'), 'Phải hỗ trợ gemini-3.8-flash');
+  assert.ok(modelIds.includes('gemini-flash-latest'), 'Phải hỗ trợ gemini-flash-latest');
+  assert.ok(modelIds.includes('gemini-3.5-flash'), 'Phải hỗ trợ gemini-3.5-flash');
+  assert.ok(modelIds.includes('gemini-3.1-flash-lite'), 'Phải hỗ trợ gemini-3.1-flash-lite');
+  assert.ok(modelIds.includes('gemini-pro-latest'), 'Phải hỗ trợ gemini-pro-latest');
 
   // Kiểm tra chuỗi fallback bắt đầu bằng model đã chọn và không trùng lặp
-  const chainFlash = getFallbackChain('gemini-2.0-flash');
-  assert.equal(chainFlash[0], 'gemini-2.0-flash');
+  const chainFlash = getFallbackChain('gemini-3.5-flash');
+  assert.equal(chainFlash[0], 'gemini-3.5-flash');
   assert.equal(new Set(chainFlash).size, chainFlash.length, 'Chuỗi fallback không được trùng lặp');
-  assert.ok(chainFlash.includes('gemini-1.5-flash'));
+  assert.ok(chainFlash.includes('gemini-3.8-flash'));
+  assert.ok(chainFlash.includes('gemini-flash-latest'));
 
   // Kiểm tra lưu/đọc Auto Fallback
   setGeminiAutoFallback(false);
