@@ -143,43 +143,74 @@ export function setGeminiAutoFallback(enabled) {
 }
 
 /**
- * Kiểm tra kết nối API Key với Google Gemini
+ * Kiểm tra kết nối API Key với Google Gemini (hỗ trợ tự động kiểm tra model dự phòng khi model chính quá tải)
  */
-export async function testGeminiConnection(apiKey, model = DEFAULT_GEMINI_MODEL) {
+export async function testGeminiConnection(apiKey, model = DEFAULT_GEMINI_MODEL, autoFallback = true) {
   const key = (apiKey || getGeminiApiKey()).trim();
   if (!key) {
     return { success: false, error: 'Chưa nhập Gemini API Key!' };
   }
 
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
+  const primaryModel = model || getGeminiModel() || DEFAULT_GEMINI_MODEL;
+  const modelsToTest = autoFallback ? getFallbackChain(primaryModel) : [primaryModel];
+  let lastError = null;
 
-  try {
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{ text: 'Kiểm tra kết nối. Hãy phản hồi từ "OK".' }]
-        }],
-        generationConfig: {
-          maxOutputTokens: 10,
-          temperature: 0.1
-        }
-      })
-    });
+  for (let i = 0; i < modelsToTest.length; i++) {
+    const curModel = modelsToTest[i];
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(curModel)}:generateContent?key=${encodeURIComponent(key)}`;
 
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      const msg = errData?.error?.message || `HTTP ${res.status} (${res.statusText})`;
-      return { success: false, error: `Lỗi kết nối Gemini: ${msg}` };
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: 'Kiểm tra kết nối. Hãy phản hồi từ "OK".' }]
+          }],
+          generationConfig: {
+            maxOutputTokens: 10,
+            temperature: 0.1
+          }
+        })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        const msg = errData?.error?.message || `HTTP ${res.status} (${res.statusText})`;
+        lastError = new Error(`Mô hình ${curModel}: ${msg}`);
+        // Nếu còn model dự phòng trong chuỗi, tiếp tục thử
+        continue;
+      }
+
+      const data = await res.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+      if (i === 0) {
+        return {
+          success: true,
+          message: `Kết nối thành công tới mô hình ${curModel}!`,
+          sample: text.trim(),
+          workingModel: curModel
+        };
+      } else {
+        return {
+          success: true,
+          message: `Mô hình ${primaryModel} đang tạm quá tải (High Demand). Hệ thống đã tự động kết nối thành công qua mô hình dự phòng ${curModel}!`,
+          sample: text.trim(),
+          workingModel: curModel,
+          switched: true,
+          switchedFrom: primaryModel
+        };
+      }
+    } catch (err) {
+      lastError = err;
     }
-
-    const data = await res.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    return { success: true, message: `Kết nối thành công tới mô hình ${model}!`, sample: text.trim() };
-  } catch (err) {
-    return { success: false, error: `Lỗi mạng hoặc kết nối: ${err.message || String(err)}` };
   }
+
+  return {
+    success: false,
+    error: `Lỗi kết nối: ${lastError ? lastError.message : 'Không thể kết nối đến máy chủ Google Gemini'}`
+  };
 }
 
 /**

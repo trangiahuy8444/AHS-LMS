@@ -170,9 +170,12 @@ export function useAdminController() {
   const handleTestGeminiConnection = async () => {
     setIsTestingGemini(true);
     setGeminiTestNotice(null);
-    const res = await testGeminiConnection(geminiApiKey, geminiModel);
+    const res = await testGeminiConnection(geminiApiKey, geminiModel, geminiAutoFallback);
     setIsTestingGemini(false);
     if (res.success) {
+      if (res.switched && res.workingModel) {
+        setGeminiModel(res.workingModel);
+      }
       setGeminiTestNotice({ success: true, message: res.message });
     } else {
       setGeminiTestNotice({ success: false, message: res.error });
