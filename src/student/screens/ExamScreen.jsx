@@ -9,8 +9,8 @@ import CalculatorWidget from '../components/CalculatorWidget.jsx';
 // 2 & 3. MÀN HÌNH LÀM BÀI 1 CÂU / LẦN (NỀN TRẮNG SÁNG, TƯƠNG PHẢN CAO, ĐẸP MẮT)
 export default function ExamScreen() {
   const { grade, mode, examState, assignedCode, activeQuestionIdx, setActiveQuestionIdx,
-    setShowSubmitModal, timeLeftStr, practiceItems, examItems, config, elapsedSeconds,
-    formatElapsed, showDialog, isCalculatorOpen, setIsCalculatorOpen } = useStudent();
+    timeLeftStr, practiceItems, examItems, config, elapsedSeconds,
+    formatElapsed, isCalculatorOpen, setIsCalculatorOpen } = useStudent();
 
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
@@ -24,12 +24,6 @@ export default function ExamScreen() {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
-
-  const minExamMinutes = (config?.minExamMinutes !== undefined && config?.minExamMinutes !== null) ? Number(config.minExamMinutes) : 15;
-  const remainingEarlyLockSeconds = (mode === 'exam' && config?.preventEarlySubmission !== false)
-    ? Math.max(0, (minExamMinutes * 60) - (elapsedSeconds || 0))
-    : 0;
-  const isEarlyLockActive = remainingEarlyLockSeconds > 0;
 
   if (!(examState === 'in_progress')) return null;
 
@@ -177,33 +171,14 @@ export default function ExamScreen() {
                         <span>Câu tiếp theo</span>
                         <span>→</span>
                       </button>
-                    ) : isEarlyLockActive ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const mins = Math.floor(remainingEarlyLockSeconds / 60);
-                          const secs = remainingEarlyLockSeconds % 60;
-                          showDialog(
-                            'Chưa Đến Thời Gian Nộp Bài ⏱️',
-                            `⚠️ Chưa đến thời gian cho phép nộp bài thi!\n\nTheo quy chế, em cần tập trung làm bài và kiểm tra lại bài làm tối thiểu ${minExamMinutes} phút trước khi nộp.\n\nThời gian cần làm thêm: ${mins > 0 ? `${mins} phút ` : ''}${secs} giây. Em hãy rà soát kỹ lại từng câu hỏi nhé!`,
-                            'warning'
-                          );
-                        }}
-                        className="px-6 py-3 rounded-2xl font-black text-sm transition shadow-lg flex items-center space-x-2 uppercase tracking-wider bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/30"
-                      >
-                        <span>⏱️ Nộp bài (còn {formatElapsed(remainingEarlyLockSeconds)})</span>
-                      </button>
                     ) : (
                       <button
                         type="button"
-                        onClick={() => setShowSubmitModal(true)}
-                        className={`px-6 py-3 rounded-2xl font-black text-sm transition shadow-lg flex items-center space-x-2 uppercase tracking-wider ${
-                          mode === 'practice'
-                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/30'
-                            : 'bg-red-600 hover:bg-red-700 text-white shadow-red-600/30'
-                        }`}
+                        disabled
+                        className="px-6 py-3 rounded-2xl bg-slate-100 text-slate-400 border border-slate-200 font-bold text-sm cursor-not-allowed flex items-center space-x-2"
                       >
-                        <span>✓ Nộp bài ngay</span>
+                        <span>Đã đến câu cuối</span>
+                        <span>✓</span>
                       </button>
                     )}
                   </div>
