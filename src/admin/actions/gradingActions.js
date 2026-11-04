@@ -42,6 +42,9 @@ export function createGradingActions(s) {
     if (res.success) {
       setGradingSubmission(res.submission);
       setSubmissions(window.AsianSchoolStorage.getSubmissions());
+      if (setPracticeSubs && typeof window.AsianSchoolStorage.getPracticeSubmissions === 'function') {
+        setPracticeSubs(window.AsianSchoolStorage.getPracticeSubmissions());
+      }
       setGradingSuccessAlert(true);
       setTimeout(() => setGradingSuccessAlert(false), 2500);
     } else {
@@ -61,7 +64,7 @@ export function createGradingActions(s) {
       return;
     }
 
-    const key = (geminiApiKey || getGeminiApiKey()).trim();
+    const key = (geminiApiKey || getGeminiApiKey() || (typeof window !== 'undefined' && window.localStorage?.getItem('ahs_gemini_api_key')) || '').trim();
     if (!key) {
       showDialog(
         'Chưa Cấu Hình Gemini API Key 🔑',
@@ -72,7 +75,7 @@ export function createGradingActions(s) {
     }
 
     const allSubs = window.AsianSchoolStorage.getSubmissions() || [];
-    const classSubs = allSubs.filter(sub => sub.studentClass === targetClass && sub.mode === 'exam');
+    const classSubs = allSubs.filter(sub => String(sub.studentClass || '').trim() === String(targetClass || '').trim() && sub.mode === 'exam');
     const candidates = onlyPending ? classSubs.filter(sub => !sub.isGraded) : classSubs;
 
     if (candidates.length === 0) {
@@ -133,11 +136,16 @@ export function createGradingActions(s) {
 
       const essayQs = getEssayQuestionsForSubmission(sub);
       if (!essayQs || essayQs.length === 0) {
+        activityLogs.unshift(`[${new Date().toLocaleTimeString('vi-VN')}] ℹ️ [${idx + 1}/${candidates.length}] ${sName}: Không tìm thấy câu tự luận.`);
         completed++;
         continue;
       }
 
-      const hasAnyAnswer = essayQs.some(q => Boolean((sub.answers?.essay?.[q.num] || '').trim()));
+      const hasAnyAnswer = essayQs.some(q => {
+        const qNum = q.num !== undefined ? q.num : 1;
+        const ans = sub.answers?.essay?.[qNum] ?? sub.answers?.essay?.[String(qNum)] ?? '';
+        return Boolean(String(ans).trim());
+      });
       if (!hasAnyAnswer) {
         skippedBlank++;
       }

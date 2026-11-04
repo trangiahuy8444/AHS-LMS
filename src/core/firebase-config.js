@@ -291,9 +291,14 @@
         });
         [8, 9, 10].forEach((g) => {
           const key = 'EXAM_DATA_G' + g;
-          if (window[key]) window[key].officialExams = byGrade[g];
+          if (window[key]) {
+            window[key].officialExams = byGrade[g];
+          } else {
+            window[key] = { officialExams: byGrade[g] };
+          }
         });
         latestExamBank = byGrade;
+        window.AsianSchoolLatestExamBank = byGrade;
         // Danh sách mã đề đang bật (công khai) để rules kiểm tra mã đề học sinh nhận
         const activeCodes = {};
         [8, 9, 10].forEach((g) => {

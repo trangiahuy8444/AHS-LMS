@@ -658,10 +658,20 @@
     }
 
     gradeEssaySubmission(subId, essayScores, teacherFeedback) {
-      const list = this.getSubmissions();
-      const idx = list.findIndex(s => s.id === subId);
+      const targetId = String(subId || '').trim();
+      let list = this.getSubmissions();
+      let idx = list.findIndex(s => String(s.id).trim() === targetId || String(s.sessionId).trim() === targetId);
+      let isPractice = false;
+
+      // Nếu không tìm thấy trong bài thi chính thức, kiểm tra kho bài ôn tập đề cương
       if (idx === -1) {
-        return { success: false, error: 'Không tìm thấy bài nộp với ID: ' + subId };
+        list = this.getPracticeSubmissions();
+        idx = list.findIndex(s => String(s.id).trim() === targetId || String(s.sessionId).trim() === targetId);
+        if (idx !== -1) isPractice = true;
+      }
+
+      if (idx === -1) {
+        return { success: false, error: 'Không tìm thấy bài nộp với ID: ' + targetId };
       }
 
       const sub = list[idx];
@@ -672,7 +682,16 @@
       });
       essayTotal = Math.round(essayTotal * 100) / 100;
 
-      // Tính tổng điểm có tính đến điểm trừ vi phạm (nếu vi phạm 3 lần)
+      // Bảo vệ điểm trắc nghiệm / đúng sai nếu chưa tính
+      if (sub.mcqPoints === undefined && sub.answers && typeof window !== 'undefined' && window.AsianSchoolLatestExamBank && window.AsianSchoolExamPackage) {
+        const exam = window.AsianSchoolLatestExamBank[sub.grade]?.[sub.examCode || '101'];
+        if (exam) {
+          const r = window.AsianSchoolExamPackage.gradeExam(exam, sub.answers, { tfScoringPolicy: this.getConfig().tfScoringPolicy });
+          sub.mcqPoints = r.mcqPoints;
+          sub.maxMcqPoints = r.maxMcqPoints;
+        }
+      }
+
       let autoScore = sub.mcqPoints !== undefined ? parseFloat(sub.mcqPoints) : (parseFloat(sub.score) || 0);
       let penalty = VIOLATION_PENALTY_POINTS;
       let rawTotal = autoScore + essayTotal;
@@ -687,25 +706,32 @@
       sub.gradedAt = new Date().toISOString();
 
       list[idx] = sub;
-      localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(list));
-      this.notify(this.submissionListeners, list);
 
-      if (typeof window !== 'undefined' && window.firebaseDb) {
-        try {
-          if (typeof window.firebaseDb.collection === 'function') {
-            window.firebaseDb.collection('submissions').doc(subId).set({
-              essayScores,
-              essayTotal,
-              finalScore,
-              teacherFeedback: sub.teacherFeedback,
-              isGraded: true,
-              gradedAt: sub.gradedAt
-            }, { merge: true }).catch(e => console.warn('Firestore grade sync err', e));
-          }
-        } catch (e) { /* fallback local */ }
+      if (isPractice) {
+        localStorage.setItem(PRACTICE_SUBMISSIONS_KEY, JSON.stringify(list));
+        this.notify(this.practiceSubmissionListeners, list);
+      } else {
+        localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(list));
+        this.notify(this.submissionListeners, list);
+
+        if (typeof window !== 'undefined' && window.firebaseDb) {
+          try {
+            if (typeof window.firebaseDb.collection === 'function') {
+              window.firebaseDb.collection('submissions').doc(targetId).set({
+                essayScores,
+                essayTotal,
+                finalScore,
+                teacherFeedback: sub.teacherFeedback,
+                isGraded: true,
+                gradedAt: sub.gradedAt
+              }, { merge: true }).catch(e => console.warn('Firestore grade sync err', e));
+            }
+          } catch (e) { /* fallback local */ }
+        }
       }
 
-      this.logAudit('Chấm tự luận học sinh', `${sub.fullName} (${sub.studentClass}): Tự luận ${essayTotal}đ -> Tổng ${finalScore}đ`);
+      this.logAudit('Chấm tự luận học sinh', `${sub.fullName || sub.studentId} (${sub.studentClass}): Tự luận +${essayTotal}đ -> Tổng ${finalScore}đ`);
+      this.syncRowToGoogleDrive(sub);
 
       return { success: true, submission: sub };
     }

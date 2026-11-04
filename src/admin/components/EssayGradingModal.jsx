@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAdmin } from '../AdminContext.js';
-import { gradeSingleEssayWithGemini } from '../../core/gemini-grading-service.js';
+import { gradeSingleEssayWithGemini, getEssayQuestionsForSubmission, getGeminiApiKey } from '../../core/gemini-grading-service.js';
 
 // MODAL CHẤM ĐIỂM TỰ LUẬN TRỰC TIẾP TÍCH HỢP GEMINI AI (DUYỆT THỦ CÔNG)
 export default function EssayGradingModal() {
@@ -28,22 +28,13 @@ export default function EssayGradingModal() {
 
   if (!gradingSubmission) return null;
 
-  // Lấy danh sách câu tự luận cho bài thi đang chấm
-  const gradeObj = gradingSubmission.grade === 8
-    ? window.EXAM_DATA_G8
-    : (gradingSubmission.grade === 9 ? window.EXAM_DATA_G9 : window.EXAM_DATA_G10);
-
-  let essayQuestions = [];
-  if (gradingSubmission.mode === 'practice') {
-    essayQuestions = gradeObj?.practiceEssayQuestions || [];
-  } else {
-    const examObj = gradeObj?.officialExams?.[gradingSubmission.examCode || '101'];
-    essayQuestions = gradingSubmission.grade === 10 ? (examObj?.part3_essay || []) : (examObj?.essayQuestions || []);
-  }
+  // Lấy danh sách câu tự luận chuẩn xác theo bài nộp (hỗ trợ cả Khối 8, 9, 10)
+  const essayQuestions = getEssayQuestionsForSubmission(gradingSubmission);
 
   // Chấm điểm 1 câu cụ thể bằng Gemini AI
   const handleGradeSingleWithAI = async (q) => {
-    if (!geminiApiKey) {
+    const activeKey = (geminiApiKey || getGeminiApiKey() || (typeof window !== 'undefined' && window.localStorage?.getItem('ahs_gemini_api_key')) || '').trim();
+    if (!activeKey) {
       showDialog(
         'Chưa Cấu Hình Gemini API Key 🔑',
         'Thầy vui lòng mở Tab "Cấu Hình & Bảo Mật" -> mục "TRỢ LÝ CHẤM BÀI TỰ LUẬN GEMINI AI" để nhập mã khóa API trước khi chấm nhé!',
@@ -52,17 +43,19 @@ export default function EssayGradingModal() {
       return;
     }
 
-    const qNum = q.num;
-    const studentText = gradingSubmission.answers?.essay?.[qNum] || '';
+    const qNum = q.num !== undefined ? q.num : 1;
+    const studentText = gradingSubmission.answers?.essay?.[qNum] ?? gradingSubmission.answers?.essay?.[String(qNum)] ?? '';
+    const qPoints = Math.round((Number(q.points) || parseFloat(String(q.pointsText || '').replace(/[^\d.,]/g, '').replace(',', '.')) || (Number(gradingSubmission.grade) === 10 ? 0.75 : 1.0)) * 100) / 100;
+
     setLoadingQuestions(prev => ({ ...prev, [qNum]: true }));
 
     const res = await gradeSingleEssayWithGemini({
-      question: q.context || q.question,
-      subItems: q.subItems,
+      question: q.context || q.question || q.text || '',
+      subItems: q.subItems || q.subQuestions || [],
       studentAnswer: studentText,
-      modelAnswer: q.modelAnswer,
-      maxPoints: q.points || 1.0,
-      apiKey: geminiApiKey,
+      modelAnswer: q.modelAnswer || q.rubric || q.answerGuide || '',
+      maxPoints: qPoints,
+      apiKey: activeKey,
       model: geminiModel
     });
 
@@ -77,12 +70,18 @@ export default function EssayGradingModal() {
 
   // Chấm điểm toàn bộ các câu tự luận trong bài bằng Gemini AI
   const handleGradeAllWithAI = async () => {
-    if (!geminiApiKey) {
+    const activeKey = (geminiApiKey || getGeminiApiKey() || (typeof window !== 'undefined' && window.localStorage?.getItem('ahs_gemini_api_key')) || '').trim();
+    if (!activeKey) {
       showDialog(
         'Chưa Cấu Hình Gemini API Key 🔑',
         'Thầy vui lòng mở Tab "Cấu Hình & Bảo Mật" -> mục "TRỢ LÝ CHẤM BÀI TỰ LUẬN GEMINI AI" để nhập mã khóa API trước khi chấm nhé!',
         'warning'
       );
+      return;
+    }
+
+    if (!essayQuestions || essayQuestions.length === 0) {
+      showDialog('Không Có Câu Tự Luận', 'Bài làm này không tìm thấy danh sách câu hỏi tự luận để chấm.', 'info');
       return;
     }
 
@@ -92,18 +91,20 @@ export default function EssayGradingModal() {
 
     for (let i = 0; i < essayQuestions.length; i++) {
       const q = essayQuestions[i];
-      const qNum = q.num;
+      const qNum = q.num !== undefined ? q.num : (i + 1);
       setSingleProgress({ current: i + 1, total: essayQuestions.length });
-      const studentText = gradingSubmission.answers?.essay?.[qNum] || '';
+      const studentText = gradingSubmission.answers?.essay?.[qNum] ?? gradingSubmission.answers?.essay?.[String(qNum)] ?? '';
+      const qPoints = Math.round((Number(q.points) || parseFloat(String(q.pointsText || '').replace(/[^\d.,]/g, '').replace(',', '.')) || (Number(gradingSubmission.grade) === 10 ? 0.75 : 1.0)) * 100) / 100;
+
       setLoadingQuestions(prev => ({ ...prev, [qNum]: true }));
 
       const res = await gradeSingleEssayWithGemini({
-        question: q.context || q.question,
-        subItems: q.subItems,
+        question: q.context || q.question || q.text || '',
+        subItems: q.subItems || q.subQuestions || [],
         studentAnswer: studentText,
-        modelAnswer: q.modelAnswer,
-        maxPoints: q.points || 1.0,
-        apiKey: geminiApiKey,
+        modelAnswer: q.modelAnswer || q.rubric || q.answerGuide || '',
+        maxPoints: qPoints,
+        apiKey: activeKey,
         model: geminiModel
       });
 
@@ -308,18 +309,20 @@ export default function EssayGradingModal() {
           {essayQuestions.length === 0 ? (
             <p className="text-xs text-slate-400 italic">Không có câu tự luận trong bài làm này.</p>
           ) : (
-            essayQuestions.map((q) => {
-              const studentText = gradingSubmission.answers?.essay?.[q.num] || '';
-              const currentScore = tempEssayScores[q.num] !== undefined ? tempEssayScores[q.num] : '';
-              const aiSug = aiSuggestions[q.num];
-              const isLoadingThis = loadingQuestions[q.num];
+            essayQuestions.map((q, idx) => {
+              const qNum = q.num !== undefined ? q.num : (idx + 1);
+              const studentText = gradingSubmission.answers?.essay?.[qNum] ?? gradingSubmission.answers?.essay?.[String(qNum)] ?? '';
+              const currentScore = tempEssayScores[qNum] !== undefined ? tempEssayScores[qNum] : '';
+              const aiSug = aiSuggestions[qNum];
+              const isLoadingThis = loadingQuestions[qNum];
+              const qPoints = Math.round((Number(q.points) || parseFloat(String(q.pointsText || '').replace(/[^\d.,]/g, '').replace(',', '.')) || (Number(gradingSubmission.grade) === 10 ? 0.75 : 1.0)) * 100) / 100;
 
               return (
-                <div key={q.num} className="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-4 text-xs">
+                <div key={qNum} className="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-4 text-xs">
                   <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                     <div className="flex items-center space-x-2">
                       <span className="font-black text-sm text-blue-900 uppercase">
-                        Câu {q.num} (Tự luận) {q.pointsText && `— ${q.pointsText}`}
+                        Câu {qNum} (Tự luận) {q.pointsText ? `— ${q.pointsText}` : `— ${qPoints} điểm`}
                       </span>
                       {aiSug && (
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-100 text-purple-900 border border-purple-300">
@@ -457,27 +460,27 @@ export default function EssayGradingModal() {
                       <div className="bg-slate-100 p-3 rounded-xl border border-slate-200 space-y-2">
                         <div className="flex items-center justify-between">
                           <label className="font-black text-slate-900 uppercase text-[11px]">
-                            Điểm Chính Thức Câu {q.num} (Thầy phê duyệt):
+                            Điểm Chính Thức Câu {qNum} (Thầy phê duyệt):
                           </label>
                           <input
                             type="number"
                             step="0.25"
                             min="0"
-                            max={q.points || 1.0}
+                            max={qPoints}
                             value={currentScore}
-                            onChange={e => setTempEssayScores(prev => ({ ...prev, [q.num]: e.target.value }))}
-                            placeholder={`0 - ${q.points || 1.0}`}
+                            onChange={e => setTempEssayScores(prev => ({ ...prev, [qNum]: e.target.value }))}
+                            placeholder={`0 - ${qPoints}`}
                             className="w-24 bg-white border-2 border-slate-300 rounded-lg px-2.5 py-1 text-center font-mono-code font-bold text-emerald-700 focus:outline-none focus:border-blue-600"
                           />
                         </div>
 
                         <div className="flex items-center space-x-1.5 pt-1">
                           <span className="text-[10px] text-slate-500">Chấm nhanh:</span>
-                          {(q.points === 0.75 ? [0, 0.25, 0.5, 0.75] : [0, 0.25, 0.5, 0.75, 1.0]).map(pt => (
+                          {(qPoints === 0.75 ? [0, 0.25, 0.5, 0.75] : [0, 0.25, 0.5, 0.75, 1.0]).map(pt => (
                             <button
                               key={pt}
                               type="button"
-                              onClick={() => setTempEssayScores(prev => ({ ...prev, [q.num]: pt }))}
+                              onClick={() => setTempEssayScores(prev => ({ ...prev, [qNum]: pt }))}
                               className={`px-2 py-0.5 rounded text-[10px] font-bold border transition ${
                                 Number(currentScore) === pt
                                   ? 'bg-blue-600 text-white border-blue-600 shadow-sm'

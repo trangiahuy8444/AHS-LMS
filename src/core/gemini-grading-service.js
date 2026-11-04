@@ -143,6 +143,37 @@ export function setGeminiAutoFallback(enabled) {
 }
 
 /**
+ * Trích xuất và bóc tách dữ liệu JSON an toàn từ phản hồi của Gemini
+ */
+export function cleanAndParseJSON(str) {
+  if (!str || typeof str !== 'string') return null;
+  const clean = str.trim();
+  // 1. Thử parse trực tiếp
+  try {
+    return JSON.parse(clean);
+  } catch {}
+
+  // 2. Thử bóc tách code block ```json ... ```
+  const codeBlockMatch = clean.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (codeBlockMatch && codeBlockMatch[1]) {
+    try {
+      return JSON.parse(codeBlockMatch[1].trim());
+    } catch {}
+  }
+
+  // 3. Tìm cặp ngoặc nhọn ngoài cùng { ... }
+  const start = clean.indexOf('{');
+  const end = clean.lastIndexOf('}');
+  if (start !== -1 && end !== -1 && end > start) {
+    try {
+      return JSON.parse(clean.slice(start, end + 1));
+    } catch {}
+  }
+
+  return null;
+}
+
+/**
  * Kiểm tra kết nối API Key với Google Gemini (hỗ trợ tự động kiểm tra model dự phòng khi model chính quá tải)
  */
 export async function testGeminiConnection(apiKey, model = DEFAULT_GEMINI_MODEL, autoFallback = true) {
@@ -160,19 +191,24 @@ export async function testGeminiConnection(apiKey, model = DEFAULT_GEMINI_MODEL,
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(curModel)}:generateContent?key=${encodeURIComponent(key)}`;
 
     try {
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timeoutId = controller ? setTimeout(() => controller.abort(), 12000) : null;
+
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller ? controller.signal : undefined,
         body: JSON.stringify({
           contents: [{
-            parts: [{ text: 'Kiểm tra kết nối. Hãy phản hồi từ "OK".' }]
+            parts: [{ text: 'Kiểm tra kết nối khảo thí. Hãy phản hồi từ "OK".' }]
           }],
           generationConfig: {
-            maxOutputTokens: 10,
-            temperature: 0.1
+            maxOutputTokens: 256,
+            thinkingConfig: { thinkingLevel: 'low' }
           }
         })
       });
+      if (timeoutId) clearTimeout(timeoutId);
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
@@ -195,7 +231,7 @@ export async function testGeminiConnection(apiKey, model = DEFAULT_GEMINI_MODEL,
       } else {
         return {
           success: true,
-          message: `Mô hình ${primaryModel} đang tạm quá tải (High Demand). Hệ thống đã tự động kết nối thành công qua mô hình dự phòng ${curModel}!`,
+          message: `Mô hình ${primaryModel} đang tạm bận/quá tải. Hệ thống đã tự động kết nối thành công qua mô hình dự phòng ${curModel}!`,
           sample: text.trim(),
           workingModel: curModel,
           switched: true,
@@ -278,7 +314,7 @@ export async function gradeSingleEssayWithGemini({
   autoFallback = true,
   onModelFallback
 }) {
-  const points = Number(maxPoints) || 1.0;
+  const points = Math.round((Number(maxPoints) || 1.0) * 100) / 100;
   const rawAnswer = String(studentAnswer || '').trim();
 
   // Tình huống học sinh bỏ trống: xử lý ngay lập tức không cần tốn lượt gọi API
@@ -324,20 +360,25 @@ export async function gradeSingleEssayWithGemini({
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(activeModel)}:generateContent?key=${encodeURIComponent(key)}`;
 
     try {
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timeoutId = controller ? setTimeout(() => controller.abort(), 25000) : null;
+
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller ? controller.signal : undefined,
         body: JSON.stringify({
           contents: [{
             parts: [{ text: prompt }]
           }],
           generationConfig: {
             responseMimeType: 'application/json',
-            temperature: 0.2, // Nhiệt độ thấp để bám sát barem, nhất quán
-            maxOutputTokens: 1024
+            maxOutputTokens: 2048,
+            thinkingConfig: { thinkingLevel: 'low' }
           }
         })
       });
+      if (timeoutId) clearTimeout(timeoutId);
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
@@ -350,7 +391,7 @@ export async function gradeSingleEssayWithGemini({
           if (onModelFallback) {
             onModelFallback(activeModel, nextModel, msg);
           }
-          await new Promise(r => setTimeout(r, 300));
+          await new Promise(r => setTimeout(r, 400));
           continue;
         } else {
           return {
@@ -366,23 +407,15 @@ export async function gradeSingleEssayWithGemini({
         lastError = new Error(`Model ${activeModel} không trả về nội dung đánh giá!`);
         if (mIdx < modelsToTry.length - 1) {
           if (onModelFallback) onModelFallback(activeModel, modelsToTry[mIdx + 1], 'Không có dữ liệu văn bản');
-          await new Promise(r => setTimeout(r, 300));
+          await new Promise(r => setTimeout(r, 400));
           continue;
         }
         return { success: false, error: lastError.message };
       }
 
-      let parsed;
-      try {
-        parsed = JSON.parse(rawText);
-      } catch {
-        // Thử bóc tách JSON nếu có markdown codeblock
-        const match = rawText.match(/\{[\s\S]*\}/);
-        if (match) {
-          parsed = JSON.parse(match[0]);
-        } else {
-          throw new Error('Định dạng phản hồi không phải JSON hợp lệ');
-        }
+      const parsed = cleanAndParseJSON(rawText);
+      if (!parsed) {
+        throw new Error('Định dạng phản hồi của Gemini không phải JSON hợp lệ: ' + rawText.slice(0, 80));
       }
 
       // Chuẩn hóa và giới hạn điểm số trong khoảng an toàn [0, maxPoints]
@@ -395,7 +428,7 @@ export async function gradeSingleEssayWithGemini({
         score: finalScore,
         maxScore: points,
         breakdown: Array.isArray(parsed.breakdown) ? parsed.breakdown : [],
-        feedback: parsed.feedback || `Học sinh đạt ${finalScore}/${points} điểm.`,
+        feedback: parsed.feedback || `Học sinh đạt ${finalScore}/${points} điểm theo barem.`,
         usedModel: activeModel,
         fallbackCount: mIdx
       };
@@ -406,7 +439,7 @@ export async function gradeSingleEssayWithGemini({
         if (onModelFallback) {
           onModelFallback(activeModel, nextModel, err.message);
         }
-        await new Promise(r => setTimeout(r, 300));
+        await new Promise(r => setTimeout(r, 400));
         continue;
       }
     }
@@ -423,19 +456,42 @@ export async function gradeSingleEssayWithGemini({
  */
 export function getEssayQuestionsForSubmission(sub, examDataByGrade) {
   if (!sub) return [];
-  const grade = Number(sub.grade || (sub.studentClass ? sub.studentClass.split('/')[0] : 8));
+  const grade = Number(sub.grade || (sub.studentClass ? String(sub.studentClass).split('/')[0] : 8)) || 8;
   const gradeObj = examDataByGrade
     ? examDataByGrade[grade]
     : (typeof window !== 'undefined'
         ? (grade === 8 ? window.EXAM_DATA_G8 : (grade === 9 ? window.EXAM_DATA_G9 : window.EXAM_DATA_G10))
         : null);
 
-  if (!gradeObj) return [];
+  // 1. Nếu là ôn tập đề cương
   if (sub.mode === 'practice') {
-    return gradeObj.practiceEssayQuestions || [];
+    return gradeObj?.practiceEssayQuestions || [];
   }
-  const examObj = gradeObj.officialExams?.[sub.examCode || '101'];
-  return grade === 10 ? (examObj?.part3_essay || []) : (examObj?.essayQuestions || []);
+
+  const examCode = String(sub.examCode || '101').trim();
+
+  // 2. Kiểm tra trong examDataByGrade hoặc window.EXAM_DATA_G{N}.officialExams
+  let examObj = gradeObj?.officialExams?.[examCode];
+  if (!examObj && gradeObj?.officialExams) {
+    examObj = gradeObj.officialExams['101'] || Object.values(gradeObj.officialExams)[0];
+  }
+
+  // 3. Kiểm tra trong window.AsianSchoolLatestExamBank nếu có
+  if (!examObj && typeof window !== 'undefined' && window.AsianSchoolLatestExamBank?.[grade]) {
+    examObj = window.AsianSchoolLatestExamBank[grade][examCode] || window.AsianSchoolLatestExamBank[grade]['101'];
+  }
+
+  if (examObj) {
+    const list = examObj.part3_essay || examObj.essayQuestions || [];
+    if (list.length > 0) return list;
+  }
+
+  // 4. Dự phòng: nếu chưa nạp được officialExams từ kho đề, nạp từ practiceEssayQuestions để không bị trắng màn hình
+  if (gradeObj?.practiceEssayQuestions && gradeObj.practiceEssayQuestions.length > 0) {
+    return gradeObj.practiceEssayQuestions;
+  }
+
+  return [];
 }
 
 /**
@@ -458,20 +514,20 @@ export async function gradeSubmissionWithGemini({
 
   for (let i = 0; i < essayQuestions.length; i++) {
     const q = essayQuestions[i];
-    const qNum = q.num;
-    const maxPoints = Number(q.points) || 1.0;
+    const qNum = q.num !== undefined ? q.num : (i + 1);
+    const maxPoints = Math.round((Number(q.points) || parseFloat(String(q.pointsText || '').replace(/[^\d.,]/g, '').replace(',', '.')) || (Number(submission?.grade) === 10 ? 0.75 : 1.0)) * 100) / 100;
     maxPossiblePoints += maxPoints;
 
     if (onProgress) {
       onProgress(i + 1, essayQuestions.length, q);
     }
 
-    const studentAnswer = submission.answers?.essay?.[qNum] || '';
+    const studentAnswer = submission.answers?.essay?.[qNum] ?? submission.answers?.essay?.[String(qNum)] ?? '';
     const res = await gradeSingleEssayWithGemini({
-      question: q.context || q.question,
-      subItems: q.subItems,
+      question: q.context || q.question || q.text || '',
+      subItems: q.subItems || q.subQuestions || [],
       studentAnswer,
-      modelAnswer: q.modelAnswer,
+      modelAnswer: q.modelAnswer || q.rubric || q.answerGuide || '',
       maxPoints,
       apiKey,
       model,

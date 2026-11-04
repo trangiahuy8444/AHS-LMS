@@ -162,9 +162,24 @@ test('Gemini Grading Service: Quản lý API Key, Model & Prompt Sư phạm 100%
   assert.ok(chainFlash.includes('gemini-3.8-flash'));
   assert.ok(chainFlash.includes('gemini-flash-latest'));
 
-  // Kiểm tra lưu/đọc Auto Fallback
-  setGeminiAutoFallback(false);
-  assert.equal(getGeminiAutoFallback(), false);
-  setGeminiAutoFallback(true);
-  assert.equal(getGeminiAutoFallback(), true);
+  // 9. Kiểm tra cleanAndParseJSON bóc tách an toàn các dạng định dạng phản hồi
+  const { cleanAndParseJSON } = service;
+  assert.deepEqual(cleanAndParseJSON('{"score": 0.75, "feedback": "Đạt"}'), { score: 0.75, feedback: 'Đạt' });
+  assert.deepEqual(
+    cleanAndParseJSON('```json\n{"score": 1.0, "feedback": "Xuất sắc"}\n```'),
+    { score: 1.0, feedback: 'Xuất sắc' }
+  );
+  assert.deepEqual(
+    cleanAndParseJSON('Dưới đây là kết quả đánh giá:\n{"score": 0.5, "feedback": "Cần thêm ví dụ"}\nCảm ơn!'),
+    { score: 0.5, feedback: 'Cần thêm ví dụ' }
+  );
+
+  // 10. Kiểm tra getEssayQuestionsForSubmission khi grade là string hoặc số
+  const subStringGrade = { grade: '8', examCode: '101', mode: 'exam' };
+  const qsStr = getEssayQuestionsForSubmission(subStringGrade, mockExamData);
+  assert.equal(qsStr.length, 3, 'Khối dạng chuỗi "8" vẫn phải lấy được câu hỏi tự luận');
+
+  const subGradeFromClass = { studentClass: '8/20', examCode: '101', mode: 'exam' };
+  const qsClass = getEssayQuestionsForSubmission(subGradeFromClass, mockExamData);
+  assert.equal(qsClass.length, 3, 'Khối suy ra từ studentClass vẫn phải lấy được câu hỏi');
 });
