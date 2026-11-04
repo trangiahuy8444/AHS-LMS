@@ -354,6 +354,7 @@ export function useAdminController() {
     handleClearClassSessions,
     handleCleanStaleSessions,
     handleDeleteSubmission,
+    handleResetStudentAttempt,
     handleClearPracticeClass,
     handleDeletePracticeSubmission,
     handleSetClassReviewMode,
@@ -367,7 +368,7 @@ export function useAdminController() {
     handleCancelBatchGrading
   } = createGradingActions(s);
   const { handleExportCSV, handleExportJSON, handleImportJSON, handleClearAllData } = createExportActions(s);
-  const { handleUploadExamBank, attemptDocRef, describeAttempt, handleLookupAttempt, handleGrantAttempt, handleSaveMaxAttempts, handleToggleExamBankLock, handleToggleExamCode } = createExamBankActions(s);
+  const { handleUploadExamBank, attemptDocRef, describeAttempt, handleLookupAttempt, handleGrantAttempt, handleResetAttempt, handleSaveMaxAttempts, handleToggleExamBankLock, handleToggleExamCode } = createExamBankActions(s);
   const { handleSaveExamConfig, handleSaveGoogleDriveUrl, handleTestGoogleDrive, handleSyncAllGoogleDrive, handlePurgeExamData } = createSettingsActions(s);
 
   // Ô URL/token Google Drive hiện đúng giá trị đã lưu (nạp từ exam_secrets/drive sau khi trang mở)
@@ -620,6 +621,7 @@ export function useAdminController() {
     handleClearClassSessions,
     handleCleanStaleSessions,
     handleDeleteSubmission,
+    handleResetStudentAttempt,
     handleClearPracticeClass,
     handleDeletePracticeSubmission,
     handleSetClassReviewMode,
@@ -638,6 +640,7 @@ export function useAdminController() {
     describeAttempt,
     handleLookupAttempt,
     handleGrantAttempt,
+    handleResetAttempt,
     handleSaveMaxAttempts,
     handleToggleExamBankLock,
     handleToggleExamCode,

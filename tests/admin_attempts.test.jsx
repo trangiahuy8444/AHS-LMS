@@ -8,13 +8,16 @@ const attempt = (patch = {}) => ({
   deviceChanges: 2, ...patch
 });
 function setup(data) {
-  const ref = { get: vi.fn().mockResolvedValue({ exists: true, data: () => data }) };
+  const ref = {
+    get: vi.fn().mockResolvedValue({ exists: true, data: () => data }),
+    delete: vi.fn().mockResolvedValue()
+  };
   const tx = { get: vi.fn().mockResolvedValue({ exists: true, data: () => data }), update: vi.fn() };
   window.firebaseDb = { collection: vi.fn().mockReturnValue({ doc: vi.fn().mockReturnValue(ref) }),
     runTransaction: vi.fn(fn => fn(tx)) };
   window.AsianSchoolStorage = { logAudit: vi.fn() };
   const s = { config: { maxExamAttempts: 1 }, attemptGrade: 8, attemptLms: '999999', setAttemptStatus: vi.fn() };
-  return { ...createExamBankActions(s), s, tx };
+  return { ...createExamBankActions(s), s, tx, ref };
 }
 beforeEach(() => { delete window.AsianSchoolNormalize; });
 describe('lượt thi quản trị dùng schema phẳng của exam_attempts', () => {
@@ -55,5 +58,12 @@ describe('lượt thi quản trị dùng schema phẳng của exam_attempts', ()
     const { handleGrantAttempt, tx } = setup(d);
     await handleGrantAttempt();
     expect(tx.update).not.toHaveBeenCalled();
+  });
+  it('reset lượt thi xóa sạch document trong exam_attempts và cập nhật trạng thái thành công', async () => {
+    const { handleResetAttempt, s, ref } = setup(attempt());
+    await handleResetAttempt();
+    expect(ref.delete).toHaveBeenCalled();
+    expect(window.AsianSchoolStorage.logAudit).toHaveBeenCalledWith('Reset lượt thi', expect.stringContaining('Mã LMS 999999'));
+    expect(s.setAttemptStatus).toHaveBeenCalledWith(expect.stringContaining('Đã reset lượt thi cho Mã LMS 999999 thành công'));
   });
 });

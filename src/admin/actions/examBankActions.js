@@ -136,6 +136,34 @@ export function createExamBankActions(s) {
     }
   };
 
+  const handleResetAttempt = async () => {
+    const key = window.AsianSchoolNormalize ? window.AsianSchoolNormalize.normalizeLmsCode(attemptLms)
+      : String(attemptLms || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!key) return setAttemptStatus('Nhập mã LMS cần reset lượt thi.');
+    try {
+      const found = await findAttemptDocRef();
+      const col = window.firebaseDb?.collection('exam_attempts');
+      if (found?.allDocs && found.allDocs.length > 0) {
+        for (const d of found.allDocs) {
+          await d.ref.delete();
+        }
+      } else if (found?.ref) {
+        await found.ref.delete().catch(() => {});
+      }
+      const classKey = attemptClass ? String(attemptClass).trim().replace(/[^a-zA-Z0-9]/g, '_') : '';
+      if (col) {
+        if (classKey) {
+          await col.doc(`g${attemptGrade}_${classKey}_${key}`).delete().catch(() => {});
+        }
+        await col.doc(`g${attemptGrade}_${key}`).delete().catch(() => {});
+      }
+      window.AsianSchoolStorage.logAudit('Reset lượt thi', `Khối ${attemptGrade} - ${attemptClass ? `Lớp ${attemptClass} - ` : ''}Mã LMS ${key}`);
+      setAttemptStatus(`✅ Đã reset lượt thi cho Mã LMS ${key} thành công! Học sinh có thể đăng nhập vào làm bài thi mới từ đầu.`);
+    } catch (err) {
+      setAttemptStatus('❌ Lỗi khi reset lượt thi: ' + err.message);
+    }
+  };
+
   const handleSaveMaxAttempts = () => {
     const n = Math.max(1, Math.min(10, parseInt(maxExamAttempts, 10) || 1));
     setMaxExamAttempts(n);
@@ -159,5 +187,5 @@ export function createExamBankActions(s) {
     window.AsianSchoolStorage.logAudit(active ? 'Bật mã đề' : 'Tắt mã đề', `Khối ${grade} - Mã ${code}`);
   };
 
-  return { handleUploadExamBank, attemptDocRef, describeAttempt, handleLookupAttempt, handleGrantAttempt, handleSaveMaxAttempts, handleToggleExamBankLock, handleToggleExamCode };
+  return { handleUploadExamBank, attemptDocRef, describeAttempt, handleLookupAttempt, handleGrantAttempt, handleResetAttempt, handleSaveMaxAttempts, handleToggleExamBankLock, handleToggleExamCode };
 }

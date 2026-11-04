@@ -82,7 +82,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['password', 'at'])
         && request.resource.data.password is string
         && request.resource.data.password.size() <= 100;
-      allow delete: if signedIn() && uid == request.auth.uid;
+      allow read, delete: if isTeacher() || (signedIn() && uid == request.auth.uid);
     }
 
     // Lượt thi theo mã LMS, id = g<khối>_<MÃ LMS>
@@ -174,7 +174,7 @@ service cloud.firestore {
 
     // Phiên thi hiện tại của thiết bị: cho biết thiết bị được đọc mã đề nào
     match /exam_sessions/{uid} {
-      allow read: if signedIn() && uid == request.auth.uid;
+      allow read: if isTeacher() || (signedIn() && uid == request.auth.uid);
       allow create, update: if signedIn() && uid == request.auth.uid
         && request.resource.data.keys().hasOnly(['attemptId', 'examDocId'])
         && roomPasswordOk()
@@ -182,6 +182,7 @@ service cloud.firestore {
         && attemptAfter(request.resource.data.attemptId).submitted == false
         && request.resource.data.examDocId == 'g' + string(attemptAfter(request.resource.data.attemptId).grade)
              + '_' + attemptAfter(request.resource.data.attemptId).examCode;
+      allow delete: if isTeacher();
     }
 
     // Đề đã bỏ đáp án: học sinh đọc được đề của lượt đang làm hoặc khi giáo viên mở xem lại bài thi

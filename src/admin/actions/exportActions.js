@@ -56,7 +56,7 @@ export function createExportActions(s) {
   const handleClearAllData = () => {
     showDialog(
       'CẢNH BÁO NGUY HIỂM: XÓA TRẮNG DỮ LIỆU',
-      'Thầy có chắc chắn muốn XÓA TOÀN BỘ dữ liệu bài thi chính thức, kết quả ôn tập đề cương và phiên giám sát không? Hành động này sẽ xóa sạch dữ liệu trên cả máy tính này và Cloud Firestore, KHÔNG THỂ HOÀN TÁC!',
+      'Thầy có chắc chắn muốn XÓA TOÀN BỘ dữ liệu bài thi chính thức, kết quả ôn tập đề cương, các lượt thi đã dùng (exam_attempts) và phiên giám sát không? Hành động này sẽ xóa sạch toàn bộ dữ liệu trên cả máy tính này và Cloud Firestore (tất cả học sinh sẽ được làm lại bài từ đầu với 0 lượt đã dùng), KHÔNG THỂ HOÀN TÁC!',
       'error',
       async () => {
         try {
@@ -75,7 +75,7 @@ export function createExportActions(s) {
           setSubmissions([]);
           setLiveSessions([]);
           if (setPracticeSubs) setPracticeSubs([]);
-          showToast('Đã xóa trắng toàn bộ dữ liệu bài làm trên máy và Cloud Firestore.', 'success', 'Xóa Dữ Liệu');
+          showToast('Đã xóa trắng toàn bộ dữ liệu bài làm, lượt thi và giám sát trên máy và Cloud Firestore.', 'success', 'Xóa Dữ Liệu');
         } catch (err) {
           showDialog('Lỗi Xóa Dữ Liệu', err.message || 'Không thể xóa dữ liệu.', 'error');
         }

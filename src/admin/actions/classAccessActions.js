@@ -118,8 +118,8 @@ export function createClassAccessActions(s) {
   const handleDeleteSubmission = (subId, studentName, examCode) => {
     const displayName = (studentName && studentName !== 'undefined') ? studentName : (examCode || 'học sinh');
     showDialog(
-      'Xác Nhận Xóa Bài Nộp 🗑️',
-      `CẢNH BÁO: Thầy có chắc chắn muốn XÓA bài nộp của ${displayName} (${examCode || 'Bài thi'}) không? Dữ liệu này sẽ bị xóa khỏi hệ thống.`,
+      'Xác Nhận Xóa Bài Nộp & Mở Lại Lượt Thi 🗑️',
+      `CẢNH BÁO: Thầy có chắc chắn muốn XÓA bài nộp của ${displayName} (${examCode || 'Bài thi'}) không?\n\n• Bài nộp sẽ bị xóa khỏi danh sách.\n• Lượt thi đã dùng (exam_attempts) của học sinh sẽ được xóa sạch trên máy chủ (học sinh có thể đăng nhập làm lại bài mới).`,
       'error',
       async () => {
         try {
@@ -129,12 +129,35 @@ export function createClassAccessActions(s) {
             if (setPracticeSubs && typeof window.AsianSchoolStorage.getPracticeSubmissions === 'function') {
               setPracticeSubs(window.AsianSchoolStorage.getPracticeSubmissions());
             }
-            showToast(`Đã xóa bài nộp của ${displayName}!`, 'success', 'Xóa Bài Nộp');
+            showToast(`Đã xóa bài nộp và mở lại lượt thi cho ${displayName}!`, 'success', 'Xóa Bài Nộp');
           } else {
             showDialog('Lỗi Xóa Bài Nộp', res.error, 'error');
           }
         } catch (err) {
           showDialog('Lỗi Xóa Bài Nộp', err.message || 'Đã xảy ra lỗi khi xóa bài nộp.', 'error');
+        }
+      }
+    );
+  };
+
+  const handleResetStudentAttempt = (studentId, grade, studentClass, studentName) => {
+    const displayName = studentName || studentId || 'học sinh';
+    showDialog(
+      'Reset Lượt Thi Cho Học Sinh 🔄',
+      `Thầy có muốn RESET lượt thi cho học sinh ${displayName} (Lớp ${studentClass || ''} - Mã LMS: ${studentId}) không?\n\nSau khi reset, học sinh có thể đăng nhập vào phòng thi và làm bài lại từ đầu (0 lượt đã dùng).`,
+      'warning',
+      async () => {
+        try {
+          if (window.AsianSchoolStorage && window.AsianSchoolStorage.resetExamAttempt) {
+            const res = await window.AsianSchoolStorage.resetExamAttempt({ grade, studentClass, studentId });
+            if (res.success) {
+              showToast(`Đã reset lượt thi cho ${displayName} (Mã LMS: ${studentId}) thành công!`, 'success', 'Reset Lượt Thi');
+            } else {
+              showDialog('Lỗi Reset Lượt Thi', res.error || 'Không thể reset lượt thi.', 'error');
+            }
+          }
+        } catch (err) {
+          showDialog('Lỗi Reset Lượt Thi', err.message || 'Đã xảy ra lỗi khi reset lượt thi.', 'error');
         }
       }
     );
@@ -179,6 +202,7 @@ export function createClassAccessActions(s) {
     handleClearClassSessions,
     handleCleanStaleSessions,
     handleDeleteSubmission,
+    handleResetStudentAttempt,
     handleClearPracticeClass,
     handleDeletePracticeSubmission,
     handleSetClassReviewMode,

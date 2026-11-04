@@ -504,9 +504,11 @@
 
       let deletedFromExam = false;
       let deletedFromPractice = false;
+      let targetExamSub = null;
 
       // 1. Kiểm tra và xóa trong danh sách bài thi chính thức (SUBMISSIONS_KEY)
       const examList = this.getSubmissions();
+      targetExamSub = examList.find(s => String(s.id) === targetId || String(s.sessionId) === targetId);
       const filteredExam = examList.filter(s => String(s.id) !== targetId && String(s.sessionId) !== targetId);
       if (filteredExam.length !== examList.length) {
         localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(filteredExam));
@@ -532,12 +534,81 @@
         try {
           if (typeof window.firebaseDb.collection === 'function') {
             window.firebaseDb.collection('submissions').doc(targetId).delete().catch(e => console.warn('Firestore del err', e));
+
+            // Xóa/reset lượt thi tương ứng trong exam_attempts (để học sinh thi lại được)
+            const attemptIdsToDelete = new Set();
+            if (targetExamSub) {
+              if (targetExamSub.attemptId) attemptIdsToDelete.add(targetExamSub.attemptId);
+              const g = Number(targetExamSub.grade);
+              const k = targetExamSub.studentId ? String(targetExamSub.studentId).trim().toUpperCase().replace(/[^A-Z0-9]/g, '') : '';
+              const ck = targetExamSub.studentClass ? String(targetExamSub.studentClass).trim().replace(/[^a-zA-Z0-9]/g, '_') : '';
+              if (g && k) {
+                if (ck) attemptIdsToDelete.add(`g${g}_${ck}_${k}`);
+                attemptIdsToDelete.add(`g${g}_${k}`);
+              }
+              if (targetExamSub.sessionId) {
+                window.firebaseDb.collection('live_sessions').doc(targetExamSub.sessionId).delete().catch(() => {});
+              }
+              if (targetExamSub.uid) {
+                window.firebaseDb.collection('exam_sessions').doc(targetExamSub.uid).delete().catch(() => {});
+              }
+            } else {
+              const inferredAttemptId = targetId.replace(/_\d+$/, '');
+              if (inferredAttemptId && inferredAttemptId !== targetId) {
+                attemptIdsToDelete.add(inferredAttemptId);
+              }
+            }
+
+            for (const attId of attemptIdsToDelete) {
+              window.firebaseDb.collection('exam_attempts').doc(attId).delete().catch(e => console.warn('Lỗi xóa exam_attempt:', attId, e));
+            }
           }
         } catch (e) { /* ignore */ }
       }
 
-      this.logAudit('Xóa bài nộp', `Đã xóa bài nộp ID: ${targetId}`);
+      this.logAudit('Xóa bài nộp & Reset lượt', `Đã xóa bài nộp ID: ${targetId} và reset lượt thi tương ứng.`);
       return { success: true, count: filteredExam.length, deletedFromExam, deletedFromPractice };
+    }
+
+    async resetExamAttempt({ grade, studentClass, studentId, attemptId } = {}) {
+      if (typeof window === 'undefined' || !window.firebaseDb || typeof window.firebaseDb.collection !== 'function') {
+        return { success: false, error: 'Chưa kết nối Cloud Firestore' };
+      }
+      try {
+        const attemptIds = new Set();
+        if (attemptId) attemptIds.add(attemptId);
+        const g = Number(grade);
+        const k = studentId ? (window.AsianSchoolNormalize ? window.AsianSchoolNormalize.normalizeLmsCode(studentId) : String(studentId).trim().toUpperCase().replace(/[^A-Z0-9]/g, '')) : '';
+        const ck = studentClass ? String(studentClass).trim().replace(/[^a-zA-Z0-9]/g, '_') : '';
+        if (g && k) {
+          if (ck) attemptIds.add(`g${g}_${ck}_${k}`);
+          attemptIds.add(`g${g}_${k}`);
+        }
+
+        const col = window.firebaseDb.collection('exam_attempts');
+        for (const id of attemptIds) {
+          await col.doc(id).delete().catch(() => {});
+        }
+
+        if (k && typeof col.where === 'function') {
+          try {
+            let q = col.where('studentId', '==', k);
+            if (g) q = q.where('grade', '==', g);
+            const snap = await q.get();
+            if (snap && !snap.empty) {
+              const batch = window.firebaseDb.batch();
+              snap.forEach(doc => batch.delete(doc.ref));
+              await batch.commit();
+            }
+          } catch (e) { /* ignore */ }
+        }
+
+        this.logAudit('Reset lượt thi', `Đã reset lượt thi Mã LMS: ${k || attemptId} (Khối ${grade || ''} ${studentClass || ''})`);
+        return { success: true };
+      } catch (err) {
+        console.error('Lỗi khi reset exam attempt:', err);
+        return { success: false, error: err.message };
+      }
     }
 
     async clearAllData() {
@@ -550,38 +621,47 @@
       this.notify(this.practiceSubmissionListeners, []);
       this.notify(this.liveListeners, []);
 
-      // 2. Xóa đồng bộ trên Cloud Firestore (toàn bộ collections submissions và live_sessions)
+      // 2. Xóa đồng bộ trên Cloud Firestore (toàn bộ collections liên quan đến ca thi và bài làm)
       if (typeof window !== 'undefined' && window.firebaseDb && typeof window.firebaseDb.collection === 'function') {
         try {
           const deleteCollectionDocs = async (collName) => {
-            const snap = await window.firebaseDb.collection(collName).get();
-            if (!snap || snap.empty) return;
-            const batchSize = 400;
-            let batch = window.firebaseDb.batch();
-            let count = 0;
-            for (const d of snap.docs) {
-              batch.delete(d.ref);
-              count++;
-              if (count % batchSize === 0) {
-                await batch.commit();
-                batch = window.firebaseDb.batch();
+            try {
+              const snap = await window.firebaseDb.collection(collName).get();
+              if (!snap || snap.empty) return;
+              const batchSize = 400;
+              let batch = window.firebaseDb.batch();
+              let count = 0;
+              for (const d of snap.docs) {
+                batch.delete(d.ref);
+                count++;
+                if (count % batchSize === 0) {
+                  await batch.commit();
+                  batch = window.firebaseDb.batch();
+                }
               }
-            }
-            if (count % batchSize !== 0) {
-              await batch.commit();
+              if (count % batchSize !== 0) {
+                await batch.commit();
+              }
+            } catch (colErr) {
+              console.warn(`[clearAllData] Không thể xóa collection ${collName}:`, colErr);
             }
           };
 
           await Promise.all([
             deleteCollectionDocs('submissions'),
-            deleteCollectionDocs('live_sessions')
+            deleteCollectionDocs('live_sessions'),
+            deleteCollectionDocs('exam_attempts'),
+            deleteCollectionDocs('exam_sessions'),
+            deleteCollectionDocs('exam_keys'),
+            deleteCollectionDocs('practice_results'),
+            deleteCollectionDocs('proctor_commands')
           ]);
         } catch (err) {
           console.warn('Lỗi khi xóa CSDL Cloud Firestore:', err);
         }
       }
 
-      this.logAudit('Xóa trắng CSDL', 'Đã xóa toàn bộ bài thi và phiên giám sát trên máy và Cloud Firestore.');
+      this.logAudit('Xóa trắng CSDL', 'Đã xóa toàn bộ bài thi, lượt thi (exam_attempts) và phiên giám sát trên máy và Cloud Firestore.');
       return { success: true };
     }
 

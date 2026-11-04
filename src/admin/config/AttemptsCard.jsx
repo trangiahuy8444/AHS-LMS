@@ -5,7 +5,7 @@ import { useAdmin } from '../AdminContext.js';
 export default function AttemptsCard() {
   const { maxExamAttempts, setMaxExamAttempts, attemptGrade, setAttemptGrade,
     attemptClass, setAttemptClass, ALL_CLASSES_BY_GRADE, attemptLms,
-    setAttemptLms, attemptStatus, handleLookupAttempt, handleGrantAttempt, handleSaveMaxAttempts } = useAdmin();
+    setAttemptLms, attemptStatus, handleLookupAttempt, handleGrantAttempt, handleResetAttempt, handleSaveMaxAttempts } = useAdmin();
 
   return (
     <div className="bg-white p-6 rounded-3xl border-2 border-slate-200/80 shadow-sm space-y-4">
@@ -62,6 +62,15 @@ export default function AttemptsCard() {
         </button>
         <button type="button" onClick={handleGrantAttempt} className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow transition">
           Cấp thêm 1 lượt
+        </button>
+        <button
+          type="button"
+          onClick={handleResetAttempt}
+          title="Xóa hẳn bản ghi lượt thi để học sinh làm bài mới từ đầu (0 lượt đã dùng)"
+          className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow transition flex items-center space-x-1"
+        >
+          <span>🔄</span>
+          <span>Reset Lượt (Thi Lại Từ Đầu)</span>
         </button>
       </div>
       {attemptStatus && (
