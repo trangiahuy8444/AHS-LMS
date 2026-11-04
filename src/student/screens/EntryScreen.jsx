@@ -308,15 +308,10 @@ export default function EntryScreen() {
 
           {/* Ô NHẬP MÃ LMS VÀ XÁC THỰC 2 LỚP CHỐNG THI HỘ */}
           <div>
-            <div className="flex items-center justify-between mb-1">
+            <div className="mb-1">
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                 5. Mã LMS (Bắt buộc để xác thực chính chủ) <span className="text-red-500">*</span>
               </label>
-              {matchedStudent && (
-                <span className="text-[11px] text-slate-500 font-mono-code font-bold">
-                  Gợi ý: {matchedStudent.loginId ? matchedStudent.loginId : 'Nhập toàn bộ mã của em'}
-                </span>
-              )}
             </div>
             <input
               type="text"
