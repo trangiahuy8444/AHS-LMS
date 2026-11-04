@@ -5,7 +5,7 @@ import { useAdmin } from '../AdminContext.js';
 export default function LiveSessionList() {
   const { liveSessions, liveFilter, submissions, practiceSubs, setShowBroadcastModal, setBroadcastTarget, setBroadcastMsgInput,
     setIndividualMsgTarget, showToast, handleExtendTime, handleForceSubmit, handleLockSession,
-    handleUnlockSession, handleRemoveCandidate, handleClearClassSessions } = useAdmin();
+    handleUnlockSession, handleResetStudentAttempt, handleRemoveCandidate, handleClearClassSessions } = useAdmin();
 
   return (
     <div className="space-y-6">
@@ -158,19 +158,31 @@ export default function LiveSessionList() {
                       </div>
 
                       {isLocked && (
-                        <div className="p-2.5 rounded-xl bg-red-100 border border-red-300 text-xs text-red-900 space-y-1">
+                        <div className="p-2.5 rounded-xl bg-red-100 border border-red-300 text-xs text-red-900 space-y-1.5">
                           <div className="font-black flex items-center justify-between">
                             <span>⚠️ BỊ KHÓA TOÀN MÀN HÌNH</span>
                             {session.violations >= 3 && <span className="text-red-700 font-extrabold bg-red-200 px-1 rounded">KHÓA</span>}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => handleUnlockSession(session.sessionId, session.fullName)}
-                            className="w-full mt-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-lg text-xs shadow transition flex items-center justify-center space-x-1"
-                          >
-                            <span>🔓</span>
-                            <span>XÁC NHẬN MỞ KHÓA</span>
-                          </button>
+                          <div className="grid grid-cols-2 gap-1.5 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => handleUnlockSession(session.sessionId, session.fullName)}
+                              className="py-1.5 px-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-lg text-[11px] shadow transition flex items-center justify-center space-x-1"
+                              title="Mở khóa để học sinh tiếp tục làm bài đang dang dở"
+                            >
+                              <span>🔓</span>
+                              <span>MỞ KHÓA</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleResetStudentAttempt(session.studentId, session.grade, session.studentClass, session.fullName)}
+                              className="py-1.5 px-1 bg-amber-600 hover:bg-amber-700 text-white font-extrabold rounded-lg text-[11px] shadow transition flex items-center justify-center space-x-1"
+                              title="Xóa khóa trên máy chủ và cho học sinh thi lại từ đầu"
+                            >
+                              <span>🔄</span>
+                              <span>RESET LƯỢT</span>
+                            </button>
+                          </div>
                         </div>
                       )}
 

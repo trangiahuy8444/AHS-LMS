@@ -139,7 +139,7 @@ export function useProctorCommands(s) {
     // Vào lại khi đang bị khóa: coi như đã thấy khóa, để nếu giáo viên mở khóa trước khi bắt đầu theo dõi
     // thì lần đọc đầu (locked = false) vẫn được tính là chuyển khóa -> mở
     let prevLocked = isSessionLocked ? true : undefined;
-    const unsub = window.AsianSchoolCloud.watchAttempt({ grade, studentId }, (a, meta = { fromServer: true }) => {
+    const unsub = window.AsianSchoolCloud.watchAttempt({ grade, studentClass, studentId }, (a, meta = { fromServer: true }) => {
       // Đồng bộ giờ từ đúng lượt và snapshot máy chủ, kể cả khi bài đang khóa.
       // Đặt hạn tuyệt đối thay vì cộng số phút để snapshot/command lặp không cộng hai lần.
       const timing = latest.current.officialTimingRef?.current;
@@ -187,7 +187,7 @@ export function useProctorCommands(s) {
       prevLocked = locked;
     });
     return unsub;
-  }, [mode, examState, grade, studentId]);
+  }, [mode, examState, grade, studentClass, studentId]);
 
   const handleStudentResumeFromLock = async () => {
     clearPracticeLock();

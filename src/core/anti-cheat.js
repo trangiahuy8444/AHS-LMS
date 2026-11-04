@@ -110,6 +110,13 @@
       const key = e.key;
       const isCtrlOrCmd = e.ctrlKey || e.metaKey;
 
+      // 0. Chặn F11 (ngăn bật/tắt toàn màn hình trình duyệt)
+      if (key === 'F11') {
+        e.preventDefault();
+        this.triggerViolation('Nhấn phím F11 thay đổi chế độ hiển thị');
+        return false;
+      }
+
       // 1. Chặn F12
       if (key === 'F12') {
         e.preventDefault();
