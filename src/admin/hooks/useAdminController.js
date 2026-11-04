@@ -421,6 +421,82 @@ export function useAdminController() {
     };
   }, [submissions]);
 
+  // Thống kê phân tích Ôn tập Đề cương (Practice Analytics)
+  const practiceAnalyticsData = useMemo(() => {
+    const map = new Map();
+    (practiceSubs || []).forEach(sub => {
+      const key = sub.id || `${sub.studentClass}_${sub.studentId}_${sub.submittedAt}`;
+      map.set(key, sub);
+    });
+    (submissions || []).filter(sub => sub.mode === 'practice').forEach(sub => {
+      const key = sub.id || `${sub.studentClass}_${sub.studentId}_${sub.submittedAt}`;
+      if (!map.has(key)) map.set(key, sub);
+    });
+    const pSubs = Array.from(map.values());
+
+    const scores = pSubs.map(sub => {
+      if (sub.bestScore !== undefined) return sub.bestScore;
+      if (sub.finalScore !== undefined) return sub.finalScore;
+      if (sub.score !== undefined) return sub.score;
+      return sub.mcqPoints || 0;
+    });
+
+    const avg = scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2) : 0;
+    const max = scores.length > 0 ? Math.max(...scores).toFixed(1) : 0;
+    const min = scores.length > 0 ? Math.min(...scores).toFixed(1) : 0;
+
+    const distribution = {
+      gioi: scores.filter(sc => sc >= 8.0).length,
+      kha: scores.filter(sc => sc >= 6.5 && sc < 8.0).length,
+      trungBinh: scores.filter(sc => sc >= 5.0 && sc < 6.5).length,
+      chuaDat: scores.filter(sc => sc < 5.0).length
+    };
+
+    const passCount6 = scores.filter(sc => sc >= 6.0).length;
+    const passRate6 = scores.length > 0 ? ((passCount6 / scores.length) * 100).toFixed(1) : 0;
+    const passCount5 = scores.filter(sc => sc >= 5.0).length;
+    const passRate5 = scores.length > 0 ? ((passCount5 / scores.length) * 100).toFixed(1) : 0;
+
+    const uniqueStudents = new Set(pSubs.map(sub => `${sub.studentClass}_${sub.studentId || sub.fullName}`));
+    const totalUniqueStudents = uniqueStudents.size;
+    const avgAttempts = totalUniqueStudents > 0 ? (pSubs.length / totalUniqueStudents).toFixed(1) : 0;
+
+    const practiceMistakeMap = {};
+    pSubs.forEach(sub => {
+      if (sub.answers?.mcq) {
+        const gradeObj = sub.grade === 8 ? window.EXAM_DATA_G8 : (sub.grade === 9 ? window.EXAM_DATA_G9 : window.EXAM_DATA_G10);
+        const qList = gradeObj?.practiceQuestions || [];
+        qList.forEach(q => {
+          const userAns = sub.answers.mcq[q.id] || sub.answers.mcq[q.num];
+          if (userAns !== undefined && userAns !== q.correctAnswer) {
+            const key = `K${sub.grade}_C${q.num || q.id}_${(q.question || '').slice(0, 45)}...`;
+            practiceMistakeMap[key] = (practiceMistakeMap[key] || 0) + 1;
+          }
+        });
+      }
+    });
+
+    const topMistakes = Object.entries(practiceMistakeMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([qText, count]) => ({ qText, count }));
+
+    return {
+      totalPractices: pSubs.length,
+      totalUniqueStudents,
+      avgAttempts,
+      avg,
+      max,
+      min,
+      passRate6,
+      passCount6,
+      passRate5,
+      passCount5,
+      distribution,
+      topMistakes
+    };
+  }, [practiceSubs, submissions]);
+
   // Màn hình đăng nhập
 
   return {
@@ -466,6 +542,7 @@ export function useAdminController() {
     handlePurgeExamData,
     filteredSubmissions,
     currentAnswerData,
-    analyticsData
+    analyticsData,
+    practiceAnalyticsData
   };
 }
