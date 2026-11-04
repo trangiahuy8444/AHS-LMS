@@ -4,12 +4,13 @@ import McqQuestion from '../questions/McqQuestion.jsx';
 import TrueFalseQuestion from '../questions/TrueFalseQuestion.jsx';
 import EssayQuestion from '../questions/EssayQuestion.jsx';
 import QuestionSidebar from '../questions/QuestionSidebar.jsx';
+import CalculatorWidget from '../components/CalculatorWidget.jsx';
 
 // 2 & 3. MÀN HÌNH LÀM BÀI 1 CÂU / LẦN (NỀN TRẮNG SÁNG, TƯƠNG PHẢN CAO, ĐẸP MẮT)
 export default function ExamScreen() {
   const { grade, mode, examState, assignedCode, activeQuestionIdx, setActiveQuestionIdx,
     setShowSubmitModal, timeLeftStr, practiceItems, examItems, config, elapsedSeconds,
-    formatElapsed, showDialog } = useStudent();
+    formatElapsed, showDialog, isCalculatorOpen, setIsCalculatorOpen } = useStudent();
 
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
@@ -216,6 +217,25 @@ export default function ExamScreen() {
 
       {/* CỘT PHẢI (1 CỘT): SIDEBAR DANH SÁCH CÂU HỎI & NỘP BÀI (TRẮNG SÁNG, NỔI BẬT) */}
       <QuestionSidebar />
+
+      {/* MÁY TÍNH CẦM TAY TRỰC TIẾP TRÊN PHẦN MỀM (CHO PHÉP TÍNH TOÁN DUNG LƯỢNG MÔN TIN) */}
+      <CalculatorWidget />
+
+      {/* NÚT NỔI MỞ MÁY TÍNH BỎ TÚI KHI ĐANG ĐÓNG (DÀNH CHO KHỐI 10 HOẶC KHI LÀM TỰ LUẬN) */}
+      {!isCalculatorOpen && (grade === 10 || (mode === 'practice' ? practiceItems : examItems)[activeQuestionIdx]?.type?.includes('essay')) && (
+        <button
+          type="button"
+          onClick={() => setIsCalculatorOpen(true)}
+          className="fixed bottom-5 right-5 z-30 px-3.5 py-2.5 rounded-2xl bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs shadow-xl flex items-center space-x-2 border-2 border-white transition transform hover:scale-105 active:scale-95"
+          title="Mở máy tính cầm tay để tính toán dung lượng, đơn vị đo"
+        >
+          <span className="text-base">🧮</span>
+          <span className="font-black">Máy tính</span>
+          <span className="text-[10px] bg-blue-900/80 px-1.5 py-0.5 rounded font-black">
+            {grade === 10 ? 'Tin 10' : 'Hỗ trợ'}
+          </span>
+        </button>
+      )}
 
     </div>
   );

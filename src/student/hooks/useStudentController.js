@@ -135,6 +135,9 @@ export function useStudentController() {
     setCustomDialog({ title, message, type, onConfirm });
   };
 
+  // Máy tính cầm tay phục vụ câu tự luận (đặc biệt Khối 10 tính toán dung lượng)
+  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
+
   // Lock State & Time Tracking
   const [isSessionLocked, setIsSessionLocked] = useState(false);
   const isSessionLockedRef = useRef(false);
@@ -487,6 +490,8 @@ export function useStudentController() {
     setShowLmsMismatch,
     lmsErrorCount,
     setLmsErrorCount,
+    isCalculatorOpen,
+    setIsCalculatorOpen,
     handleDismissWarning,
     handleConfirmScore,
   };

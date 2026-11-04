@@ -3,7 +3,7 @@ import { useStudent } from '../StudentContext.js';
 
 // 3. Tự luận (Essay)
 export default function EssayQuestion({ currentItem }) {
-  const { mode, practiceAnswers, setPracticeAnswers, examAnswers, setExamAnswers } = useStudent();
+  const { mode, practiceAnswers, setPracticeAnswers, examAnswers, setExamAnswers, grade, isCalculatorOpen, setIsCalculatorOpen } = useStudent();
 
   if (!((currentItem.type === 'essay' || currentItem.type === 'exam_essay'))) return null;
 
@@ -25,10 +25,29 @@ export default function EssayQuestion({ currentItem }) {
       )}
 
       <div className="pt-2">
-        <div className="flex items-center justify-between mb-2">
-          <label className="block text-xs font-black text-slate-700 uppercase tracking-wider">
-            Phần nhập bài làm của thí sinh:
-          </label>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <div className="flex items-center space-x-2.5">
+            <label className="block text-xs font-black text-slate-700 uppercase tracking-wider">
+              Phần nhập bài làm của thí sinh:
+            </label>
+            {/* NÚT MỞ MÁY TÍNH CẦM TAY (ĐẶC BIỆT PHỤC VỤ KHỐI 10 TÍNH TOÁN DUNG LƯỢNG) */}
+            <button
+              type="button"
+              onClick={() => setIsCalculatorOpen(prev => !prev)}
+              className={`px-3 py-1.5 rounded-xl font-bold text-xs transition flex items-center space-x-1.5 shadow-sm border ${
+                isCalculatorOpen
+                  ? 'bg-blue-700 text-white border-blue-800 shadow-blue-700/20'
+                  : 'bg-blue-50 hover:bg-blue-100 text-blue-900 border-blue-300'
+              }`}
+            >
+              <span>🧮</span>
+              <span>{isCalculatorOpen ? 'Đang mở Máy tính' : 'Mở Máy tính cầm tay'}</span>
+              <span className="text-[10px] bg-blue-200/80 text-blue-950 px-1.5 py-0.5 rounded font-black">
+                {grade === 10 ? 'Tin 10' : 'Tính toán'}
+              </span>
+            </button>
+          </div>
+
           <span className="text-xs text-slate-500 font-mono-code font-bold">
             Đã nhập: {((mode === 'practice' ? practiceAnswers.essay[currentItem.data.num] : examAnswers.essay[currentItem.data.num]) || '').length} ký tự
           </span>
