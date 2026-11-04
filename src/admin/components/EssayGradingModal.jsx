@@ -33,13 +33,35 @@ export default function EssayGradingModal() {
 
   const subGrade = Number(gradingSubmission.grade || (gradingSubmission.studentClass ? String(gradingSubmission.studentClass).split('/')[0] : 8)) || 8;
   const subCode = String(gradingSubmission.examCode || '101').trim();
+  const [cloudExam, setCloudExam] = useState(null);
 
   // Nạp kho đề đầy đủ để hiển thị nội dung câu hỏi và đáp án đối chiếu
-  const fullExam = (typeof window !== 'undefined' && window.AsianSchoolLatestExamBank?.[subGrade]?.[subCode])
+  const memoryExam = (typeof window !== 'undefined' && window.AsianSchoolLatestExamBank?.[subGrade]?.[subCode])
     || (typeof window !== 'undefined' && window['EXAM_DATA_G' + subGrade]?.officialExams?.[subCode])
     || (typeof window !== 'undefined' && window.AsianSchoolLatestExamBank?.[subGrade]?.['101'])
     || (typeof window !== 'undefined' && window['EXAM_DATA_G' + subGrade]?.officialExams?.['101'])
     || null;
+
+  const fullExam = memoryExam || cloudExam;
+
+  // Tự động tải từ Firestore (exam_bank hoặc exam_public) nếu fullExam chưa có sẵn trong bộ nhớ
+  React.useEffect(() => {
+    if (memoryExam) return;
+    if (typeof window !== 'undefined' && window.firebaseDb) {
+      const docId = `g${subGrade}_${subCode}`;
+      window.firebaseDb.collection('exam_bank').doc(docId).get()
+        .then(snap => {
+          if (snap.exists && snap.data()?.exam) {
+            setCloudExam(snap.data().exam);
+          } else {
+            return window.firebaseDb.collection('exam_public').doc(docId).get().then(pSnap => {
+              if (pSnap.exists && pSnap.data()?.exam) setCloudExam(pSnap.data().exam);
+            });
+          }
+        })
+        .catch(err => console.warn('[EssayGradingModal] Đọc đề từ Firestore:', err.message));
+    }
+  }, [subGrade, subCode, memoryExam]);
 
   // Danh sách câu hỏi tự luận
   const essayQuestions = getEssayQuestionsForSubmission(gradingSubmission);

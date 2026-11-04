@@ -612,9 +612,20 @@
   }
 
   async function loadExam({ grade, examCode }) {
-    const examSnap = await db.collection('exam_public').doc(`g${Number(grade)}_${examCode}`).get({ source: 'server' });
-    if (!examSnap.exists) throw new Error(`Không tìm thấy mã đề ${examCode} Khối ${grade}. Em báo Thầy/Cô giám thị.`);
-    return examSnap.data().exam;
+    try {
+      const examSnap = await db.collection('exam_public').doc(`g${Number(grade)}_${examCode}`).get({ source: 'server' });
+      if (examSnap.exists && examSnap.data()?.exam) return examSnap.data().exam;
+    } catch (e) {
+      console.warn('[loadExam] Không đọc được exam_public từ máy chủ:', e.message);
+    }
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const raw = localStorage.getItem(`asian_school_exam_cache_g${grade}_${examCode}`)
+          || localStorage.getItem(`asian_school_exam_cache_g${grade}_101`);
+        if (raw) return JSON.parse(raw);
+      } catch (e) { /* ignore */ }
+    }
+    throw new Error(`Không tìm thấy mã đề ${examCode} Khối ${grade}. Em báo Thầy/Cô giám thị.`);
   }
 
   function attemptRefFor(grade, studentClass, studentId) {
@@ -1062,6 +1073,15 @@
         if (localObj?.officialExams?.[subDoc.examCode]) {
           examData = localObj.officialExams[subDoc.examCode];
         }
+      }
+
+      // 5. Fallback bộ nhớ cache thiết bị (đã nhận đề khi bắt đầu làm bài)
+      if (!examData && typeof window !== 'undefined' && window.localStorage) {
+        try {
+          const raw = localStorage.getItem(`asian_school_exam_cache_g${grade}_${subDoc.examCode}`)
+            || localStorage.getItem(`asian_school_exam_cache_g${grade}_101`);
+          if (raw) examData = JSON.parse(raw);
+        } catch (e) { /* ignore */ }
       }
 
       // Phục hồi đáp án đúng vào examData nếu examData lấy từ exam_public (bị strip đáp án)

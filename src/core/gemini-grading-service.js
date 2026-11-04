@@ -481,6 +481,15 @@ export function getEssayQuestionsForSubmission(sub, examDataByGrade) {
     examObj = window.AsianSchoolLatestExamBank[grade][examCode] || window.AsianSchoolLatestExamBank[grade]['101'];
   }
 
+  // 3b. Kiểm tra trong localStorage cache nếu có
+  if (!examObj && typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const raw = localStorage.getItem(`asian_school_exam_cache_g${grade}_${examCode}`)
+        || localStorage.getItem(`asian_school_exam_cache_g${grade}_101`);
+      if (raw) examObj = JSON.parse(raw);
+    } catch (e) { /* ignore */ }
+  }
+
   if (examObj) {
     const list = examObj.part3_essay || examObj.essayQuestions || [];
     if (list.length > 0) return list;

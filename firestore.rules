@@ -188,12 +188,21 @@ service cloud.firestore {
     // Đề đã bỏ đáp án: học sinh đọc được đề của lượt đang làm hoặc khi giáo viên mở xem lại bài thi
     match /exam_public/{docId} {
       function sessionAllows() {
-        let s = get(/databases/$(database)/documents/exam_sessions/$(request.auth.uid)).data;
-        let a = get(/databases/$(database)/documents/exam_attempts/$(s.attemptId)).data;
-        // Lượt đang bị khóa thì không đọc được đề (tải lại trang không thoát được khóa)
-        return s.examDocId == docId && a.uid == request.auth.uid && a.submitted == false && a.get('locked', false) == false;
+        let sessionPath = /databases/$(database)/documents/exam_sessions/$(request.auth.uid);
+        let hasSession = exists(sessionPath);
+        return hasSession
+          && get(sessionPath).data.examDocId == docId
+          && exists(/databases/$(database)/documents/exam_attempts/$(get(sessionPath).data.attemptId))
+          && get(/databases/$(database)/documents/exam_attempts/$(get(sessionPath).data.attemptId)).data.uid == request.auth.uid
+          && get(/databases/$(database)/documents/exam_attempts/$(get(sessionPath).data.attemptId)).data.submitted == false
+          && get(/databases/$(database)/documents/exam_attempts/$(get(sessionPath).data.attemptId)).data.get('locked', false) == false;
       }
-      allow get: if isTeacher() || (signedIn() && (sessionAllows() || cfg().get('allowStudentReviewOfficialExam', false) == true || cfg().get('classReviewControl', {}).size() > 0));
+      function reviewAllows() {
+        let c = cfg();
+        return c.get('allowStudentReviewOfficialExam', false) == true
+          || (c.get('classReviewControl', {}) is map && c.get('classReviewControl', {}).keys().size() > 0);
+      }
+      allow get: if isTeacher() || (signedIn() && (reviewAllows() || sessionAllows()));
       allow list: if isTeacher();
       allow write: if bankWriteAllowed();
     }

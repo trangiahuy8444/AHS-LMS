@@ -15,10 +15,27 @@ export default function AnswerReview() {
         essay: { ...(scoreResult?.answers?.essay || {}), ...(examAnswers?.essay || {}) }
       };
 
+  // Nạp kho đề fallback từ bộ nhớ hoặc cache thiết bị nếu currentOfficialExam chưa có
+  const activeCode = String(scoreResult?.examCode || currentOfficialExam?.code || '101').trim();
+  let cachedExam = null;
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const raw = localStorage.getItem(`asian_school_exam_cache_g${grade}_${activeCode}`)
+        || localStorage.getItem(`asian_school_exam_cache_g${grade}_101`);
+      if (raw) cachedExam = JSON.parse(raw);
+    } catch (e) { /* ignore */ }
+  }
+  const fallbackExam = (typeof window !== 'undefined' && (
+    window.AsianSchoolLatestExamBank?.[grade]?.[activeCode]
+    || window['EXAM_DATA_G' + grade]?.officialExams?.[activeCode]
+    || cachedExam
+  )) || null;
+  const resolvedExam = currentOfficialExam || fallbackExam;
+
   // 1. Danh sách câu hỏi Trắc nghiệm chuẩn
   const rawMcq = grade === 10
-    ? (currentOfficialExam?.part1_mcq || currentOfficialExam?.mcqQuestions || [])
-    : (currentOfficialExam?.mcqQuestions || currentOfficialExam?.part1_mcq || []);
+    ? (resolvedExam?.part1_mcq || resolvedExam?.mcqQuestions || [])
+    : (resolvedExam?.mcqQuestions || resolvedExam?.part1_mcq || []);
 
   const examMcqList = rawMcq.length > 0 ? rawMcq : (
     Object.keys({ ...(scoreResult?.mcqResults || {}), ...(answers.mcq || {}) })
@@ -34,7 +51,7 @@ export default function AnswerReview() {
   );
 
   // 2. Danh sách câu hỏi Đúng / Sai chuẩn (Khối 10)
-  const rawTf = currentOfficialExam?.part2_tf || [];
+  const rawTf = resolvedExam?.part2_tf || [];
   const examTfList = rawTf.length > 0 ? rawTf : (
     grade === 10 ? (
       Object.keys({ ...(scoreResult?.tfResults || {}), ...(answers.tf || {}) })
@@ -52,7 +69,7 @@ export default function AnswerReview() {
   // 3. Danh sách câu hỏi Tự luận chuẩn
   const rawEssay = mode === 'practice'
     ? practiceEssayQuestions
-    : (currentOfficialExam?.essayQuestions || currentOfficialExam?.part3_essay || []);
+    : (resolvedExam?.essayQuestions || resolvedExam?.part3_essay || []);
 
   const examEssayList = rawEssay.length > 0 ? rawEssay : (
     Object.keys({ ...(scoreResult?.essayScores || {}), ...(answers.essay || {}) })

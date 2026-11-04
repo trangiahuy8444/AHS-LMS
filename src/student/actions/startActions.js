@@ -147,6 +147,11 @@ export function createStartActions(s) {
       setIsContactingServer(false);
       // Lượt đang bị khóa (tải lại trang khi bị khóa): chưa có đề, chờ giáo viên mở khóa trên máy chủ
       setOfficialExam(serverStart.exam || null);
+      if (serverStart.exam && typeof window !== 'undefined' && window.localStorage) {
+        try {
+          localStorage.setItem(`asian_school_exam_cache_g${grade}_${serverStart.examCode}`, JSON.stringify(serverStart.exam));
+        } catch (e) { /* ignore storage error */ }
+      }
       if (officialTimingRef) officialTimingRef.current = {
         startedAtMs: serverStart.startedAtMs,
         examCode: serverStart.examCode,
@@ -430,8 +435,17 @@ export function createStartActions(s) {
 
       if (result && !result.exam && result.submission) {
         const sub = result.submission;
+        let cached = null;
+        if (typeof window !== 'undefined' && window.localStorage) {
+          try {
+            const raw = localStorage.getItem(`asian_school_exam_cache_g${grade}_${sub.examCode}`)
+              || localStorage.getItem(`asian_school_exam_cache_g${grade}_101`);
+            if (raw) cached = JSON.parse(raw);
+          } catch (e) { /* ignore */ }
+        }
         const examObj = window.AsianSchoolLatestExamBank?.[grade]?.[sub.examCode]
-          || window['EXAM_DATA_G' + grade]?.officialExams?.[sub.examCode];
+          || window['EXAM_DATA_G' + grade]?.officialExams?.[sub.examCode]
+          || cached;
         if (examObj) result.exam = examObj;
       }
 
