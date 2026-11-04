@@ -10,7 +10,8 @@ export default function EntryScreen() {
     setExamPasswordInput, showExamPassword, setShowExamPassword, showDialog, classAccessMode,
     handleStart, handleReviewLookup, config = {}, selectedExamCode, setSelectedExamCode,
     isEmergencyLmsOverride, setIsEmergencyLmsOverride,
-    showLmsMismatch, setShowLmsMismatch } = useStudent();
+    showLmsMismatch, setShowLmsMismatch,
+    lmsErrorCount, setLmsErrorCount } = useStudent();
 
   const [isManualName, setIsManualName] = useState(false);
   const classRoster = getStudentsByClass(studentClass);
@@ -25,9 +26,6 @@ export default function EntryScreen() {
     : [];
 
   const onStartClick = () => {
-    if (fullName && matchedStudent && !isLmsVerified && !isEmergencyLmsOverride) {
-      if (setShowLmsMismatch) setShowLmsMismatch(true);
-    }
     handleStart();
   };
 
@@ -243,6 +241,7 @@ export default function EntryScreen() {
                   setStudentClass(e.target.value);
                   setFullName('');
                   if (setShowLmsMismatch) setShowLmsMismatch(false);
+                  if (setLmsErrorCount) setLmsErrorCount(0);
                 }}
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold bg-white text-slate-900"
               >
@@ -292,6 +291,7 @@ export default function EntryScreen() {
                       setFullName(chosen);
                     }
                     if (setShowLmsMismatch) setShowLmsMismatch(false);
+                    if (setLmsErrorCount) setLmsErrorCount(0);
                   }}
                   className="w-full px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold bg-white text-slate-900"
                 >
@@ -364,28 +364,37 @@ export default function EntryScreen() {
                     </p>
                   </div>
                 ) : showLmsMismatch ? (
-                  <div className="p-3 rounded-2xl bg-rose-50 border border-rose-300 text-rose-950 space-y-2">
-                    <div className="flex items-start space-x-2">
+                  lmsErrorCount <= 1 ? (
+                    /* LẦN 1: Báo sai đơn giản giống như sai mật khẩu, yêu cầu kiểm tra lại */
+                    <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-300 text-rose-950 font-medium flex items-center space-x-2 text-xs">
                       <span className="text-base">⛔</span>
-                      <div className="text-xs">
-                        <span className="font-bold">MÃ LMS CHƯA KHỚP với học sinh <strong>{fullName}</strong>. Em vui lòng kiểm tra lại thẻ học sinh.</span>
+                      <span>Mã LMS chưa chính xác. Em vui lòng kiểm tra lại thẻ học sinh và nhập lại.</span>
+                    </div>
+                  ) : (
+                    /* LẦN 2 TRỞ LÊN (NẾU VẪN SAI): Hiện thêm nút xác thực cam đoan khẩn cấp */
+                    <div className="p-3 rounded-2xl bg-rose-50 border border-rose-300 text-rose-950 space-y-2">
+                      <div className="flex items-start space-x-2">
+                        <span className="text-base">⛔</span>
+                        <div className="text-xs">
+                          <span className="font-bold">MÃ LMS VẪN CHƯA KHỚP với học sinh <strong>{fullName}</strong>.</span>
+                        </div>
+                      </div>
+                      <div className="bg-white p-2.5 rounded-xl border border-rose-200 text-xs space-y-1.5">
+                        <p className="text-[11px] text-slate-600 font-medium">Lỡ danh sách của trường bị sai sót hoặc mã của em mới đổi?</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsEmergencyLmsOverride(true);
+                            if (setShowLmsMismatch) setShowLmsMismatch(false);
+                          }}
+                          className="w-full py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-98 text-slate-950 font-black text-xs shadow transition flex items-center justify-center space-x-1"
+                        >
+                          <span>⚡</span>
+                          <span>Em cam đoan đây là Mã LMS đúng — Báo Giám thị & Cho phép vào thi ngay</span>
+                        </button>
                       </div>
                     </div>
-                    <div className="bg-white p-2.5 rounded-xl border border-rose-200 text-xs space-y-1.5">
-                      <p className="text-[11px] text-slate-600 font-medium">Lỡ danh sách của trường bị sai sót hoặc mã của em mới đổi?</p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsEmergencyLmsOverride(true);
-                          if (setShowLmsMismatch) setShowLmsMismatch(false);
-                        }}
-                        className="w-full py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-98 text-slate-950 font-black text-xs shadow transition flex items-center justify-center space-x-1"
-                      >
-                        <span>⚡</span>
-                        <span>Em cam đoan đây là Mã LMS đúng — Báo Giám thị & Cho phép vào thi ngay</span>
-                      </button>
-                    </div>
-                  </div>
+                  )
                 ) : null}
               </div>
             )}

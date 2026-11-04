@@ -32,6 +32,7 @@ export function useStudentController() {
   });
   const [isEmergencyLmsOverride, setIsEmergencyLmsOverride] = useState(false);
   const [showLmsMismatch, setShowLmsMismatch] = useState(false);
+  const [lmsErrorCount, setLmsErrorCount] = useState(0);
   const [sessionId, setSessionId] = useState('');
   const [assignedCode, setAssignedCode] = useState('101');
   const [selectedExamCode, setSelectedExamCode] = useState('');
@@ -484,6 +485,8 @@ export function useStudentController() {
     setIsEmergencyLmsOverride,
     showLmsMismatch,
     setShowLmsMismatch,
+    lmsErrorCount,
+    setLmsErrorCount,
     handleDismissWarning,
     handleConfirmScore,
   };

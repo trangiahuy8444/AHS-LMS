@@ -60,12 +60,23 @@ export function createStartActions(s) {
     if (matched && !verifyStudentLms(matched, studentId)) {
       // NẾU HỌC SINH ĐÃ XÁC NHẬN MÃ KHẨN CẤP (DO DỮ LIỆU NHÀ TRƯỜNG SAI SÓT HOẶC MÃ MỚI ĐỔI)
       if (!s.isEmergencyLmsOverride) {
+        const nextCount = (s.lmsErrorCount || 0) + 1;
+        if (s.setLmsErrorCount) s.setLmsErrorCount(nextCount);
         if (s.setShowLmsMismatch) s.setShowLmsMismatch(true);
-        showDialog(
-          'Xác Thực Danh Tính Thí Sinh ⛔',
-          `Mã LMS "${s.studentId}" không khớp với hồ sơ lưu của học sinh "${fullName}" (Lớp ${studentClass}).\n\nNếu danh sách trường bị sai sót và em chắc chắn đây là mã của mình, em vui lòng bấm nút "Xác nhận mã LMS đúng" ở khung thông báo để được vào thi ngay nhé!`,
-          'warning'
-        );
+
+        if (nextCount <= 1) {
+          showDialog(
+            'Mã LMS Không Đúng ⛔',
+            `Mã LMS em vừa nhập không chính xác.\n\nEm vui lòng kiểm tra lại thẻ học sinh và nhập lại mã nhé!`,
+            'warning'
+          );
+        } else {
+          showDialog(
+            'Xác Thực Danh Tính Thí Sinh ⛔',
+            `Mã LMS vẫn chưa khớp với hồ sơ lưu của học sinh "${fullName}" (Lớp ${studentClass}).\n\nNếu danh sách trường bị sai sót hoặc em mới đổi mã, em vui lòng bấm nút "Em cam đoan đây là Mã LMS đúng" ở bên dưới ô nhập để được vào thi ngay nhé!`,
+            'warning'
+          );
+        }
         return;
       }
     }
