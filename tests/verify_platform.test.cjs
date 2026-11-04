@@ -548,7 +548,7 @@ test('Kiểm tra Bật/Tắt Cấu Hình Bắt Buộc Trả Lời Hết 100% Câ
 });
 
 test('Kiểm tra Chức năng Xóa Bài Nộp Khỏi CSDL (deleteSubmission)', (t) => {
-  // Tạo 1 submission mẫu
+  // Tạo 1 submission mẫu bài thi chính thức
   const sub = storage.saveSubmission({
     fullName: 'Thí Sinh Cần Xóa',
     studentCode: 'DEL001',
@@ -564,6 +564,39 @@ test('Kiểm tra Chức năng Xóa Bài Nộp Khỏi CSDL (deleteSubmission)', (
   const delRes = storage.deleteSubmission(sub.id);
   assert.strictEqual(delRes.success, true, 'deleteSubmission phải trả về { success: true } khi xóa thành công');
   assert.strictEqual(storage.getSubmissionById(sub.id), null, 'Bài nộp không được tồn tại sau khi xóa');
+
+  // Kiểm tra xóa cả bài nộp ôn tập
+  const pracSub = storage.saveSubmission({
+    fullName: 'Thí Sinh Ôn Tập Cần Xóa',
+    studentCode: 'DEL_PRAC',
+    grade: 8,
+    studentClass: '8/19',
+    mode: 'practice',
+    examCode: '101',
+    mcqPoints: 7.0
+  });
+  const delPracRes = storage.deleteSubmission(pracSub.id);
+  assert.strictEqual(delPracRes.success, true, 'deleteSubmission xóa được cả bài ôn tập');
+});
+
+test('Kiểm tra Chức năng Xóa Trắng Toàn Bộ CSDL (clearAllData)', async (t) => {
+  // Tạo bài thi mẫu
+  storage.saveSubmission({
+    fullName: 'Test Clear All',
+    studentCode: 'CLR001',
+    grade: 9,
+    studentClass: '9/20',
+    mode: 'exam',
+    examCode: '101',
+    mcqPoints: 8.0
+  });
+  assert.ok(storage.getSubmissions().length > 0, 'Phải có dữ liệu trước khi xóa trắng');
+
+  const res = await storage.clearAllData();
+  assert.strictEqual(res.success, true, 'clearAllData phải trả về success: true');
+  assert.strictEqual(storage.getSubmissions().length, 0, 'getSubmissions phải trống sau khi xóa trắng');
+  assert.strictEqual(storage.getLiveSessions().length, 0, 'getLiveSessions phải trống sau khi xóa trắng');
+  assert.strictEqual(storage.getPracticeSubmissions().length, 0, 'getPracticeSubmissions phải trống sau khi xóa trắng');
 });
 
 test('Kiểm tra Reset Vi Phạm Khi Giám Thị Mở Khóa (antiCheat.resetViolations)', (t) => {

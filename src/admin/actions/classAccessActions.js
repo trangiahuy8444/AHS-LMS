@@ -121,13 +121,20 @@ export function createClassAccessActions(s) {
       'Xác Nhận Xóa Bài Nộp 🗑️',
       `CẢNH BÁO: Thầy có chắc chắn muốn XÓA bài nộp của ${displayName} (${examCode || 'Bài thi'}) không? Dữ liệu này sẽ bị xóa khỏi hệ thống.`,
       'error',
-      () => {
-        const res = window.AsianSchoolStorage.deleteSubmission(subId);
-        if (res.success) {
-          setSubmissions(window.AsianSchoolStorage.getSubmissions());
-          showToast(`Đã xóa bài nộp của ${displayName}!`, 'success', 'Xóa Bài Nộp');
-        } else {
-          showDialog('Lỗi Xóa Bài Nộp', res.error, 'error');
+      async () => {
+        try {
+          const res = await window.AsianSchoolStorage.deleteSubmission(subId);
+          if (res.success) {
+            setSubmissions(window.AsianSchoolStorage.getSubmissions());
+            if (setPracticeSubs && typeof window.AsianSchoolStorage.getPracticeSubmissions === 'function') {
+              setPracticeSubs(window.AsianSchoolStorage.getPracticeSubmissions());
+            }
+            showToast(`Đã xóa bài nộp của ${displayName}!`, 'success', 'Xóa Bài Nộp');
+          } else {
+            showDialog('Lỗi Xóa Bài Nộp', res.error, 'error');
+          }
+        } catch (err) {
+          showDialog('Lỗi Xóa Bài Nộp', err.message || 'Đã xảy ra lỗi khi xóa bài nộp.', 'error');
         }
       }
     );

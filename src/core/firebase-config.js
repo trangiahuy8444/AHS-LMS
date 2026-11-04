@@ -105,18 +105,35 @@
       try {
         db.collection('submissions').onSnapshot(
           (snapshot) => {
-            if (!snapshot || snapshot.empty) return;
+            if (!snapshot) return;
+
             const cloudList = [];
-            snapshot.forEach((doc) => {
-              cloudList.push({ id: doc.id, ...doc.data() });
-            });
+            const cloudIdSet = new Set();
+            if (!snapshot.empty) {
+              snapshot.forEach((doc) => {
+                const item = { id: doc.id, ...doc.data() };
+                cloudList.push(item);
+                cloudIdSet.add(doc.id);
+              });
+            }
 
             // Hợp nhất vào LocalStorage của AsianSchoolStorage
             const currentLocal = storage.getSubmissions();
             const localMap = new Map();
-            currentLocal.forEach((sub) => { if (sub.id) localMap.set(sub.id, sub); });
+            let changed = false;
 
-            let hasNewOrUpdated = false;
+            // Xóa khỏi local các bài thi chính thức đã bị xóa trên Cloud Firestore
+            currentLocal.forEach((sub) => {
+              if (sub.id) {
+                const isExam = sub.mode === 'exam' || !sub.mode;
+                if (isExam && !cloudIdSet.has(sub.id)) {
+                  changed = true;
+                  return; // Không giữ lại bản ghi đã bị xóa trên Cloud Firestore
+                }
+                localMap.set(sub.id, sub);
+              }
+            });
+
             cloudList.forEach((cloudItem) => {
               const local = localMap.get(cloudItem.id);
               // Cùng id nhưng khác giờ nộp trên server: giáo viên đã xóa lượt cũ, đây là bài nộp mới -> thay bản trên máy
@@ -124,20 +141,20 @@
                 && toMillis(cloudItem.serverSubmittedAt) !== toMillis(local.serverSubmittedAt);
               if (!local || isNewSubmission) {
                 localMap.set(cloudItem.id, cloudItem);
-                hasNewOrUpdated = true;
+                changed = true;
               } else {
                 // Cập nhật nếu cloud có trạng thái chấm mới hơn
                 if ((cloudItem.isGraded && !local.isGraded) || (cloudItem.autoGradedAt && !local.autoGradedAt)) {
                   localMap.set(cloudItem.id, { ...local, ...cloudItem });
-                  hasNewOrUpdated = true;
+                  changed = true;
                 } else if (cloudItem.gradedAt && local.gradedAt && cloudItem.gradedAt > local.gradedAt) {
                   localMap.set(cloudItem.id, { ...local, ...cloudItem });
-                  hasNewOrUpdated = true;
+                  changed = true;
                 }
               }
             });
 
-            if (hasNewOrUpdated) {
+            if (changed || (snapshot.empty && currentLocal.length > 0)) {
               const merged = Array.from(localMap.values()).sort(
                 (a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0)
               );
@@ -165,18 +182,27 @@
           (snapshot) => {
             if (!snapshot) return;
             const cloudSessions = [];
+            const cloudSessionIds = new Set();
             const now = Date.now();
-            snapshot.forEach((doc) => {
-              const data = doc.data();
-              // Lọc các phiên còn ping trong vòng 90 phút
-              if ((now - (data.lastPing || 0)) < 90 * 60 * 1000) {
-                cloudSessions.push({ sessionId: doc.id, ...data });
-              }
-            });
+            if (!snapshot.empty) {
+              snapshot.forEach((doc) => {
+                const data = doc.data();
+                // Lọc các phiên còn ping trong vòng 90 phút
+                if ((now - (data.lastPing || 0)) < 90 * 60 * 1000) {
+                  cloudSessions.push({ sessionId: doc.id, ...data });
+                  cloudSessionIds.add(doc.id);
+                }
+              });
+            }
 
             const currentSessions = storage.getLiveSessions();
             const sMap = new Map();
-            currentSessions.forEach((s) => { if (s.sessionId) sMap.set(s.sessionId, s); });
+            // Chỉ giữ lại các phiên còn tồn tại trên Cloud Firestore
+            currentSessions.forEach((s) => {
+              if (s.sessionId && cloudSessionIds.has(s.sessionId)) {
+                sMap.set(s.sessionId, s);
+              }
+            });
             cloudSessions.forEach((s) => { sMap.set(s.sessionId, s); });
 
             const mergedSessions = Array.from(sMap.values());

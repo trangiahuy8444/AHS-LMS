@@ -499,24 +499,90 @@
     }
 
     deleteSubmission(subId) {
-      const list = this.getSubmissions();
-      const filtered = list.filter(s => s.id !== subId && s.sessionId !== subId);
-      if (filtered.length === list.length) {
-        return { success: false, error: 'Không tìm thấy bài nộp cần xóa: ' + subId };
-      }
-      localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(filtered));
-      this.notify(this.submissionListeners, filtered);
+      const targetId = String(subId || '').trim();
+      if (!targetId) return { success: false, error: 'Mã bài nộp không hợp lệ' };
 
+      let deletedFromExam = false;
+      let deletedFromPractice = false;
+
+      // 1. Kiểm tra và xóa trong danh sách bài thi chính thức (SUBMISSIONS_KEY)
+      const examList = this.getSubmissions();
+      const filteredExam = examList.filter(s => String(s.id) !== targetId && String(s.sessionId) !== targetId);
+      if (filteredExam.length !== examList.length) {
+        localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(filteredExam));
+        this.notify(this.submissionListeners, filteredExam);
+        deletedFromExam = true;
+      }
+
+      // 2. Kiểm tra và xóa trong danh sách ôn tập đề cương (PRACTICE_SUBMISSIONS_KEY)
+      const practiceList = this.getPracticeSubmissions();
+      const filteredPractice = practiceList.filter(s => String(s.id) !== targetId && String(s.sessionId) !== targetId);
+      if (filteredPractice.length !== practiceList.length) {
+        localStorage.setItem(PRACTICE_SUBMISSIONS_KEY, JSON.stringify(filteredPractice));
+        this.notify(this.practiceSubmissionListeners, filteredPractice);
+        deletedFromPractice = true;
+      }
+
+      if (!deletedFromExam && !deletedFromPractice) {
+        return { success: false, error: 'Không tìm thấy bài nộp cần xóa: ' + targetId };
+      }
+
+      // 3. Xóa đồng bộ trên Cloud Firestore (nếu có kết nối)
       if (typeof window !== 'undefined' && window.firebaseDb) {
         try {
           if (typeof window.firebaseDb.collection === 'function') {
-            window.firebaseDb.collection('submissions').doc(subId).delete().catch(e => console.warn('Firestore del err', e));
+            window.firebaseDb.collection('submissions').doc(targetId).delete().catch(e => console.warn('Firestore del err', e));
           }
         } catch (e) { /* ignore */ }
       }
 
-      this.logAudit('Xóa bài nộp', `Đã xóa bài nộp ID: ${subId}`);
-      return { success: true, count: filtered.length };
+      this.logAudit('Xóa bài nộp', `Đã xóa bài nộp ID: ${targetId}`);
+      return { success: true, count: filteredExam.length, deletedFromExam, deletedFromPractice };
+    }
+
+    async clearAllData() {
+      // 1. Xóa sạch dữ liệu cục bộ LocalStorage
+      localStorage.removeItem(SUBMISSIONS_KEY);
+      localStorage.removeItem(PRACTICE_SUBMISSIONS_KEY);
+      localStorage.removeItem(LIVE_KEY);
+
+      this.notify(this.submissionListeners, []);
+      this.notify(this.practiceSubmissionListeners, []);
+      this.notify(this.liveListeners, []);
+
+      // 2. Xóa đồng bộ trên Cloud Firestore (toàn bộ collections submissions và live_sessions)
+      if (typeof window !== 'undefined' && window.firebaseDb && typeof window.firebaseDb.collection === 'function') {
+        try {
+          const deleteCollectionDocs = async (collName) => {
+            const snap = await window.firebaseDb.collection(collName).get();
+            if (!snap || snap.empty) return;
+            const batchSize = 400;
+            let batch = window.firebaseDb.batch();
+            let count = 0;
+            for (const d of snap.docs) {
+              batch.delete(d.ref);
+              count++;
+              if (count % batchSize === 0) {
+                await batch.commit();
+                batch = window.firebaseDb.batch();
+              }
+            }
+            if (count % batchSize !== 0) {
+              await batch.commit();
+            }
+          };
+
+          await Promise.all([
+            deleteCollectionDocs('submissions'),
+            deleteCollectionDocs('live_sessions')
+          ]);
+        } catch (err) {
+          console.warn('Lỗi khi xóa CSDL Cloud Firestore:', err);
+        }
+      }
+
+      this.logAudit('Xóa trắng CSDL', 'Đã xóa toàn bộ bài thi và phiên giám sát trên máy và Cloud Firestore.');
+      return { success: true };
     }
 
     saveSubmission(subData) {
