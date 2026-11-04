@@ -78,7 +78,10 @@ describe('Bài thi chính thức: khóa trên máy chủ', () => {
   it('chỉ mở khi máy chủ chuyển khóa -> mở; bấm nút thì làm tiếp, không ghi đè số vi phạm', async () => {
     let state;
     render(<Harness startLocked={false} onState={x => { state = x; }} />);
-    expect(window.AsianSchoolCloud.watchAttempt).toHaveBeenCalledWith({ grade: 9, studentId: 'HS01' }, expect.any(Function));
+    expect(window.AsianSchoolCloud.watchAttempt).toHaveBeenCalledWith(
+      expect.objectContaining({ grade: 9, studentClass: '9/20', studentId: 'HS01' }),
+      expect.any(Function)
+    );
     // Ảnh chụp đầu tiên chưa khóa (chưa có chuyển tiếp) thì không mở
     await act(async () => { attemptCb({ locked: false, examCode: '101' }); });
     expect(state.isProctorUnlocked).toBe(false);
