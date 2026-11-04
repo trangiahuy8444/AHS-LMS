@@ -148,6 +148,17 @@ export function createGradingActions(s) {
           essayQuestions: essayQs,
           apiKey: key,
           model: geminiModel,
+          autoFallback: true,
+          onModelFallback: (fromM, toM, reason) => {
+            const fallbackMsg = `🔄 [Dự phòng] Chuyển ${fromM} ➔ ${toM} (${reason.slice(0, 40)})`;
+            activityLogs.unshift(`[${new Date().toLocaleTimeString('vi-VN')}] ${fallbackMsg}`);
+            if (setBatchGradingState) {
+              setBatchGradingState(prev => ({
+                ...prev,
+                logs: [...activityLogs.slice(0, 30)]
+              }));
+            }
+          },
           onProgress: (qIdx, totalQ) => {
             if (setBatchGradingState) {
               setBatchGradingState(prev => ({

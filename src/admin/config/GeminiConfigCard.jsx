@@ -1,13 +1,19 @@
 import React, { useState } from 'react';
 import { useAdmin } from '../AdminContext.js';
+import {
+  AVAILABLE_GEMINI_MODELS,
+  getFallbackChain
+} from '../../core/gemini-grading-service.js';
 
-// CẤU HÌNH TRỢ LÝ CHẤM TỰ LUẬN BẰNG GEMINI AI
+// CẤU HÌNH TRỢ LÝ CHẤM TỰ LUẬN BẰNG GEMINI AI & ĐIỀU PHỐI MÔ HÌNH LINH HOẠT
 export default function GeminiConfigCard() {
   const {
     geminiApiKey,
     setGeminiApiKey,
     geminiModel,
     setGeminiModel,
+    geminiAutoFallback,
+    setGeminiAutoFallback,
     handleSaveGeminiConfig,
     handleTestGeminiConnection,
     isTestingGemini,
@@ -17,20 +23,24 @@ export default function GeminiConfigCard() {
 
   const [showKey, setShowKey] = useState(false);
 
+  const activeModelMeta = AVAILABLE_GEMINI_MODELS.find(m => m.id === geminiModel) || AVAILABLE_GEMINI_MODELS[0];
+  const fallbackChain = getFallbackChain(geminiModel);
+
   return (
-    <div className="bg-white p-6 rounded-3xl border-2 border-slate-200/80 shadow-sm space-y-4">
-      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+    <div className="bg-white p-6 rounded-3xl border-2 border-slate-200/80 shadow-sm space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
         <h3 className="font-black text-sm text-purple-950 uppercase tracking-wider flex items-center space-x-2">
           <span>✨</span>
-          <span>TRỢ LÝ CHẤM BÀI TỰ LUẬN GEMINI AI (DUYỆT THỦ CÔNG)</span>
+          <span>TRỢ LÝ CHẤM BÀI TỰ LUẬN GEMINI AI (ĐIỀU PHỐI MÔ HÌNH LINH HOẠT)</span>
         </h3>
         <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-800 border border-purple-200">
-          100% Theo Barem
+          100% Theo Barem Asian School
         </span>
       </div>
 
       <p className="text-xs text-slate-500 font-medium leading-relaxed">
-        Sử dụng mô hình AI của Google để hỗ trợ giáo viên chấm bài tự luận bám sát barem hướng dẫn chấm. Mọi điểm số do AI đề xuất đều cần giáo viên kiểm tra và duyệt thủ công trước khi lưu chính thức.
+        Sử dụng hệ thống mô hình thế hệ mới của Google để hỗ trợ giáo viên chấm bài tự luận.
+        Trang bị cơ chế <strong>tự động chuyển mô hình dự phòng (Auto Fallback)</strong> khi một mô hình chạm ngưỡng giới hạn (Rate Limit 429) hoặc quá tải, đảm bảo quá trình chấm không bị gián đoạn.
       </p>
 
       {geminiSavedNotice && (
@@ -51,9 +61,10 @@ export default function GeminiConfigCard() {
         </div>
       )}
 
-      <div className="space-y-4 pt-1">
+      {/* MỤC 1: API KEY */}
+      <div className="space-y-4">
         <div>
-          <div className="flex items-center justify-between mb-1">
+          <div className="flex flex-wrap items-center justify-between gap-1 mb-1.5">
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
               1. Google Gemini API Key:
             </label>
@@ -115,32 +126,108 @@ export default function GeminiConfigCard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+        {/* MỤC 2: CHỌN MÔ HÌNH CHÍNH & TỰ ĐỘNG DỰ PHÒNG */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-slate-100">
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-              2. Mô hình AI Khuyên Dùng:
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                2. Mô Hình AI Chính (Primary Model):
+              </label>
+              <a
+                href="https://aistudio.google.com/docs/models?hl=vi"
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] text-indigo-600 hover:text-indigo-800 font-bold hover:underline flex items-center space-x-0.5"
+                title="Xem bảng so sánh mô hình chính thức tại Google AI Studio"
+              >
+                <span>Tài liệu mô hình</span>
+                <span>↗</span>
+              </a>
+            </div>
+
             <select
               value={geminiModel}
-              onChange={e => {
-                setGeminiModel(e.target.value);
-                if (typeof window !== 'undefined' && window.localStorage) {
-                  window.localStorage.setItem('ahs_gemini_model', e.target.value);
-                }
-              }}
-              className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-purple-600"
+              onChange={e => setGeminiModel(e.target.value)}
+              className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-purple-600"
             >
-              <option value="gemini-2.5-flash">gemini-2.5-flash (Khuyên dùng: Nhanh, chuẩn xác, tiết kiệm)</option>
-              <option value="gemini-2.5-pro">gemini-2.5-pro (Tư duy chuyên sâu, phân tích chi tiết)</option>
-              <option value="gemini-1.5-flash">gemini-1.5-flash (Dự phòng)</option>
+              {AVAILABLE_GEMINI_MODELS.map(m => (
+                <option key={m.id} value={m.id}>
+                  {m.name} — {m.badge} ({m.speed})
+                </option>
+              ))}
             </select>
+
+            {/* Chi tiết về mô hình đang chọn */}
+            <div className="mt-2.5 p-3 rounded-xl bg-purple-50/70 border border-purple-200 text-xs space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="font-extrabold text-purple-900">{activeModelMeta.name}</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 bg-purple-200 text-purple-800 rounded">
+                  {activeModelMeta.limits}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-600 leading-normal">
+                {activeModelMeta.desc}
+              </p>
+            </div>
           </div>
 
-          <div className="p-3 bg-purple-50/60 rounded-xl border border-purple-200 text-[11px] text-purple-950 flex items-center space-x-2">
-            <span className="text-lg">🛡️</span>
-            <div>
-              <strong>Bảo mật danh tính & Barem:</strong> Khóa API và dữ liệu chấm bài chỉ chạy trực tiếp trên máy giáo viên và gửi thẳng đến Google API qua SSL; học sinh không thể truy cập khóa này.
+          {/* CHẾ ĐỘ AUTO-FALLBACK */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                3. Điều Phối Mô Hình Dự Phòng:
+              </label>
             </div>
+
+            <label className="flex items-start space-x-2.5 p-3 rounded-xl bg-slate-50 border-2 border-slate-200 cursor-pointer hover:border-purple-300 transition select-none">
+              <input
+                type="checkbox"
+                checked={geminiAutoFallback}
+                onChange={e => setGeminiAutoFallback(e.target.checked)}
+                className="mt-0.5 rounded text-purple-600 focus:ring-0"
+              />
+              <div className="text-xs">
+                <span className="font-extrabold text-slate-900 block">
+                  Tự động chuyển mô hình dự phòng khi gặp lỗi (Khuyến nghị)
+                </span>
+                <span className="text-[11px] text-slate-500 font-medium leading-relaxed block mt-0.5">
+                  Khi mô hình chính bị nghẽn (HTTP 429) hoặc tạm thời không khả dụng (503), hệ thống tự động gọi sang mô hình kế tiếp theo chuỗi ưu tiên mà không làm dừng bài chấm.
+                </span>
+              </div>
+            </label>
+
+            {/* Chuỗi dự phòng trực quan */}
+            {geminiAutoFallback && (
+              <div className="p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-1.5 text-xs">
+                <div className="text-[11px] font-bold text-indigo-900 uppercase">
+                  Chuỗi ưu tiên chuyển đổi (Fallback Chain):
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5 font-mono text-[11px]">
+                  {fallbackChain.map((mId, idx) => (
+                    <React.Fragment key={mId}>
+                      <span className={`px-2 py-0.5 rounded-lg border font-bold ${
+                        idx === 0
+                          ? 'bg-purple-600 text-white border-purple-700 shadow-sm'
+                          : 'bg-white text-slate-700 border-slate-300'
+                      }`}>
+                        {idx === 0 ? `Chính: ${mId}` : `Dự phòng ${idx}: ${mId}`}
+                      </span>
+                      {idx < fallbackChain.length - 1 && (
+                        <span className="text-indigo-400 font-black">➔</span>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* BẢO MẬT & LƯU Ý */}
+        <div className="p-3 bg-purple-50/50 rounded-2xl border border-purple-200 text-[11px] text-purple-950 flex items-center space-x-2.5">
+          <span className="text-xl">🛡️</span>
+          <div>
+            <strong>Nguyên tắc Sư phạm & An toàn:</strong> Dù bất kỳ mô hình nào trong chuỗi được sử dụng, hệ thống đều áp dụng chung một cấu trúc Barem chuẩn Asian School 100%. Giáo viên luôn có toàn quyền kiểm tra, xem lại bài chấm và chỉnh sửa thủ công trước khi chốt điểm.
           </div>
         </div>
       </div>

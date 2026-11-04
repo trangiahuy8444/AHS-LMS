@@ -137,4 +137,32 @@ test('Gemini Grading Service: Quản lý API Key, Model & Prompt Sư phạm 100%
   assert.equal(progressCalls.length, 3);
   assert.deepEqual(progressCalls[0], { current: 1, total: 3, num: 1 });
   assert.deepEqual(progressCalls[2], { current: 3, total: 3, num: 3 });
+
+  // 8. Kiểm tra Danh mục Mô hình AI Studio & Chuỗi Fallback tự động
+  const {
+    AVAILABLE_GEMINI_MODELS,
+    getFallbackChain,
+    getGeminiAutoFallback,
+    setGeminiAutoFallback
+  } = service;
+
+  // Xác nhận danh mục có các model hàng đầu theo tài liệu aistudio.google.com/docs/models
+  const modelIds = AVAILABLE_GEMINI_MODELS.map(m => m.id);
+  assert.ok(modelIds.includes('gemini-2.5-flash'), 'Phải hỗ trợ gemini-2.5-flash');
+  assert.ok(modelIds.includes('gemini-2.0-flash'), 'Phải hỗ trợ gemini-2.0-flash');
+  assert.ok(modelIds.includes('gemini-1.5-flash'), 'Phải hỗ trợ gemini-1.5-flash');
+  assert.ok(modelIds.includes('gemini-1.5-flash-8b'), 'Phải hỗ trợ gemini-1.5-flash-8b');
+  assert.ok(modelIds.includes('gemini-2.5-pro'), 'Phải hỗ trợ gemini-2.5-pro');
+
+  // Kiểm tra chuỗi fallback bắt đầu bằng model đã chọn và không trùng lặp
+  const chainFlash = getFallbackChain('gemini-2.0-flash');
+  assert.equal(chainFlash[0], 'gemini-2.0-flash');
+  assert.equal(new Set(chainFlash).size, chainFlash.length, 'Chuỗi fallback không được trùng lặp');
+  assert.ok(chainFlash.includes('gemini-1.5-flash'));
+
+  // Kiểm tra lưu/đọc Auto Fallback
+  setGeminiAutoFallback(false);
+  assert.equal(getGeminiAutoFallback(), false);
+  setGeminiAutoFallback(true);
+  assert.equal(getGeminiAutoFallback(), true);
 });

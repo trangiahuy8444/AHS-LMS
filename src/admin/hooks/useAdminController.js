@@ -10,8 +10,12 @@ import {
   setGeminiApiKey as saveGeminiKeyToStorage,
   getGeminiModel,
   setGeminiModel as saveGeminiModelToStorage,
+  getGeminiAutoFallback,
+  setGeminiAutoFallback as saveGeminiAutoFallbackToStorage,
   testGeminiConnection,
-  DEFAULT_GEMINI_MODEL
+  DEFAULT_GEMINI_MODEL,
+  AVAILABLE_GEMINI_MODELS,
+  getFallbackChain
 } from '../../core/gemini-grading-service.js';
 
 // State, đồng bộ dữ liệu và hàm xử lý của Cổng Quản Trị. Mỗi nhóm hàm xử lý nằm trong src/admin/actions/.
@@ -115,6 +119,7 @@ export function useAdminController() {
   // Gemini AI Grading States & Handlers
   const [geminiApiKey, setGeminiApiKeyState] = useState(getGeminiApiKey());
   const [geminiModel, setGeminiModelState] = useState(getGeminiModel());
+  const [geminiAutoFallback, setGeminiAutoFallbackState] = useState(getGeminiAutoFallback());
   const [isTestingGemini, setIsTestingGemini] = useState(false);
   const [geminiTestNotice, setGeminiTestNotice] = useState(null);
   const [geminiSavedNotice, setGeminiSavedNotice] = useState('');
@@ -149,10 +154,16 @@ export function useAdminController() {
     saveGeminiModelToStorage(m);
   };
 
+  const setGeminiAutoFallback = (val) => {
+    setGeminiAutoFallbackState(val);
+    saveGeminiAutoFallbackToStorage(val);
+  };
+
   const handleSaveGeminiConfig = () => {
     saveGeminiKeyToStorage(geminiApiKey);
     saveGeminiModelToStorage(geminiModel);
-    setGeminiSavedNotice('Đã lưu cấu hình Gemini API thành công!');
+    saveGeminiAutoFallbackToStorage(geminiAutoFallback);
+    setGeminiSavedNotice('Đã lưu cấu hình Gemini API & Chế độ dự phòng thành công!');
     setTimeout(() => setGeminiSavedNotice(''), 3000);
   };
 
@@ -313,6 +324,8 @@ export function useAdminController() {
     setGeminiApiKey,
     geminiModel,
     setGeminiModel,
+    geminiAutoFallback,
+    setGeminiAutoFallback,
     isTestingGemini,
     setIsTestingGemini,
     geminiTestNotice,

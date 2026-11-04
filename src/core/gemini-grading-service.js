@@ -6,7 +6,85 @@
 
 const STORAGE_KEY_API_KEY = 'ahs_gemini_api_key';
 const STORAGE_KEY_MODEL = 'ahs_gemini_model';
+const STORAGE_KEY_AUTO_FALLBACK = 'ahs_gemini_auto_fallback';
 export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
+
+/**
+ * DANH SÁCH MÔ HÌNH GEMINI PHÙ HỢP CHO KHẢO THÍ & CHẤM TỰ LUẬN
+ * Tham khảo tài liệu chính thức: https://aistudio.google.com/docs/models?hl=vi
+ */
+export const AVAILABLE_GEMINI_MODELS = [
+  {
+    id: 'gemini-2.5-flash',
+    name: 'Gemini 2.5 Flash',
+    badge: 'Khuyên Dùng ⭐',
+    desc: 'Tốc độ nhanh nhất, tư duy phân tích sắc bén, chi phí tối ưu, bám barem 100%. Phù hợp nhất để chấm bài nhanh.',
+    category: 'flash',
+    speed: 'Siêu nhanh (< 1s)',
+    limits: '15 RPM / 1M TPM (Free tier)'
+  },
+  {
+    id: 'gemini-2.0-flash',
+    name: 'Gemini 2.0 Flash',
+    badge: 'Tốc Độ Cao ⚡',
+    desc: 'Mô hình thế hệ 2 siêu tốc độ, độ trễ cực thấp và ổn định cao.',
+    category: 'flash',
+    speed: 'Siêu nhanh (< 1s)',
+    limits: '15 RPM / 1M TPM'
+  },
+  {
+    id: 'gemini-1.5-flash',
+    name: 'Gemini 1.5 Flash',
+    badge: 'Chuẩn Mực & Bền Bỉ 🛡️',
+    desc: 'Mô hình tiêu chuẩn ổn định cao, quota dồi dào, xử lý văn bản tin cậy.',
+    category: 'flash',
+    speed: 'Nhanh (1 - 2s)',
+    limits: '15 RPM / 1M TPM'
+  },
+  {
+    id: 'gemini-1.5-flash-8b',
+    name: 'Gemini 1.5 Flash-8B',
+    badge: 'Siêu Nhẹ (High Throughput) 🚀',
+    desc: 'Mô hình tối giản, cực kỳ nhẹ, tối ưu cho xử lý khối lượng lớn bài thi.',
+    category: 'flash',
+    speed: 'Tức thì (< 0.8s)',
+    limits: '15 RPM / 1M TPM'
+  },
+  {
+    id: 'gemini-2.5-pro',
+    name: 'Gemini 2.5 Pro',
+    badge: 'Chuyên Sâu (Complex Reasoning) 🧠',
+    desc: 'Mô hình suy luận cao cấp nhất, phân tích chi tiết các bài tự luận phức tạp nhiều bước.',
+    category: 'pro',
+    speed: 'Trung bình (2 - 4s)',
+    limits: '5 RPM / 250k TPM'
+  },
+  {
+    id: 'gemini-1.5-pro',
+    name: 'Gemini 1.5 Pro',
+    badge: 'Độ Chính Xác Cao 🎯',
+    desc: 'Mô hình chuyên sâu thế hệ 1.5, lý luận sư phạm tỉ mỉ và đối chiếu tiêu chuẩn.',
+    category: 'pro',
+    speed: 'Trung bình (2 - 4s)',
+    limits: '5 RPM / 250k TPM'
+  }
+];
+
+/**
+ * Xây dựng chuỗi mô hình dự phòng (Fallback Chain)
+ * Khi mô hình chính bị lỗi (hết quota, 429, 503...), hệ thống tự động thử các mô hình tiếp theo
+ */
+export function getFallbackChain(primaryModel = DEFAULT_GEMINI_MODEL) {
+  const defaultChain = [
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+    'gemini-1.5-flash-8b',
+    'gemini-2.5-pro'
+  ];
+  const list = [primaryModel, ...defaultChain.filter(m => m !== primaryModel)];
+  return Array.from(new Set(list));
+}
 
 function getStorage() {
   if (typeof window !== 'undefined' && window.localStorage) return window.localStorage;
@@ -39,6 +117,19 @@ export function setGeminiModel(model) {
   const s = getStorage();
   if (!s) return;
   s.setItem(STORAGE_KEY_MODEL, model || DEFAULT_GEMINI_MODEL);
+}
+
+export function getGeminiAutoFallback() {
+  const s = getStorage();
+  if (!s) return true;
+  const val = s.getItem(STORAGE_KEY_AUTO_FALLBACK);
+  return val === null ? true : val === 'true';
+}
+
+export function setGeminiAutoFallback(enabled) {
+  const s = getStorage();
+  if (!s) return;
+  s.setItem(STORAGE_KEY_AUTO_FALLBACK, enabled ? 'true' : 'false');
 }
 
 /**
@@ -133,7 +224,7 @@ Trả về kết quả duy nhất ở định dạng JSON với cấu trúc:
 }
 
 /**
- * Chấm điểm 1 câu tự luận bằng Gemini API
+ * Chấm điểm 1 câu tự luận bằng Gemini API kèm cơ chế tự động chuyển model dự phòng khi lỗi
  */
 export async function gradeSingleEssayWithGemini({
   question,
@@ -142,7 +233,9 @@ export async function gradeSingleEssayWithGemini({
   modelAnswer = '',
   maxPoints = 1.0,
   apiKey,
-  model
+  model,
+  autoFallback = true,
+  onModelFallback
 }) {
   const points = Number(maxPoints) || 1.0;
   const rawAnswer = String(studentAnswer || '').trim();
@@ -169,7 +262,10 @@ export async function gradeSingleEssayWithGemini({
     return { success: false, error: 'Chưa cấu hình Gemini API Key trong Tab Cấu hình Admin!' };
   }
 
-  const activeModel = model || getGeminiModel() || DEFAULT_GEMINI_MODEL;
+  const primaryModel = model || getGeminiModel() || DEFAULT_GEMINI_MODEL;
+  const shouldFallback = autoFallback !== undefined ? autoFallback : getGeminiAutoFallback();
+  const modelsToTry = shouldFallback ? getFallbackChain(primaryModel) : [primaryModel];
+
   const prompt = buildGradingPrompt({
     questionText: question,
     subItems,
@@ -178,64 +274,107 @@ export async function gradeSingleEssayWithGemini({
     maxPoints: points
   });
 
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(activeModel)}:generateContent?key=${encodeURIComponent(key)}`;
+  let lastError = null;
+  const attemptedModels = [];
 
-  try {
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{ text: prompt }]
-        }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: 0.2, // Nhiệt độ thấp để bám sát barem, nhất quán
-          maxOutputTokens: 1024
-        }
-      })
-    });
+  for (let mIdx = 0; mIdx < modelsToTry.length; mIdx++) {
+    const activeModel = modelsToTry[mIdx];
+    attemptedModels.push(activeModel);
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(activeModel)}:generateContent?key=${encodeURIComponent(key)}`;
 
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      const msg = errData?.error?.message || `HTTP ${res.status}`;
-      return { success: false, error: `Gemini API từ chối yêu cầu: ${msg}` };
-    }
-
-    const data = await res.json();
-    const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!rawText) {
-      return { success: false, error: 'Gemini không trả về nội dung đánh giá!' };
-    }
-
-    let parsed;
     try {
-      parsed = JSON.parse(rawText);
-    } catch {
-      // Thử bóc tách JSON nếu có markdown codeblock
-      const match = rawText.match(/\{[\s\S]*\}/);
-      if (match) {
-        parsed = JSON.parse(match[0]);
-      } else {
-        throw new Error('Định dạng phản hồi không phải JSON hợp lệ');
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: prompt }]
+          }],
+          generationConfig: {
+            responseMimeType: 'application/json',
+            temperature: 0.2, // Nhiệt độ thấp để bám sát barem, nhất quán
+            maxOutputTokens: 1024
+          }
+        })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        const msg = errData?.error?.message || `HTTP ${res.status}`;
+        lastError = new Error(`Model ${activeModel} gặp lỗi: ${msg}`);
+
+        // Nếu còn model dự phòng trong chuỗi thì chuyển model tiếp theo
+        if (mIdx < modelsToTry.length - 1) {
+          const nextModel = modelsToTry[mIdx + 1];
+          if (onModelFallback) {
+            onModelFallback(activeModel, nextModel, msg);
+          }
+          await new Promise(r => setTimeout(r, 300));
+          continue;
+        } else {
+          return {
+            success: false,
+            error: `Đã thử các model (${attemptedModels.join(' -> ')}) nhưng đều không thành công: ${msg}`
+          };
+        }
+      }
+
+      const data = await res.json();
+      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!rawText) {
+        lastError = new Error(`Model ${activeModel} không trả về nội dung đánh giá!`);
+        if (mIdx < modelsToTry.length - 1) {
+          if (onModelFallback) onModelFallback(activeModel, modelsToTry[mIdx + 1], 'Không có dữ liệu văn bản');
+          await new Promise(r => setTimeout(r, 300));
+          continue;
+        }
+        return { success: false, error: lastError.message };
+      }
+
+      let parsed;
+      try {
+        parsed = JSON.parse(rawText);
+      } catch {
+        // Thử bóc tách JSON nếu có markdown codeblock
+        const match = rawText.match(/\{[\s\S]*\}/);
+        if (match) {
+          parsed = JSON.parse(match[0]);
+        } else {
+          throw new Error('Định dạng phản hồi không phải JSON hợp lệ');
+        }
+      }
+
+      // Chuẩn hóa và giới hạn điểm số trong khoảng an toàn [0, maxPoints]
+      let finalScore = typeof parsed.score === 'number' ? parsed.score : parseFloat(parsed.score);
+      if (isNaN(finalScore)) finalScore = 0;
+      finalScore = Math.max(0, Math.min(points, Math.round(finalScore * 100) / 100));
+
+      return {
+        success: true,
+        score: finalScore,
+        maxScore: points,
+        breakdown: Array.isArray(parsed.breakdown) ? parsed.breakdown : [],
+        feedback: parsed.feedback || `Học sinh đạt ${finalScore}/${points} điểm.`,
+        usedModel: activeModel,
+        fallbackCount: mIdx
+      };
+    } catch (err) {
+      lastError = err;
+      if (mIdx < modelsToTry.length - 1) {
+        const nextModel = modelsToTry[mIdx + 1];
+        if (onModelFallback) {
+          onModelFallback(activeModel, nextModel, err.message);
+        }
+        await new Promise(r => setTimeout(r, 300));
+        continue;
       }
     }
-
-    // Chuẩn hóa và giới hạn điểm số trong khoảng an toàn [0, maxPoints]
-    let finalScore = typeof parsed.score === 'number' ? parsed.score : parseFloat(parsed.score);
-    if (isNaN(finalScore)) finalScore = 0;
-    finalScore = Math.max(0, Math.min(points, Math.round(finalScore * 100) / 100));
-
-    return {
-      success: true,
-      score: finalScore,
-      maxScore: points,
-      breakdown: Array.isArray(parsed.breakdown) ? parsed.breakdown : [],
-      feedback: parsed.feedback || `Học sinh đạt ${finalScore}/${points} điểm.`
-    };
-  } catch (err) {
-    return { success: false, error: `Lỗi trong quá trình chấm: ${err.message || String(err)}` };
   }
+
+  return {
+    success: false,
+    error: `Lỗi khi gọi các model Gemini (${attemptedModels.join(' -> ')}): ${lastError ? lastError.message : 'Không xác định'}`
+  };
 }
 
 /**
@@ -266,12 +405,15 @@ export async function gradeSubmissionWithGemini({
   essayQuestions = [],
   apiKey,
   model,
+  autoFallback = true,
+  onModelFallback,
   onProgress
 }) {
   const essayScores = {};
   const feedbackParts = [];
   let totalPoints = 0;
   let maxPossiblePoints = 0;
+  const usedModels = new Set();
 
   for (let i = 0; i < essayQuestions.length; i++) {
     const q = essayQuestions[i];
@@ -291,13 +433,17 @@ export async function gradeSubmissionWithGemini({
       modelAnswer: q.modelAnswer,
       maxPoints,
       apiKey,
-      model
+      model,
+      autoFallback,
+      onModelFallback
     });
 
     if (res.success) {
+      if (res.usedModel) usedModels.add(res.usedModel);
       essayScores[qNum] = res.score;
       totalPoints += res.score;
-      feedbackParts.push(`[Câu ${qNum} (${res.score}/${maxPoints}đ)]: ${res.feedback}`);
+      const modelNote = res.fallbackCount > 0 ? ` [Dự phòng: ${res.usedModel}]` : '';
+      feedbackParts.push(`[Câu ${qNum} (${res.score}/${maxPoints}đ)${modelNote}]: ${res.feedback}`);
     } else {
       essayScores[qNum] = 0;
       feedbackParts.push(`[Câu ${qNum}]: Lỗi chấm AI (${res.error})`);
@@ -310,6 +456,7 @@ export async function gradeSubmissionWithGemini({
     essayScores,
     essayTotal: Math.round(totalPoints * 100) / 100,
     maxPossiblePoints: Math.round(maxPossiblePoints * 100) / 100,
-    teacherFeedback
+    teacherFeedback,
+    usedModels: Array.from(usedModels)
   };
 }
