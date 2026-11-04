@@ -1027,7 +1027,7 @@
     let examData = null;
     if (subDoc.examCode) {
       const examDocId = `g${grade}_${subDoc.examCode}`;
-      // 1. Thử đọc từ exam_bank để có đầy đủ đáp án đối chiếu đúng/sai
+      // 1. Thử đọc từ exam_bank để có đầy đủ câu hỏi, đáp án và rubric tự luận
       try {
         const bankSnap = await db.collection('exam_bank').doc(examDocId).get();
         if (bankSnap.exists) {
@@ -1051,12 +1051,90 @@
         }
       }
 
-      // 3. Fallback bộ nhớ cục bộ
+      // 3. Fallback bộ nhớ AsianSchoolLatestExamBank
+      if (!examData && typeof window !== 'undefined' && window.AsianSchoolLatestExamBank?.[grade]) {
+        examData = window.AsianSchoolLatestExamBank[grade][subDoc.examCode] || window.AsianSchoolLatestExamBank[grade]['101'];
+      }
+
+      // 4. Fallback bộ nhớ cục bộ window.EXAM_DATA_G{N}
       if (!examData && typeof window !== 'undefined') {
         const localObj = window['EXAM_DATA_G' + grade];
         if (localObj?.officialExams?.[subDoc.examCode]) {
           examData = localObj.officialExams[subDoc.examCode];
         }
+      }
+
+      // Phục hồi đáp án đúng vào examData nếu examData lấy từ exam_public (bị strip đáp án)
+      if (examData && subDoc) {
+        const mcqs = examData.mcqQuestions || examData.part1_mcq || [];
+        mcqs.forEach(q => {
+          if (q.correctAnswer === undefined && subDoc.mcqResults?.[q.num]?.correctAnswer !== undefined) {
+            q.correctAnswer = subDoc.mcqResults[q.num].correctAnswer;
+          }
+        });
+        const tfs = examData.part2_tf || [];
+        tfs.forEach(tf => {
+          (tf.subQuestions || []).forEach(sub => {
+            const cr = subDoc.tfResults?.[tf.num]?.subResults?.[sub.letter]?.correctAnswer;
+            if (sub.correctAnswer === undefined && cr !== undefined) {
+              sub.correctAnswer = cr;
+            }
+          });
+        });
+      }
+    }
+
+    // 5. Dự phòng an toàn tuyệt đối: nếu chưa tải được đề từ Firestore, tự động tái tạo bộ khung câu hỏi từ bài làm
+    // đảm bảo học sinh luôn nhìn thấy 100% bài làm của mình từ trắc nghiệm đến tự luận, không bao giờ bị trắng màn hình.
+    if (!examData && subDoc) {
+      examData = {
+        code: subDoc.examCode || '101',
+        totalPoints: 10,
+        grade,
+        title: `Bài thi Tin học Khối ${grade} (Mã đề: ${subDoc.examCode || '101'})`
+      };
+      const answers = subDoc.answers || {};
+      const mcqKeys = Object.keys(answers.mcq || subDoc.mcqResults || {}).map(Number).sort((a, b) => a - b);
+      const synthesizedMcq = (mcqKeys.length > 0 ? mcqKeys : Array.from({ length: grade === 10 ? 24 : 28 }, (_, i) => i + 1)).map(num => ({
+        num,
+        question: `Câu hỏi trắc nghiệm ${num}`,
+        options: ['Phương án A', 'Phương án B', 'Phương án C', 'Phương án D'],
+        correctAnswer: subDoc.mcqResults?.[num]?.correctAnswer,
+        points: 0.25,
+        pointsText: '0.25 điểm'
+      }));
+
+      if (grade === 10) {
+        examData.part1_mcq = synthesizedMcq;
+        const tfKeys = Object.keys(answers.tf || subDoc.tfResults || {}).map(Number).sort((a, b) => a - b);
+        examData.part2_tf = (tfKeys.length > 0 ? tfKeys : [1, 2, 3, 4]).map(num => ({
+          num,
+          context: `Câu hỏi Đúng / Sai ${num}`,
+          points: 1,
+          subQuestions: ['a', 'b', 'c', 'd'].map(letter => ({
+            letter,
+            text: `Nhận định ${letter}`,
+            correctAnswer: subDoc.tfResults?.[num]?.subResults?.[letter]?.correctAnswer
+          }))
+        }));
+        const essayKeys = Object.keys(answers.essay || subDoc.essayScores || {}).map(Number).sort((a, b) => a - b);
+        examData.part3_essay = (essayKeys.length > 0 ? essayKeys : [1, 2]).map(num => ({
+          num,
+          question: `Câu hỏi tự luận ${num}`,
+          points: 0.75,
+          pointsText: '0.75 điểm',
+          modelAnswer: 'Xem thang điểm và nhận xét chi tiết của Thầy bên dưới.'
+        }));
+      } else {
+        examData.mcqQuestions = synthesizedMcq;
+        const essayKeys = Object.keys(answers.essay || subDoc.essayScores || {}).map(Number).sort((a, b) => a - b);
+        examData.essayQuestions = (essayKeys.length > 0 ? essayKeys : [1, 2]).map(num => ({
+          num,
+          question: `Câu hỏi tự luận ${num}`,
+          points: 1.0,
+          pointsText: '1.0 điểm',
+          modelAnswer: 'Xem thang điểm và nhận xét chi tiết của Thầy bên dưới.'
+        }));
       }
     }
 

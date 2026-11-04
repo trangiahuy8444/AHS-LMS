@@ -192,7 +192,7 @@ service cloud.firestore {
         // Lượt đang bị khóa thì không đọc được đề (tải lại trang không thoát được khóa)
         return s.examDocId == docId && a.uid == request.auth.uid && a.submitted == false && a.get('locked', false) == false;
       }
-      allow get: if isTeacher() || (signedIn() && (sessionAllows() || cfg().get('allowStudentReviewOfficialExam', false) == true));
+      allow get: if isTeacher() || (signedIn() && (sessionAllows() || cfg().get('allowStudentReviewOfficialExam', false) == true || cfg().get('classReviewControl', {}).size() > 0));
       allow list: if isTeacher();
       allow write: if bankWriteAllowed();
     }
@@ -200,7 +200,11 @@ service cloud.firestore {
     // Bài nộp chính thức: học sinh chỉ gửi bài làm, không có trường điểm; giáo viên chấm
     match /submissions/{subId} {
       function canStudentReview() {
-        return signedIn() && cfg().get('allowStudentReviewOfficialExam', false) == true;
+        let c = cfg();
+        return signedIn() && (
+          c.get('allowStudentReviewOfficialExam', false) == true
+          || c.get('classReviewControl', {}).get(resource.data.studentClass, false) == true
+        );
       }
 
       function validSubmission(d) {

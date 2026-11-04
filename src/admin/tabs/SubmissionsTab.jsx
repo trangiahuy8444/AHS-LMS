@@ -311,10 +311,11 @@ export default function SubmissionsTab() {
                           <button
                             type="button"
                             onClick={() => openGradingModal(sub)}
+                            title="Xem toàn bộ bài làm (từ trắc nghiệm đến tự luận) & Chấm điểm"
                             className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-sm flex items-center space-x-1"
                           >
                             <span>✍️</span>
-                            <span>Chấm</span>
+                            <span>Xem & Chấm</span>
                           </button>
                           <button
                             type="button"

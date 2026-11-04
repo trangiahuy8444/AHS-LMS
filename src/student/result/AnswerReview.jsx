@@ -6,6 +6,77 @@ export default function AnswerReview() {
   const { grade, mode, practiceAnswers, examAnswers, practiceQuestions, practiceTfQuestions,
     practiceEssayQuestions, currentOfficialExam, scoreResult, handleConfirmScore } = useStudent();
 
+  // Gom câu trả lời từ cả examAnswers và scoreResult.answers (đảm bảo không bị mất khi tải lại trang)
+  const answers = mode === 'practice'
+    ? (practiceAnswers || { mcq: {}, tf: {}, essay: {} })
+    : {
+        mcq: { ...(scoreResult?.answers?.mcq || {}), ...(examAnswers?.mcq || {}) },
+        tf: { ...(scoreResult?.answers?.tf || {}), ...(examAnswers?.tf || {}) },
+        essay: { ...(scoreResult?.answers?.essay || {}), ...(examAnswers?.essay || {}) }
+      };
+
+  // 1. Danh sách câu hỏi Trắc nghiệm chuẩn
+  const rawMcq = grade === 10
+    ? (currentOfficialExam?.part1_mcq || currentOfficialExam?.mcqQuestions || [])
+    : (currentOfficialExam?.mcqQuestions || currentOfficialExam?.part1_mcq || []);
+
+  const examMcqList = rawMcq.length > 0 ? rawMcq : (
+    Object.keys({ ...(scoreResult?.mcqResults || {}), ...(answers.mcq || {}) })
+      .map(Number)
+      .sort((a, b) => a - b)
+      .map(num => ({
+        num,
+        question: `Câu hỏi trắc nghiệm ${num}`,
+        options: ['Phương án A', 'Phương án B', 'Phương án C', 'Phương án D'],
+        points: 0.25,
+        pointsText: '0.25 điểm'
+      }))
+  );
+
+  // 2. Danh sách câu hỏi Đúng / Sai chuẩn (Khối 10)
+  const rawTf = currentOfficialExam?.part2_tf || [];
+  const examTfList = rawTf.length > 0 ? rawTf : (
+    grade === 10 ? (
+      Object.keys({ ...(scoreResult?.tfResults || {}), ...(answers.tf || {}) })
+        .map(Number)
+        .sort((a, b) => a - b)
+        .map(num => ({
+          num,
+          context: `Câu hỏi Đúng / Sai ${num}`,
+          points: 1,
+          subQuestions: ['a', 'b', 'c', 'd'].map(letter => ({ letter, text: `Nhận định ${letter}` }))
+        }))
+    ) : []
+  );
+
+  // 3. Danh sách câu hỏi Tự luận chuẩn
+  const rawEssay = mode === 'practice'
+    ? practiceEssayQuestions
+    : (currentOfficialExam?.essayQuestions || currentOfficialExam?.part3_essay || []);
+
+  const examEssayList = rawEssay.length > 0 ? rawEssay : (
+    Object.keys({ ...(scoreResult?.essayScores || {}), ...(answers.essay || {}) })
+      .map(Number)
+      .sort((a, b) => a - b)
+      .map(num => ({
+        num,
+        question: `Câu hỏi tự luận ${num}`,
+        points: grade === 10 ? 0.75 : 1.0,
+        pointsText: `${grade === 10 ? '0.75' : '1.0'} điểm`,
+        modelAnswer: 'Xem thang điểm và nhận xét chi tiết của Thầy bên dưới.'
+      }))
+  );
+
+  // Đếm số câu đúng
+  const correctCount = scoreResult?.correctMcq !== undefined
+    ? scoreResult.correctMcq
+    : examMcqList.filter(q => {
+        const mcqRes = scoreResult?.mcqResults?.[q.num] || scoreResult?.mcqResults?.[String(q.num)];
+        if (mcqRes) return mcqRes.isCorrect;
+        const uChoice = answers.mcq?.[q.num] !== undefined ? answers.mcq[q.num] : answers.mcq?.[String(q.num)];
+        return q.correctAnswer !== undefined && uChoice === q.correctAnswer;
+      }).length;
+
   return (
     <div className="space-y-6 pt-4">
 
@@ -20,7 +91,7 @@ export default function AnswerReview() {
                   ĐỐI SOÁT BÀI LÀM & XÁC NHẬN ĐIỂM SỐ CHÍNH THỨC
                 </h3>
                 <p className="text-xs text-slate-600 font-medium">
-                  Em vui lòng kiểm tra kỹ lại từng câu hỏi dưới đây trước khi bấm xác nhận chốt điểm.
+                  Em vui lòng kiểm tra kỹ lại toàn bộ bài làm trắc nghiệm và tự luận bên dưới trước khi bấm xác nhận chốt điểm.
                 </p>
               </div>
             </div>
@@ -60,9 +131,7 @@ export default function AnswerReview() {
             <div className="bg-white p-3 rounded-2xl border border-blue-200 text-center">
               <span className="text-[11px] font-bold text-slate-500 uppercase block">Số Câu Đúng</span>
               <span className="text-base sm:text-lg font-black text-amber-700">
-                {scoreResult?.correctMcq !== undefined
-                  ? `${scoreResult.correctMcq} câu`
-                  : `${((grade === 10 ? currentOfficialExam?.part1_mcq : currentOfficialExam?.mcqQuestions) || []).filter(q => q.correctAnswer !== undefined && examAnswers?.mcq?.[q.num] === q.correctAnswer).length} câu`}
+                {correctCount} câu
               </span>
             </div>
           </div>
@@ -97,28 +166,43 @@ export default function AnswerReview() {
         </div>
       )}
 
-      {/* Danh sách câu hỏi Trắc nghiệm bài thi chính thức */}
-      {mode === 'exam' && (
+      {/* LỜI PHÊ & NHẬN XÉT CỦA GIÁO VIÊN */}
+      {scoreResult?.teacherFeedback && (
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-3xl p-5 shadow-sm space-y-2.5">
+          <div className="flex items-center space-x-2 text-amber-950 font-black text-xs sm:text-sm uppercase tracking-wide">
+            <span className="text-xl">✍️</span>
+            <span>NHẬN XÉT & LỜI PHÊ CỦA THẦY TRẦN GIA HUY:</span>
+          </div>
+          <div className="bg-white/90 border border-amber-200 rounded-2xl p-4 text-xs sm:text-sm text-slate-800 font-medium whitespace-pre-line leading-relaxed shadow-inner">
+            {scoreResult.teacherFeedback}
+          </div>
+        </div>
+      )}
+
+      {/* PHẦN I: DANH SÁCH CÂU HỎI TRẮC NGHIỆM BÀI THI CHÍNH THỨC */}
+      {mode === 'exam' && examMcqList.length > 0 && (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
             <h3 className="font-black text-base text-slate-900 flex items-center space-x-2">
               <span>📝</span>
-              <span>Chi Tiết Phần Trắc Nghiệm Bài Thi (Mã Đề: {scoreResult?.examCode || currentOfficialExam?.code || '101'})</span>
+              <span>PHẦN I: CHI TIẾT TRẮC NGHIỆM ({examMcqList.length} câu • Mã Đề: {scoreResult?.examCode || currentOfficialExam?.code || '101'})</span>
             </h3>
             <span className="text-xs text-slate-500 font-semibold">
               Ký hiệu: <span className="text-emerald-700 font-bold">✓ Làm đúng</span> • <span className="text-rose-700 font-bold">✗ Làm sai</span>
             </span>
           </div>
 
-          {((grade === 10 ? currentOfficialExam?.part1_mcq : currentOfficialExam?.mcqQuestions) || []).map((q, idx) => {
-            const userChoice = examAnswers?.mcq?.[q.num];
-            const isAnswered = userChoice !== undefined;
+          {examMcqList.map((q, idx) => {
+            const userChoice = answers.mcq?.[q.num] !== undefined
+              ? answers.mcq[q.num]
+              : (answers.mcq?.[String(q.num)] !== undefined ? answers.mcq[String(q.num)] : scoreResult?.mcqResults?.[q.num]?.userChoice);
+            const isAnswered = userChoice !== undefined && userChoice !== null;
             const letters = ['A', 'B', 'C', 'D'];
             const userLetter = isAnswered ? letters[userChoice] : null;
-            const mcqRes = scoreResult?.mcqResults?.[q.num];
+            const mcqRes = scoreResult?.mcqResults?.[q.num] || scoreResult?.mcqResults?.[String(q.num)];
             const hasKey = q.correctAnswer !== undefined || mcqRes !== undefined;
-            const isCorrect = mcqRes ? mcqRes.isCorrect : (hasKey && userChoice === q.correctAnswer);
             const correctAnsIdx = mcqRes?.correctAnswer !== undefined ? mcqRes.correctAnswer : q.correctAnswer;
+            const isCorrect = mcqRes ? mcqRes.isCorrect : (hasKey && isAnswered && userChoice === correctAnsIdx);
             const ptsEarned = isCorrect ? (mcqRes?.pointsEarned || q.points || 0.25) : 0;
 
             return (
@@ -153,7 +237,7 @@ export default function AnswerReview() {
                     {!isAnswered
                       ? '— Chưa làm (0đ)'
                       : hasKey
-                        ? (isCorrect ? `✓ LÀM ĐÚNG (+${q.points || 0.25}đ)` : `✗ LÀM SAI (0đ) • Em chọn ${userLetter}`)
+                        ? (isCorrect ? `✓ LÀM ĐÚNG (+${ptsEarned}đ)` : `✗ LÀM SAI (0đ) • Em chọn ${userLetter}`)
                         : `Đã chọn: ${userLetter}`}
                   </span>
                 </div>
@@ -163,7 +247,7 @@ export default function AnswerReview() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
                   {(q.options || []).map((optText, optIdx) => {
                     const letter = letters[optIdx];
-                    const isUserSelected = userChoice === optIdx;
+                    const isUserSelected = isAnswered && userChoice === optIdx;
                     const isCorrectOption = hasKey && correctAnsIdx === optIdx;
 
                     let optStyle = 'bg-white border-slate-200 text-slate-800';
@@ -212,15 +296,20 @@ export default function AnswerReview() {
         </div>
       )}
 
-      {/* Danh sách câu hỏi Đúng/Sai bài thi chính thức (Khối 10) */}
-      {mode === 'exam' && grade === 10 && (currentOfficialExam?.part2_tf || []).length > 0 && (
+      {/* PHẦN II: DANH SÁCH CÂU HỎI ĐÚNG / SAI (KHỐI 10 BÀI THI CHÍNH THỨC) */}
+      {mode === 'exam' && grade === 10 && examTfList.length > 0 && (
         <div className="space-y-4 pt-4">
-          <h3 className="font-black text-base text-slate-900 flex items-center space-x-2">
-            <span>⚖️</span>
-            <span>Chi Tiết Phần Trắc Nghiệm Đúng / Sai</span>
-          </h3>
+          <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+            <h3 className="font-black text-base text-slate-900 flex items-center space-x-2">
+              <span>⚖️</span>
+              <span>PHẦN II: CHI TIẾT TRẮC NGHIỆM ĐÚNG / SAI ({examTfList.length} câu)</span>
+            </h3>
+            <span className="text-xs text-slate-500 font-semibold">
+              Mỗi ý đúng: +0.25đ • Tối đa 1.0đ/câu
+            </span>
+          </div>
 
-          {(currentOfficialExam?.part2_tf || []).map((tf) => (
+          {examTfList.map((tf) => (
             <div key={tf.num} className="p-5 rounded-2xl bg-white border-2 border-slate-200 shadow-sm space-y-3">
               <span className="font-black text-xs text-purple-800 uppercase">
                 Câu {tf.num} (Đúng / Sai)
@@ -231,9 +320,9 @@ export default function AnswerReview() {
 
               <div className="space-y-2 pt-1">
                 {(tf.subQuestions || []).map(sub => {
-                  const userVal = examAnswers?.tf?.[tf.num]?.[sub.letter];
-                  const isAns = userVal !== undefined;
-                  const tfRes = scoreResult?.tfResults?.[tf.num]?.subResults?.[sub.letter];
+                  const userVal = answers.tf?.[tf.num]?.[sub.letter] ?? answers.tf?.[String(tf.num)]?.[sub.letter] ?? scoreResult?.tfResults?.[tf.num]?.subResults?.[sub.letter]?.userChoice;
+                  const isAns = userVal !== undefined && userVal !== null;
+                  const tfRes = scoreResult?.tfResults?.[tf.num]?.subResults?.[sub.letter] || scoreResult?.tfResults?.[String(tf.num)]?.subResults?.[sub.letter];
                   const hasSubKey = sub.correctAnswer !== undefined || tfRes !== undefined;
                   const correctSubVal = tfRes?.correctAnswer !== undefined ? tfRes.correctAnswer : sub.correctAnswer;
                   const isSubCorrect = tfRes ? tfRes.isCorrect : (hasSubKey && userVal === correctSubVal);
@@ -277,6 +366,7 @@ export default function AnswerReview() {
         </div>
       )}
 
+      {/* PHẦN LUYỆN TẬP ĐỀ CƯƠNG (PRACTICE MODE) */}
       {mode === 'practice' && (
         <div className="p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl text-xs text-amber-950 font-semibold space-y-1">
           <p>💡 <strong>Ghi chú sư phạm:</strong> Đối với phần trắc nghiệm, hệ thống chỉ thông báo câu nào em làm <strong>ĐÚNG</strong> hoặc <strong>SAI</strong> để em tự tra cứu lại tài liệu.</p>
@@ -431,21 +521,24 @@ export default function AnswerReview() {
         </div>
       )}
 
-      {/* 3. MỞ ĐÁP ÁN PHẦN TỰ LUẬN CHO HỌC SINH (RUBRIC LMS) */}
-      {((mode === 'practice' ? practiceEssayQuestions : (currentOfficialExam?.essayQuestions || currentOfficialExam?.part3_essay || []))).length > 0 && (
+      {/* PHẦN III: CHI TIẾT BÀI LÀM TỰ LUẬN, BAREM VÀ ĐIỂM THẦY CHẤM */}
+      {examEssayList.length > 0 && (
         <div className="space-y-4 pt-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between border-b border-slate-200 pb-3">
             <h3 className="font-black text-base text-slate-900 flex items-center space-x-2">
               <span>📖</span>
-              <span>HƯỚNG DẪN TRẢ LỜI & ĐÁP ÁN MẪU PHẦN TỰ LUẬN</span>
+              <span>PHẦN III: CHI TIẾT PHẦN TỰ LUẬN ({examEssayList.length} câu)</span>
             </h3>
             <span className="px-3 py-1 rounded-full text-xs font-black bg-indigo-100 text-indigo-900 border border-indigo-200">
               Thang điểm Rubric LMS
             </span>
           </div>
 
-          {((mode === 'practice' ? practiceEssayQuestions : (currentOfficialExam?.essayQuestions || currentOfficialExam?.part3_essay || []))).map((eq) => {
-            const studentAnswer = (mode === 'practice' ? practiceAnswers.essay[eq.num] : examAnswers.essay[eq.num]) || '';
+          {examEssayList.map((eq) => {
+            const studentAnswer = (mode === 'practice'
+              ? practiceAnswers?.essay?.[eq.num]
+              : (answers.essay?.[eq.num] ?? answers.essay?.[String(eq.num)] ?? '')) || '';
+            const essayScore = scoreResult?.essayScores?.[eq.num] ?? scoreResult?.essayScores?.[String(eq.num)];
 
             return (
               <div key={eq.num} className="bg-white border-2 border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
@@ -487,14 +580,14 @@ export default function AnswerReview() {
                 </div>
 
                 {/* Điểm Thầy chấm cho câu tự luận này (nếu đã chấm) */}
-                {mode === 'exam' && scoreResult?.essayScores?.[eq.num] !== undefined && (
+                {mode === 'exam' && essayScore !== undefined && (
                   <div className="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-3.5 flex items-center justify-between text-xs font-bold text-indigo-950 shadow-sm">
                     <span className="flex items-center space-x-2">
                       <span className="text-base">✍️</span>
                       <span>Điểm Thầy chấm câu này:</span>
                     </span>
                     <span className="text-sm font-black text-indigo-800 bg-indigo-100 px-3 py-1 rounded-xl border border-indigo-300">
-                      {scoreResult.essayScores[eq.num]} / {eq.points || 1} điểm
+                      {essayScore} / {eq.points || (grade === 10 ? 0.75 : 1)} điểm
                     </span>
                   </div>
                 )}

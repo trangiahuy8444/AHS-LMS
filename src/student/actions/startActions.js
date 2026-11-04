@@ -428,6 +428,13 @@ export function createStartActions(s) {
         }
       }
 
+      if (result && !result.exam && result.submission) {
+        const sub = result.submission;
+        const examObj = window.AsianSchoolLatestExamBank?.[grade]?.[sub.examCode]
+          || window['EXAM_DATA_G' + grade]?.officialExams?.[sub.examCode];
+        if (examObj) result.exam = examObj;
+      }
+
       if (!result || !result.submission) {
         throw new Error(`Không tìm thấy bài thi của Mã LMS ${studentId} (Lớp ${studentClass}). Em vui lòng kiểm tra lại đúng Khối, Lớp và Mã LMS nhé!`);
       }
@@ -469,7 +476,8 @@ export function createStartActions(s) {
         scoreConfirmedAt: sub.scoreConfirmedAt || null,
         violations: sub.violations || 0,
         submittedAt: sub.submittedAt || new Date().toISOString(),
-        durationFormatted: sub.durationFormatted || '45 phút'
+        durationFormatted: sub.durationFormatted || '45 phút',
+        answers: sub.answers || { mcq: {}, tf: {}, essay: {} }
       };
 
       if (setScoreResult) setScoreResult(reviewScore);
