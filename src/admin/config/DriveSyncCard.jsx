@@ -289,7 +289,7 @@ function doPost(e) {
       var sheetExam = getOrCreateTab(ss, "Bai_Thi_Chinh_Thuc", [
         "Thời Điểm Nộp", "Mã LMS", "Họ và Tên", "Khối", "Lớp", "Mã Đề", "Điểm TN", "Điểm Đúng/Sai", "Điểm TL", "Tổng Điểm", "HS Xác Nhận Điểm", "Thời Điểm Xác Nhận", "Số Lần Làm", "Số Lần Đổi Thiết Bị", "Vi Phạm", "Thời Lượng", "Ghi Chú Nộp Muộn"
       ]);
-      sheetExam.appendRow([
+      var examRow = [
         s.submittedAt || new Date().toISOString(),
         s.studentId || s.studentCode || "",
         s.fullName || "",
@@ -307,7 +307,14 @@ function doPost(e) {
         s.violations || 0,
         s.durationFormatted || "45 phút",
         s.lateNote || "Đúng hạn"
-      ]);
+      ];
+      sheetExam.appendRow(examRow);
+
+      // Nếu có tab BangDiem, ghi đồng thời vào BangDiem
+      var sheetBangDiem = ss.getSheetByName("BangDiem");
+      if (sheetBangDiem) {
+        sheetBangDiem.appendRow(examRow);
+      }
 
       // Ghi giám sát an toàn thi nếu có vi phạm hoặc đổi máy
       if (s.violations > 0 || s.deviceChanges > 0) {
@@ -359,15 +366,166 @@ function doPost(e) {
 
     // 4. Đồng bộ toàn bộ dữ liệu & Thống kê theo lớp -> sync_all
     if (data.action === 'sync_all' || data.action === 'backup_file') {
+      var examList = data.submissions || [];
+      var practiceList = data.practiceSubmissions || [];
+
+      // 4.1 Đổ toàn bộ bài thi chính thức vào Bai_Thi_Chinh_Thuc & BangDiem
+      if (examList.length > 0) {
+        var sheetExam = getOrCreateTab(ss, "Bai_Thi_Chinh_Thuc", [
+          "Thời Điểm Nộp", "Mã LMS", "Họ và Tên", "Khối", "Lớp", "Mã Đề", "Điểm TN", "Điểm Đúng/Sai", "Điểm TL", "Tổng Điểm", "HS Xác Nhận Điểm", "Thời Điểm Xác Nhận", "Số Lần Làm", "Số Lần Đổi Thiết Bị", "Vi Phạm", "Thời Lượng", "Ghi Chú Nộp Muộn"
+        ]);
+        if (sheetExam.getLastRow() > 1) {
+          sheetExam.getRange(2, 1, sheetExam.getLastRow() - 1, sheetExam.getLastColumn()).clearContent();
+        }
+        var examRows = [];
+        for (var i = 0; i < examList.length; i++) {
+          var sub = examList[i];
+          examRows.push([
+            sub.submittedAt || "",
+            sub.studentId || sub.studentCode || "",
+            sub.fullName || "",
+            sub.grade || "",
+            sub.studentClass || "",
+            sub.examCode || "101",
+            sub.mcqPoints !== undefined ? sub.mcqPoints : (sub.score || 0),
+            sub.tfPoints || 0,
+            sub.essayTotal || 0,
+            sub.finalScore !== undefined ? sub.finalScore : (sub.score || 0),
+            sub.scoreConfirmed ? "Đã xác nhận" : "Chưa xác nhận",
+            sub.scoreConfirmedAt || "",
+            sub.attemptNumber || 1,
+            sub.deviceChanges || 0,
+            sub.violations || 0,
+            sub.durationFormatted || "45 phút",
+            sub.lateNote || "Đúng hạn"
+          ]);
+        }
+        if (examRows.length > 0) {
+          sheetExam.getRange(2, 1, examRows.length, examRows[0].length).setValues(examRows);
+        }
+
+        // Đồng bộ luôn vào tab BangDiem nếu có sẵn
+        var sheetBangDiem = ss.getSheetByName("BangDiem");
+        if (sheetBangDiem) {
+          if (sheetBangDiem.getLastRow() > 1) {
+            sheetBangDiem.getRange(2, 1, sheetBangDiem.getLastRow() - 1, sheetBangDiem.getLastColumn()).clearContent();
+          }
+          if (examRows.length > 0 && sheetBangDiem.getLastColumn() >= examRows[0].length) {
+            sheetBangDiem.getRange(2, 1, examRows.length, examRows[0].length).setValues(examRows);
+          }
+        }
+      }
+
+      // 4.2 Đổ toàn bộ bài ôn tập vào On_Tap_De_Cuong
+      if (practiceList.length > 0) {
+        var sheetP = getOrCreateTab(ss, "On_Tap_De_Cuong", [
+          "Thời Điểm", "Mã LMS", "Họ và Tên", "Khối", "Lớp", "Lần Làm", "Điểm TN", "Số Câu Đúng", "Vi Phạm", "Thời Gian Làm"
+        ]);
+        if (sheetP.getLastRow() > 1) {
+          sheetP.getRange(2, 1, sheetP.getLastRow() - 1, sheetP.getLastColumn()).clearContent();
+        }
+        var pRows = [];
+        for (var j = 0; j < practiceList.length; j++) {
+          var p = practiceList[j];
+          pRows.push([
+            p.submittedAt || "",
+            p.studentId || p.studentCode || "",
+            p.fullName || "",
+            p.grade || "",
+            p.studentClass || "",
+            p.attemptNumber || 1,
+            p.mcqPoints !== undefined ? p.mcqPoints : (p.score || 0),
+            p.correctCount !== undefined ? p.correctCount : "",
+            p.violations || 0,
+            p.durationFormatted || "30 phút"
+          ]);
+        }
+        if (pRows.length > 0) {
+          sheetP.getRange(2, 1, pRows.length, pRows[0].length).setValues(pRows);
+        }
+      }
+
+      // 4.3 Thống kê theo lớp vào Thong_Ke_Theo_Lop
+      if (examList.length > 0) {
+        var sheetStats = getOrCreateTab(ss, "Thong_Ke_Theo_Lop", [
+          "Khối", "Lớp", "Sĩ Số Tham Gia", "Số Bài Đã Nộp", "Điểm TB", "Điểm Cao Nhất", "Điểm Thấp Nhất", "Số Bài Nộp Muộn", "Số Bài Vi Phạm"
+        ]);
+        if (sheetStats.getLastRow() > 1) {
+          sheetStats.getRange(2, 1, sheetStats.getLastRow() - 1, sheetStats.getLastColumn()).clearContent();
+        }
+        var classMap = {};
+        for (var k = 0; k < examList.length; k++) {
+          var item = examList[k];
+          var cls = item.studentClass || "Khác";
+          if (!classMap[cls]) {
+            classMap[cls] = { grade: item.grade || "", count: 0, scores: [], late: 0, violations: 0 };
+          }
+          classMap[cls].count++;
+          var sc = Number(item.finalScore !== undefined ? item.finalScore : item.score) || 0;
+          classMap[cls].scores.push(sc);
+          if (item.lateNote && item.lateNote !== "Đúng hạn") classMap[cls].late++;
+          if (item.violations > 0) classMap[cls].violations++;
+        }
+        var statRows = [];
+        for (var c in classMap) {
+          var info = classMap[c];
+          var sum = 0;
+          var maxSc = info.scores.length ? Math.max.apply(null, info.scores) : 0;
+          var minSc = info.scores.length ? Math.min.apply(null, info.scores) : 0;
+          for (var sIdx = 0; sIdx < info.scores.length; sIdx++) sum += info.scores[sIdx];
+          var avgSc = info.scores.length ? (sum / info.scores.length).toFixed(2) : 0;
+          statRows.push([
+            info.grade, c, info.count, info.count, avgSc, maxSc, minSc, info.late, info.violations
+          ]);
+        }
+        if (statRows.length > 0) {
+          sheetStats.getRange(2, 1, statRows.length, statRows[0].length).setValues(statRows);
+        }
+      }
+
+      // 4.4 Ghi danh sách vi phạm vào Giam_Sat_Va_Vi_Pham
+      var vioSubs = examList.filter(function(x) { return (x.violations && x.violations > 0) || (x.deviceChanges && x.deviceChanges > 0); });
+      if (vioSubs.length > 0) {
+        var sheetVio = getOrCreateTab(ss, "Giam_Sat_Va_Vi_Pham", [
+          "Thời Điểm", "Mã LMS", "Họ và Tên", "Khối", "Lớp", "Mã Đề", "Loại Sự Kiện", "Số Lần Vi Phạm", "Lý Do Khóa", "Thời Lượng Đã Làm"
+        ]);
+        if (sheetVio.getLastRow() > 1) {
+          sheetVio.getRange(2, 1, sheetVio.getLastRow() - 1, sheetVio.getLastColumn()).clearContent();
+        }
+        var vioRows = [];
+        for (var v = 0; v < vioSubs.length; v++) {
+          var vs = vioSubs[v];
+          vioRows.push([
+            vs.submittedAt || "",
+            vs.studentId || "",
+            vs.fullName || "",
+            vs.grade || "",
+            vs.studentClass || "",
+            vs.examCode || "",
+            vs.violations >= 3 ? "Khóa Màn Hình Vi Phạm" : (vs.deviceChanges > 0 ? "Đổi Thiết Bị" : "Cảnh Báo Vi Phạm"),
+            vs.violations || 0,
+            vs.violations >= 3 ? "Chuyển tab / Thoát toàn màn hình quá 3 lần" : "",
+            vs.durationFormatted || ""
+          ]);
+        }
+        if (vioRows.length > 0) {
+          sheetVio.getRange(2, 1, vioRows.length, vioRows[0].length).setValues(vioRows);
+        }
+      }
+
+      // 4.5 Lưu file JSON backup lên Google Drive
       if (data.jsonContent) {
         var folders = DriveApp.getFoldersByName(FOLDER_NAME);
         var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(FOLDER_NAME);
         var fileName = "Backup_AHS_" + Utilities.formatDate(new Date(), "GMT+7", "yyyy_MM_dd_HHmm") + ".json";
         folder.createFile(fileName, data.jsonContent);
       }
+
       return ContentService.createTextOutput(JSON.stringify({
         success: true,
-        message: "Đã đồng bộ dữ liệu và sao lưu lên Google Drive!"
+        message: "Đã đồng bộ trọn vẹn toàn bộ các trang tính và sao lưu Google Drive!",
+        examCount: examList.length,
+        practiceCount: practiceList.length
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
