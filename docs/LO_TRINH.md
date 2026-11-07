@@ -95,3 +95,12 @@ Không upload/thay kho đề hoặc sửa bài nộp/điểm trong lần phát h
 - [ ] Diễn tập ca chính thức sau khi giáo viên chọn chế độ phù hợp; không dùng test cục bộ thay cho ca thật.
 
 - Phát hành thật02/11: client `d36625a`, [GitHub Pages build/deploy đạt](https://github.com/trangiahuy8444/AHS-LMS/actions/runs/41369616826); rules mới đã Publish và đối chiếu khớp hash. Trang gốc/test/admin HTTP200, mọi asset tham chiếu khớp build. Cấu hình phân mã hiện hành được giữ, giáo viên chủ động bật tự chọn.
+
+
+### 07/11/2026 — Hướng dẫn và nhắc nhở của giáo viên
+
+- [x] Quản trị → Cấu hình cho phép sửa tiêu đề/nội dung hướng dẫn riêng cho ôn tập và thi chính thức; học sinh thấy trong bài làm, cập nhật khi cấu hình được lưu.
+- [x] Giám sát → Nhắc nhở học sinh: giáo viên nhập nội dung, đếm riêng theo lượt, giữ sau tải lại và hiển thị cả khi bài đang khóa. Giáo viên tự quyết định xử lý theo xác nhận; nhắc nhở không tự khóa hoặc trừ điểm.
+- [x] Gửi lại cùng yêu cầu không tăng trùng; gửi đồng thời được xử lý nguyên tử. Phân biệt đúng lớp và học sinh, hỗ trợ lượt thi cũ.
+- [x] Kiểm cuối:123 Node đạt/3 private skip,107 Vitest đạt,23 rules emulator đạt; lint/build/chặn lọt đề đạt. Mô phỏng trình duyệt: sửa hướng dẫn, gửi hai lần, kiểm màn hình nhỏ, không lỗi trang. Review độc lập không còn blocker sau sửa nhắc nhở bị che trên màn hình khóa.
+- [ ] Kiểm chứng phát hành GitHub Pages và đối chiếu tài nguyên trên web thật.

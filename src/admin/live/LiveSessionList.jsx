@@ -1,3 +1,4 @@
+import TeacherReminderButton from './TeacherReminderButton.jsx';
 import React from 'react';
 import { useAdmin } from '../AdminContext.js';
 
@@ -17,7 +18,7 @@ export default function LiveSessionList() {
           const lms = window.AsianSchoolNormalize ? window.AsianSchoolNormalize.normalizeLmsCode(s.studentId) : String(s.studentId || '').replace(/\D/g, '');
           const cleanName = (s.fullName || '').trim().toLowerCase();
           // Nếu có cả mã LMS và họ tên: gộp theo khối + mã LMS + họ tên. Nếu thiếu: giữ riêng theo sessionId
-          const key = (lms && cleanName) ? `${s.grade}|${lms}|${cleanName}` : s.sessionId;
+          const key = (lms && cleanName) ? `${s.grade}|${s.studentClass || ''}|${lms}|${cleanName}` : s.sessionId;
           const prev = latestByStudent.get(key);
           if (!prev || (s.lastPing || 0) > (prev.lastPing || 0)) latestByStudent.set(key, s);
         });
@@ -207,6 +208,8 @@ export default function LiveSessionList() {
                           </span>
                         )}
                       </div>
+
+                      <TeacherReminderButton session={session} />
 
                       {/* LỊCH SỬ LÀM BÀI TRÊN CARD */}
                       {(() => {

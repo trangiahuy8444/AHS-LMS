@@ -1,3 +1,4 @@
+import StudentGuidance from '../components/StudentGuidance.jsx';
 import React, { useState } from 'react';
 import { useStudent } from '../StudentContext.js';
 import { CLASS_LISTS } from '../constants.js';
@@ -460,19 +461,7 @@ export default function EntryScreen() {
             </div>
           </div>
         ) : mode === 'practice' ? (
-          <div className="border-2 border-blue-400 bg-blue-50/70 rounded-2xl p-4 text-slate-800 space-y-2">
-            <div className="flex items-center space-x-2">
-              <span className="text-xl">📌</span>
-              <h4 className="text-xs font-black text-blue-950 uppercase tracking-wider">
-                HƯỚNG DẪN VÀ ĐIỀU KIỆN HOÀN THÀNH (LMS)
-              </h4>
-            </div>
-            <div className="text-xs space-y-1.5 pl-7 text-slate-700 font-medium">
-              <p>📖 <strong className="text-blue-900">Tài liệu cho phép:</strong> Chỉ được sử dụng <strong>Sách giáo khoa</strong> trong quá trình làm bài.</p>
-              <p>🎯 <strong className="text-blue-900">Yêu cầu đạt:</strong> Học sinh cần hoàn thành bài làm đạt từ <strong>6.0 điểm trở lên</strong> ít nhất <strong>5 lần</strong>.</p>
-              <p className="text-amber-800 font-bold pt-0.5">💡 Sau khi nộp bài, hệ thống sẽ mở hướng dẫn chấm Rubric phần Tự luận để học sinh đối chiếu bài làm.</p>
-            </div>
-          </div>
+          <StudentGuidance mode={mode} config={config} />
         ) : (
           <div className="border-2 border-red-400 bg-red-50/60 rounded-2xl p-4 text-slate-800 space-y-3">
             <div className="text-center pb-2 border-b border-red-200">

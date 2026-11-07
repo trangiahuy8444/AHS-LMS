@@ -737,6 +737,117 @@
 
   // Giáo viên gia hạn trên lượt thi, không phụ thuộc một tab/session cụ thể.
   // Transaction đọc trạng thái mới nhất nên ca đã nộp không được cộng giờ và hai giám thị không ghi đè nhau.
+  function reminderTargetMatches(data, target) {
+    return Number(data.grade) === Number(target.grade)
+      && data.studentClass === target.studentClass && data.studentId === target.studentId
+      && data.mode === target.mode;
+  }
+
+  function reminderForRun(data, target, runId) {
+    const reminder = data.teacherReminder;
+    return reminder && reminderTargetMatches(reminder, target) && reminder.runId === runId
+      && Number.isSafeInteger(reminder.count) && reminder.count > 0 ? reminder : null;
+  }
+
+  // Ghi nhắc nhở riêng của giáo viên. Event id giữ nguyên khi gửi lại sau lỗi mạng.
+  async function recordTeacherReminder(target) {
+    await waitForUser();
+    const message = String(target.message || '').trim();
+    if (!message || message.length > 1000 || !/^[A-Za-z0-9_-]{1,100}$/.test(target.requestId || '')) {
+      throw new Error('Nội dung nhắc nhở hoặc mã gửi chưa hợp lệ.');
+    }
+    const liveRef = db.collection('live_sessions').doc(target.sessionId);
+    const eventRef = db.collection('proctor_commands').doc('reminder-' + target.requestId);
+    const stateRef = db.collection('proctor_commands').doc('reminder-state-' + target.sessionId);
+    const attemptRef = target.mode === 'exam'
+      ? await resolveAttemptDocRef(target.grade, target.studentClass, target.studentId) : null;
+    return db.runTransaction(async transaction => {
+      const previousEvent = await transaction.get(eventRef);
+      if (previousEvent.exists) {
+        const event = previousEvent.data();
+        if (event.targetSessionId !== target.sessionId || !reminderTargetMatches(event.payload.reminder, target)) {
+          throw new Error('Mã gửi không khớp phiên học sinh.');
+        }
+        return event.payload.reminder;
+      }
+      const liveSnap = await transaction.get(liveRef);
+      if (!liveSnap.exists) throw new Error('Phiên học sinh đã kết thúc.');
+      const live = liveSnap.data();
+      if (!reminderTargetMatches(live, target) || live.uid !== target.uid || !live.uid
+        || !['in_progress', 'practicing', 'locked'].includes(live.status)) {
+        throw new Error('Phiên học sinh đã thay đổi. Thầy chọn lại thẻ đang làm bài.');
+      }
+      let data = live;
+      let runId = 'practice:' + target.sessionId;
+      if (attemptRef) {
+        const attemptSnap = await transaction.get(attemptRef);
+        if (!attemptSnap.exists) throw new Error('Không tìm thấy lượt thi.');
+        data = attemptSnap.data();
+        if (data.submitted || data.uid !== live.uid || data.studentClass !== live.studentClass
+          || data.studentId !== live.studentId || Number(data.grade) !== Number(live.grade)) {
+          throw new Error('Lượt thi đã thay đổi hoặc đã nộp. Thầy kiểm tra lại thẻ học sinh.');
+        }
+        runId = 'exam:' + toMillis(data.startedAt);
+      } else {
+        const state = await transaction.get(stateRef);
+        data = state.exists ? { teacherReminder: state.data().payload.reminder } : {};
+      }
+      const previous = reminderForRun(data, target, runId);
+      const reminder = {
+        id: target.requestId, runId, count: (previous?.count || 0) + 1, message,
+        grade: Number(target.grade), studentClass: target.studentClass,
+        studentId: target.studentId, mode: target.mode, createdAt: Date.now()
+      };
+      if (attemptRef) {
+        transaction.update(attemptRef, { teacherReminder: reminder });
+      } else {
+        transaction.set(stateRef, {
+          cmdId: 'reminder-state-' + target.sessionId, targetSessionId: target.sessionId,
+          targetUid: live.uid, command: 'teacher_reminder_state', payload: { reminder },
+          createdAt: reminder.createdAt, consumedBy: []
+        });
+      }
+      transaction.update(liveRef, { teacherReminder: reminder });
+      transaction.set(eventRef, {
+        cmdId: 'reminder-' + target.requestId, targetSessionId: target.sessionId,
+        targetUid: live.uid, command: 'teacher_reminder', payload: { reminder },
+        createdAt: reminder.createdAt, consumedBy: []
+      });
+      return reminder;
+    });
+  }
+
+  function watchTeacherReminder(target, callback) {
+    if (!db) return () => {};
+    if (target.mode === 'exam') {
+      let unsubscribe = null;
+      let cancelled = false;
+      resolveAttemptDocRef(target.grade, target.studentClass, target.studentId).then(ref => {
+        if (cancelled) return;
+        unsubscribe = ref.onSnapshot({ includeMetadataChanges: true }, snapshot => {
+          if (snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites) return;
+          const data = snapshot.exists ? snapshot.data() : null;
+          callback(data ? reminderForRun(data, target, 'exam:' + toMillis(data.startedAt)) : null);
+        }, error => console.warn('[Firestore] Chưa đọc được nhắc nhở:', error.code));
+      }).catch(error => console.warn('[Firestore] Chưa tìm được lượt nhắc nhở:', error.code));
+      return () => { cancelled = true; unsubscribe?.(); };
+    }
+    const uid = target.uid || auth?.currentUser?.uid;
+    if (!uid) return () => {};
+    // Trạng thái ôn tập do giáo viên ghi trong collection lệnh, học sinh chỉ đọc được của mình.
+    return db.collection('proctor_commands').where('targetUid', '==', uid).onSnapshot({ includeMetadataChanges: true }, snapshot => {
+      if (snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites) return;
+      let reminder = null;
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.command === 'teacher_reminder_state' && data.targetSessionId === target.sessionId) {
+          reminder = reminderForRun({ teacherReminder: data.payload?.reminder }, target, 'practice:' + target.sessionId);
+        }
+      });
+      callback(reminder);
+    }, error => console.warn('[Firestore] Chưa đọc được nhắc nhở:', error.code));
+  }
+
   async function extendExamTime({ grade, studentClass, studentId, minutes }) {
     await waitForUser();
     const extra = Number(minutes) * 60;
@@ -1192,7 +1303,7 @@
       }
     };
 
-    window.AsianSchoolCloud = { startExam, submitExam, loadExam, reportViolation, watchAttempt, setAttemptLock, extendExamTime, watchSubmission, confirmSubmissionScore, lookupSubmissionForReview };
+    window.AsianSchoolCloud = { recordTeacherReminder, watchTeacherReminder, startExam, submitExam, loadExam, reportViolation, watchAttempt, setAttemptLock, extendExamTime, watchSubmission, confirmSubmissionScore, lookupSubmissionForReview };
 
     const pathname = (window.location && window.location.pathname) || '';
     const isStudentPortal = pathname.includes('/test');

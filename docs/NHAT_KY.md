@@ -3,6 +3,16 @@
 > Tệp trạng thái sống. Mỗi phiên có thay đổi đáng kể thêm một mục **ở đầu** tệp: ngày, đã làm gì (kèm commit), kết quả `npm run check`, việc còn dở, câu hỏi chờ thầy. Repo công khai: không ghi bí mật hay dữ liệu học sinh.
 
 
+## 07/11/2026 — Hướng dẫn trong bài làm và nhắc nhở riêng
+
+- Theo xác nhận giáo viên: đếm riêng nhắc nhở, giáo viên tự xử lý. Thêm nút gửi nội dung riêng trên thẻ giám sát; lưu số lần trên dữ liệu được bảo vệ, không tăng trùng khi thử lại và giữ khi học sinh tải lại.
+- Thêm cấu hình tiêu đề/nội dung hướng dẫn riêng cho ôn tập và thi chính thức, hiển thị trong bài làm. Chờ máy chủ xác nhận trước khi báo lưu/gửi thành công.
+- Phân biệt lớp trong nhóm thẻ giám sát để tránh gộp học sinh trùng mã LMS/họ tên giữa các lớp.
+- Review độc lập phát hiện banner bị che khi bài khóa; đã sửa và kiểm thử hồi quy đỏ → xanh. Không còn blocker trong phạm vi review.
+- Kiểm cuối:123 Node đạt/3 private skip,107 Vitest đạt,23 rules emulator đạt; lint/build/chặn lọt đề đạt. Mô phỏng trình duyệt bằng dữ liệu giả: sửa hướng dẫn, gửi nhắc hai lần, màn hình nhỏ không tràn; không ghi vào Firebase thật.
+- Không cần thay rules cho tính năng này; dùng quyền ghi giáo viên đã có. Trạng thái phát hành ghi tại LO_TRINH.md.
+
+
 ## 03/11/2026 — Nâng cấp Khảo thí: Chống nộp sớm, Khóa bài làm, Chốt điểm học sinh, Bảo toàn dữ liệu & Google Sheets 5 Tab
 
 - **1. Chống nộp bài sớm (Anti-Early Submission)**:

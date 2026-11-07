@@ -51,3 +51,10 @@ it('vẫn giữ nguyên quy tắc gộp thẻ khối + LMS + tên, chọn phiên
   expect(screen.getAllByText('Học Sinh Giả')).toHaveLength(1);
   expect(screen.getByText('09:59')).toBeTruthy();
 });
+
+it('keeps reminder targets separate when the same LMS and name occur in different classes', () => {
+  const otherClass = { ...session, sessionId: 'fake-other-class', studentClass: '8/20' };
+  render(<AdminContext.Provider value={{ liveSessions: [session, otherClass], liveFilter: 'all', submissions: [], practiceSubs: [] }}><LiveSessionList /></AdminContext.Provider>);
+  expect(screen.getAllByText('Học Sinh Giả')).toHaveLength(2);
+  expect(screen.getAllByRole('button', { name: 'Nhắc nhở học sinh' })).toHaveLength(2);
+});

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useStudent } from '../StudentContext.js';
+import TeacherReminderBanner from './TeacherReminderBanner.jsx';
 
 // MÀN HÌNH PHONG TỎA KHÓA BÀI THI KHI VI PHẠM 3 LẦN HOẶC GIÁM THỊ KHÓA
 export default function LockScreen() {
@@ -42,6 +43,7 @@ export default function LockScreen() {
             </p>
           )}
         </div>
+        <TeacherReminderBanner />
         <div className="pt-2 space-y-3">
           {isProctorUnlocked ? (
             <div className="space-y-3">
