@@ -103,4 +103,4 @@ Không upload/thay kho đề hoặc sửa bài nộp/điểm trong lần phát h
 - [x] Giám sát → Nhắc nhở học sinh: giáo viên nhập nội dung, đếm riêng theo lượt, giữ sau tải lại và hiển thị cả khi bài đang khóa. Giáo viên tự quyết định xử lý theo xác nhận; nhắc nhở không tự khóa hoặc trừ điểm.
 - [x] Gửi lại cùng yêu cầu không tăng trùng; gửi đồng thời được xử lý nguyên tử. Phân biệt đúng lớp và học sinh, hỗ trợ lượt thi cũ.
 - [x] Kiểm cuối:123 Node đạt/3 private skip,107 Vitest đạt,23 rules emulator đạt; lint/build/chặn lọt đề đạt. Mô phỏng trình duyệt: sửa hướng dẫn, gửi hai lần, kiểm màn hình nhỏ, không lỗi trang. Review độc lập không còn blocker sau sửa nhắc nhở bị che trên màn hình khóa.
-- [ ] Kiểm chứng phát hành GitHub Pages và đối chiếu tài nguyên trên web thật.
+- [x] Đã phát hành client `8db089c`; [GitHub Pages build/deploy đạt](https://github.com/trangiahuy8444/AHS-LMS/actions/runs/42339355177). Trang gốc/test/admin HTTP200; mọi JS/CSS tham chiếu khớp bản build đã kiểm thử.

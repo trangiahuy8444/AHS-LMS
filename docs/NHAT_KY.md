@@ -10,7 +10,7 @@
 - Phân biệt lớp trong nhóm thẻ giám sát để tránh gộp học sinh trùng mã LMS/họ tên giữa các lớp.
 - Review độc lập phát hiện banner bị che khi bài khóa; đã sửa và kiểm thử hồi quy đỏ → xanh. Không còn blocker trong phạm vi review.
 - Kiểm cuối:123 Node đạt/3 private skip,107 Vitest đạt,23 rules emulator đạt; lint/build/chặn lọt đề đạt. Mô phỏng trình duyệt bằng dữ liệu giả: sửa hướng dẫn, gửi nhắc hai lần, màn hình nhỏ không tràn; không ghi vào Firebase thật.
-- Không cần thay rules cho tính năng này; dùng quyền ghi giáo viên đã có. Trạng thái phát hành ghi tại LO_TRINH.md.
+- Không cần thay rules cho tính năng này; dùng quyền ghi giáo viên đã có. Đã phát hành client `8db089c`, GitHub Pages run42339355177 đạt; trang gốc/test/admin HTTP200 và JS/CSS khớp build.
 
 
 ## 03/11/2026 — Nâng cấp Khảo thí: Chống nộp sớm, Khóa bài làm, Chốt điểm học sinh, Bảo toàn dữ liệu & Google Sheets 5 Tab
