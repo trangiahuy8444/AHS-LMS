@@ -75,7 +75,7 @@ describe('ResultScreen — bài thi chính thức (chờ giáo viên chấm)', (
   it('báo đã nộp, không hiện điểm, có mã đề và ghi nhận vi phạm (không trừ điểm)', () => {
     render(<WithStudent extra={extra}><ResultScreen /></WithStudent>);
     expect(screen.getByText(/ĐÃ NỘP BÀI THÀNH CÔNG/)).toBeTruthy();
-    expect(screen.getByText(/Mã đề 102/)).toBeTruthy();
+    expect(screen.getByText('102')).toBeTruthy();
     expect(screen.getByText(/Vi phạm 3 lần: bài đã bị khóa/)).toBeTruthy();
     expect(screen.queryByText(/[Tt]rừ 5 điểm/)).toBeNull();
     expect(screen.queryByText(/ĐIỂM ĐẠT ĐƯỢC/)).toBeNull();

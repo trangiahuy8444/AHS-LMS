@@ -3,6 +3,11 @@
 > Tệp trạng thái sống. Mỗi phiên có thay đổi đáng kể thêm một mục **ở đầu** tệp: ngày, đã làm gì (kèm commit), kết quả `npm run check`, việc còn dở, câu hỏi chờ thầy. Repo công khai: không ghi bí mật hay dữ liệu học sinh.
 
 
+## 09/11/2026 — Thống nhất kết quả sau nộp bài các khối
+
+- Một mẫu thẻ kết quả cho khối 8/9/10: giữ xác nhận nộp thành công, tách vùng điểm và trạng thái chấm. Khi chưa có điểm ghi đang chấm, điểm 0 thật vẫn hiển thị đúng; cập nhật thời gian thực không thay xác nhận bằng con số.
+- Giữ thang điểm theo khối và quyền xem lại. Bỏ nhận xét đạt yêu cầu tự sinh khi giáo viên chưa viết nhận xét.
+
 ## 09/11/2026 — Tinh gọn màn hình làm bài
 
 - Theo yêu cầu giáo viên, bỏ khung đỏ thông tin lượt thi trùng mã đề và đồng hồ của bảng câu hỏi bên phải. Giữ nguyên hướng dẫn chung, nhắc nhở riêng và cảnh báo mất mạng. Không thay logic giờ, lưu bài hoặc giám sát.
