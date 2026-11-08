@@ -5,6 +5,7 @@ import TrueFalseQuestion from '../questions/TrueFalseQuestion.jsx';
 import EssayQuestion from '../questions/EssayQuestion.jsx';
 import QuestionSidebar from '../questions/QuestionSidebar.jsx';
 import StudentGuidance from '../components/StudentGuidance.jsx';
+import StudentIdentity from '../components/StudentIdentity.jsx';
 import TeacherReminderBanner from '../components/TeacherReminderBanner.jsx';
 import CalculatorWidget from '../components/CalculatorWidget.jsx';
 
@@ -35,6 +36,8 @@ export default function ExamScreen() {
       {/* CỘT CHÍNH (3 CỘT): HIỂN THỊ DUY NHẤT 1 CÂU HỎI TẠI MỖI THỜI ĐIỂM */}
       <div className="lg:col-span-3 space-y-5">
       
+        <StudentIdentity />
+
         {/* Banner Hướng Dẫn / Kỷ Luật Phòng Thi */}
         {!isSessionLocked && <TeacherReminderBanner />}
         <StudentGuidance mode={mode} config={config} />

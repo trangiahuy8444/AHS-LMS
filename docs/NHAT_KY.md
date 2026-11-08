@@ -3,6 +3,10 @@
 > Tệp trạng thái sống. Mỗi phiên có thay đổi đáng kể thêm một mục **ở đầu** tệp: ngày, đã làm gì (kèm commit), kết quả `npm run check`, việc còn dở, câu hỏi chờ thầy. Repo công khai: không ghi bí mật hay dữ liệu học sinh.
 
 
+## 09/11/2026 — Thông tin học sinh gọn và thống nhất
+
+- Thêm khung họ tên, mã LMS, lớp ở đầu màn hình làm bài. Thẻ kết quả dùng cùng thành phần, giữ mã đề/lượt làm. Cho phép xuống dòng tên dài trên màn hình nhỏ, không cắt tên.
+
 ## 09/11/2026 — Thống nhất kết quả sau nộp bài các khối
 
 - Một mẫu thẻ kết quả cho khối 8/9/10: giữ xác nhận nộp thành công, tách vùng điểm và trạng thái chấm. Khi chưa có điểm ghi đang chấm, điểm 0 thật vẫn hiển thị đúng; cập nhật thời gian thực không thay xác nhận bằng con số.

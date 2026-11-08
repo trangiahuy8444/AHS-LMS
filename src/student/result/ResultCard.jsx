@@ -1,9 +1,10 @@
 import React from 'react';
 import { useStudent } from '../StudentContext.js';
+import StudentIdentity from '../components/StudentIdentity.jsx';
 
 // THẺ KẾT QUẢ BÀI LÀM — ĐƯỢC THIẾT KẾ ĐỂ CHỤP ẢNH NỘP LÊN LMS
 export default function ResultCard() {
-  const { grade, mode, fullName, studentClass, studentId, scoreResult } = useStudent();
+  const { grade, mode, scoreResult } = useStudent();
   const maxScore = scoreResult?.maxScore !== undefined ? scoreResult.maxScore : (grade === 10 ? 7.75 : 7);
 
   return (
@@ -35,27 +36,10 @@ export default function ResultCard() {
         </div>
       </div>
 
-      {/* Thông tin học sinh */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-2xl border-2 border-slate-200 text-xs">
-        <div>
-          <p className="text-slate-500 font-semibold">Họ và tên:</p>
-          <p className="font-black text-slate-900 text-sm truncate">{fullName}</p>
-        </div>
-        <div>
-          <p className="text-slate-500 font-semibold">Lớp học:</p>
-          <p className="font-black text-slate-900 text-sm">Lớp {studentClass}</p>
-        </div>
-        <div>
-          <p className="text-slate-500 font-semibold">Mã LMS:</p>
-          <p className="font-black text-blue-800 text-sm font-mono-code">{studentId || 'Chưa nhập'}</p>
-        </div>
-        <div>
-          <p className="text-slate-500 font-semibold">{mode === 'practice' ? 'Số lần làm bài:' : 'Mã Đề Thi:'}</p>
-          <p className={`font-black text-sm font-mono-code ${mode === 'practice' ? 'text-amber-800 font-black' : 'text-slate-900'}`}>
-            {mode === 'practice' ? `LẦN THỨ ${scoreResult.attemptNumber || 1}` : (scoreResult.examCode || 'Đề cương')}
-          </p>
-        </div>
-      </div>
+      <StudentIdentity
+        extraLabel={mode === 'practice' ? 'Lượt làm' : 'Mã đề'}
+        extraValue={mode === 'practice' ? scoreResult.attemptNumber || 1 : scoreResult.examCode || '—'}
+      />
 
       {/* Khối Điểm Số Nổi Bật (High Contrast, Padding Đáy Đầy Đủ Chống Che Chữ Khi Chụp) */}
       <div className="text-center py-6 px-4 bg-blue-50/80 rounded-3xl border-2 border-blue-200 shadow-sm space-y-3 pb-8">
