@@ -7,6 +7,7 @@
 
 - Giáo viên yêu cầu commit và push lên GitHub Pages hiện tại. Ghép các cập nhật đã có trên main, giữ nguyên lịch sử.
 - Rà soát phát hành sửa thêm hàng chờ ôn tập bị cộng trùng khi nhận lại snapshot và loại barem/answerGuide lồng khỏi gói đề công khai.
+- Bản ghép cuối kiểm đạt:190 Node (3 kiểm riêng tư bỏ qua),151 Vitest,30 rules; lint/build/chặn lọt đề đạt. Rà soát độc lập không còn lỗi chặn phát hành.
 - Trình tự phát hành: kiểm đầy đủ bản ghép, triển khai rules tương thích trước client rồi theo dõi GitHub Pages. Không tự bật worker Drive khi chưa cài/kiểm chứng.
 
 ## 09/11/2026 — Bộ thử trên web, thông báo chung và chuẩn bị Drive theo lớp
