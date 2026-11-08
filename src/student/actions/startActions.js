@@ -252,9 +252,9 @@ export function createStartActions(s) {
           if (mode === 'exam' && window.AsianSchoolCloud && window.AsianSchoolCloud.reportViolation) {
             window.AsianSchoolCloud.reportViolation({ grade, studentClass, studentId, lock: false });
           }
-          const warningMsg = (v.count >= 3 && !shouldLock)
-            ? `Cảnh báo vi phạm lần ${v.count}: Em vừa rời giao diện làm bài hoặc thoát toàn màn hình! Vì đang ở chế độ ôn tập rèn luyện, hệ thống chỉ nhắc nhở cảnh báo (không khóa màn hình). Em hãy tập trung làm bài!`
-            : `Cảnh báo vi phạm lần ${v.count}/3: Em vừa rời khỏi giao diện làm bài hoặc thoát toàn màn hình! ${shouldLock ? 'Nếu vi phạm đến lần thứ 3, hệ thống sẽ KHÓA BÀI THI và giám thị ghi nhận vi phạm!' : 'Em hãy giữ nguyên toàn màn hình để rèn luyện tốt nhất!'}`;
+          const warningMsg = `Em vừa rời giao diện làm bài hoặc thoát toàn màn hình. ${shouldLock
+            ? `Vi phạm ${v.count}/3 lần trong đợt này; lần thứ 3 sẽ khóa bài.`
+            : 'Lần này hệ thống chỉ ghi nhận, không khóa bài.'}`;
           setWarningMessage(warningMsg);
           setShowWarningModal(true);
           window.AsianSchoolStorage.updateLiveSession({

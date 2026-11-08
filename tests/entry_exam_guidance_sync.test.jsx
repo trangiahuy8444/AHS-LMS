@@ -39,5 +39,5 @@ it('exam defaults match at entry and during work, with a fallback duration when 
   expect(before).toContain('45 phút');
   view.rerender(ui('in_progress'));
   expect(screen.getByRole('region',{name:'Hướng dẫn làm bài'}).textContent).toBe(before);
-  expect(screen.getByText(/59:32/)).toBeTruthy();
+  expect(screen.queryByText(/THÔNG TIN LƯỢT THI/)).toBeNull();
 });

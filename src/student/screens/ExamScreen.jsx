@@ -10,9 +10,9 @@ import CalculatorWidget from '../components/CalculatorWidget.jsx';
 
 // 2 & 3. MÀN HÌNH LÀM BÀI 1 CÂU / LẦN (NỀN TRẮNG SÁNG, TƯƠNG PHẢN CAO, ĐẸP MẮT)
 export default function ExamScreen() {
-  const { grade, mode, examState, assignedCode, activeQuestionIdx, setActiveQuestionIdx,
-    timeLeftStr, practiceItems, examItems, config, elapsedSeconds,
-    formatElapsed, isSessionLocked, isCalculatorOpen, setIsCalculatorOpen } = useStudent();
+  const { grade, mode, examState, activeQuestionIdx, setActiveQuestionIdx,
+    practiceItems, examItems, config,
+    isSessionLocked, isCalculatorOpen, setIsCalculatorOpen } = useStudent();
 
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
@@ -38,19 +38,6 @@ export default function ExamScreen() {
         {/* Banner Hướng Dẫn / Kỷ Luật Phòng Thi */}
         {!isSessionLocked && <TeacherReminderBanner />}
         <StudentGuidance mode={mode} config={config} />
-        {mode === 'exam' && (
-          <div className="border-2 border-red-500 bg-red-50/80 rounded-2xl p-4 text-red-950 space-y-1.5 shadow-sm">
-            <div className="flex items-center justify-between border-b border-red-200 pb-1.5">
-              <span className="font-black text-xs uppercase tracking-wider text-red-800 flex items-center space-x-1.5">
-                <span>⚠️</span>
-                <span>THÔNG TIN LƯỢT THI — MÃ ĐỀ: {assignedCode}</span>
-              </span>
-              <span className="font-mono-code text-xs text-red-700 font-black bg-red-100 px-2.5 py-0.5 rounded-lg">⏱ Thời gian còn: {timeLeftStr}</span>
-            </div>
-
-          </div>
-        )}
-
         {/* BANNER DỰ PHÒNG NGOẠI TUYẾN KHI MẤT MẠNG INTERNET */}
         {!isOnline && (
           <div className="border-2 border-amber-400 bg-amber-50 rounded-2xl p-3.5 text-amber-950 text-xs font-bold flex items-center space-x-2.5 shadow-sm animate-pulse">

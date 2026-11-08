@@ -702,8 +702,8 @@ test('Kiểm tra Bảo Mật Khóa Bài Thi & Cơ Chế Toàn Màn Hình Khi Gi�
   const testHtml = readPageSource('student');
   assert.ok(testHtml.includes('isProctorUnlocked'), 'Phải có state isProctorUnlocked');
   assert.ok(testHtml.includes('ĐANG CHỜ GIÁO VIÊN DUYỆT MỞ KHÓA'), 'Phải hiển thị trạng thái chờ giáo viên mở khóa');
-  assert.ok(testHtml.includes('THẦY TRẦN GIA HUY ĐÃ DUYỆT MỞ KHÓA'), 'Phải có giao diện khi Thầy đã mở khóa');
-  assert.ok(testHtml.includes('BẤM VÀO ĐÂY ĐỂ VÀO LẠI TOÀN MÀN HÌNH'), 'Phải có nút bấm kích hoạt toàn màn hình');
+  assert.ok(testHtml.includes('ĐÃ DUYỆT MỞ KHÓA'), 'Phải có giao diện khi Thầy đã mở khóa');
+  assert.ok(testHtml.includes('VÀO LẠI TOÀN MÀN HÌNH'), 'Phải có nút bấm kích hoạt toàn màn hình');
   assert.ok(testHtml.includes('handleStudentResumeFromLock'), 'Phải gọi hàm handleStudentResumeFromLock');
 });
 

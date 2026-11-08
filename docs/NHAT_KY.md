@@ -3,6 +3,11 @@
 > Tệp trạng thái sống. Mỗi phiên có thay đổi đáng kể thêm một mục **ở đầu** tệp: ngày, đã làm gì (kèm commit), kết quả `npm run check`, việc còn dở, câu hỏi chờ thầy. Repo công khai: không ghi bí mật hay dữ liệu học sinh.
 
 
+## 09/11/2026 — Tinh gọn màn hình làm bài
+
+- Theo yêu cầu giáo viên, bỏ khung đỏ thông tin lượt thi trùng mã đề và đồng hồ của bảng câu hỏi bên phải. Giữ nguyên hướng dẫn chung, nhắc nhở riêng và cảnh báo mất mạng. Không thay logic giờ, lưu bài hoặc giám sát.
+- Rút gọn cảnh báo vi phạm và màn hình khóa/mở: một trạng thái, một hướng dẫn, một nút khi được phép. Bỏ tỷ lệ tổng vi phạm dạng 4/3 dễ nhầm; tách tổng tích lũy khỏi số lần của đợt hiện tại. Giữ nguyên cơ chế khóa/mở và nhắc nhở giáo viên.
+
 ## 09/11/2026 — Phát hành theo yêu cầu giáo viên
 
 - Giáo viên yêu cầu commit và push lên GitHub Pages hiện tại. Ghép các cập nhật đã có trên main, giữ nguyên lịch sử.

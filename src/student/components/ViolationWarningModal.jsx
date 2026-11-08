@@ -1,38 +1,22 @@
 import React from 'react';
 import { useStudent } from '../StudentContext.js';
 
-// MODAL CẢNH BÁO VI PHẠM (CHỐNG GIAN LẬN TOÀN MÀN HÌNH)
 export default function ViolationWarningModal() {
   const { totalViolations, showWarningModal, warningMessage, isSessionLocked, handleDismissWarning, examState } = useStudent();
-
   if (!(showWarningModal && !isSessionLocked && examState === 'in_progress')) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 backdrop-blur-md p-4">
-      <div className="bg-white text-slate-900 rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full text-center border-4 border-red-500">
-        <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full mx-auto flex items-center justify-center mb-4 shadow-inner">
-          <svg className="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-          </svg>
-        </div>
-        <h3 className="text-xl font-black text-red-600 mb-2">CẢNH BÁO VI PHẠM BẢO MẬT!</h3>
-        <p className="text-sm font-semibold text-slate-700 mb-3 leading-relaxed">
-          {warningMessage || 'Bạn vừa thoát khỏi chế độ toàn màn hình hoặc chuyển sang ứng dụng khác!'}
+      <section role="alertdialog" aria-modal="true" aria-labelledby="violation-title" aria-describedby="violation-description" className="bg-white text-slate-900 rounded-2xl shadow-2xl p-5 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto text-center border-2 border-red-500 space-y-4">
+        <h3 id="violation-title" className="text-xl font-extrabold text-red-700">CẢNH BÁO VI PHẠM</h3>
+        <p id="violation-description" className="text-sm text-slate-700 leading-relaxed">
+          {warningMessage || 'Em vừa rời giao diện làm bài hoặc thoát toàn màn hình. Hãy quay lại để tiếp tục.'}
         </p>
-        <p className="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2 mb-3">
-          🔒 Đề thi đã được che khuất. Em cần quay lại toàn màn hình để tiếp tục làm bài.
-        </p>
-        <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-bold py-2.5 px-4 rounded-xl mb-5">
-          Tổng số lần vi phạm đã ghi nhận: {totalViolations} / 3 lần (Lần 3 sẽ tự động phong tỏa)
-        </div>
-        <button
-          type="button"
-          onClick={handleDismissWarning}
-          className="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white font-extrabold rounded-2xl text-sm transition shadow-lg shadow-red-600/30 uppercase tracking-wider"
-        >
-          Tôi Đã Hiểu & Quay Lại Toàn Màn Hình
+        <p className="text-xs text-slate-600">Tổng vi phạm đã ghi nhận: <strong>{totalViolations} lần</strong></p>
+        <button type="button" onClick={handleDismissWarning} className="w-full py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-sm transition focus-visible:ring-4 focus-visible:ring-red-300">
+          QUAY LẠI TOÀN MÀN HÌNH
         </button>
-      </div>
+      </section>
     </div>
   );
 }
