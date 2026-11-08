@@ -3,6 +3,12 @@
 > Tệp trạng thái sống. Mỗi phiên có thay đổi đáng kể thêm một mục **ở đầu** tệp: ngày, đã làm gì (kèm commit), kết quả `npm run check`, việc còn dở, câu hỏi chờ thầy. Repo công khai: không ghi bí mật hay dữ liệu học sinh.
 
 
+## 09/11/2026 — Phát hành theo yêu cầu giáo viên
+
+- Giáo viên yêu cầu commit và push lên GitHub Pages hiện tại. Ghép các cập nhật đã có trên main, giữ nguyên lịch sử.
+- Rà soát phát hành sửa thêm hàng chờ ôn tập bị cộng trùng khi nhận lại snapshot và loại barem/answerGuide lồng khỏi gói đề công khai.
+- Trình tự phát hành: kiểm đầy đủ bản ghép, triển khai rules tương thích trước client rồi theo dõi GitHub Pages. Không tự bật worker Drive khi chưa cài/kiểm chứng.
+
 ## 09/11/2026 — Bộ thử trên web, thông báo chung và chuẩn bị Drive theo lớp
 
 - Theo lựa chọn mới, tạo dự án Spark riêng ahs-lms-sandbox và Firestore miễn phí asia-southeast1. Đã phát hành website thử tại https://ahs-lms-sandbox.web.app/admin/ và https://ahs-lms-sandbox.firebaseapp.com/test/; chỉ tài khoản dùng chung đã được giáo viên chỉ định, không bật anonymous. Không ghi thông tin đăng nhập vào nhật ký. Alias xác thực riêng chỉ có quyền ở rules thử.
