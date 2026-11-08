@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAdmin } from '../AdminContext.js';
+import { essayPresentation } from '../../shared/essayPresentation.js';
 
 export default function AnswersTab() {
   const { answerGrade, setAnswerGrade, answerType, setAnswerType, currentAnswerData } = useAdmin();
@@ -71,6 +72,7 @@ export default function AnswersTab() {
           }
         }
 
+        essayList = essayList.map(eq => ({ ...eq, ...essayPresentation(eq) }));
         const letterMap = ['A', 'B', 'C', 'D'];
 
         return (
@@ -199,7 +201,7 @@ export default function AnswersTab() {
                         </span>
                       </div>
                       <p className="text-slate-800 font-medium whitespace-pre-line bg-white p-3.5 rounded-xl border border-slate-200">
-                        {eq.context || eq.question}
+                        {eq.stem}
                       </p>
                       {eq.subItems && eq.subItems.length > 0 && (
                         <div className="space-y-2 bg-white p-3.5 rounded-xl border border-slate-200">
@@ -219,7 +221,7 @@ export default function AnswersTab() {
                           ✓ Hướng Dẫn Trả Lời & Biểu Điểm:
                         </span>
                         <p className="text-emerald-900 whitespace-pre-line leading-relaxed font-sans">
-                          {eq.modelAnswer || 'Chưa cập nhật hướng dẫn trả lời cho câu này.'}
+                          {eq.modelAnswer || eq.rubric || eq.answerGuide || 'Chưa cập nhật hướng dẫn trả lời cho câu này.'}
                         </p>
                       </div>
                     </div>

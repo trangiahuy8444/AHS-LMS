@@ -1,0 +1,393 @@
+// Môi trường thử riêng: không cho tài khoản giáo viên của production quyền quản trị.
+rules_version = '2';
+
+// Quy tắc truy cập Firestore cho Asian School LMS (project ahs-lms, gói Spark, không có Cloud Functions)
+// - Giáo viên: đăng nhập Google bằng email trong danh sách isTeacher() (phải khớp TEACHER_EMAILS trong src/core/firebase-config.js)
+// - Học sinh: đăng nhập ẩn danh. Rules thay máy chủ kiểm tra mật khẩu phòng thi, lớp đang mở ca thi,
+//   mã đề được phân công và số lượt thi theo mã LMS. Học sinh chỉ đọc được đề ĐÃ BỎ ĐÁP ÁN (exam_public)
+//   của đúng lượt mình đang làm, chỉ gửi bài làm (không gửi điểm). Trang quản trị chấm trắc nghiệm.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isTeacher() {
+      return signedIn()
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in ['admin@ahs-lms-sandbox.invalid'];
+    }
+
+    function cfg() {
+      return get(/databases/$(database)/documents/exam_config/global_config).data;
+    }
+
+    // Mật khẩu học sinh nhập được ghi vào exam_keys/{uid} trước khi vào phòng thi
+    function roomPasswordOk() {
+      let secret = get(/databases/$(database)/documents/exam_secrets/room).data.examPassword;
+      let typed = getAfter(/databases/$(database)/documents/exam_keys/$(request.auth.uid)).data.password;
+      return secret is string && secret.trim().size() > 0 && typed.trim().lower() == secret.trim().lower();
+    }
+
+    function classOpen(studentClass) {
+      let c = cfg();
+      return c.classAccessControl.get(studentClass, c.get('defaultClassMode', 'practice_only')) in ['exam_only', 'both_open'];
+    }
+
+    function codeAllowed(grade, studentClass, code) {
+      let c = cfg();
+      let mode = c.get('codeAllocationMode', 'class_assigned');
+      return code in c.activeCodes.get(string(grade), [])
+        && (mode in ['random', 'student_choice']
+          || (mode == 'fixed' && code == c.fixedCode)
+          || (mode == 'class_assigned' && code == c.classMapping.get(studentClass, '')));
+    }
+
+    // Khóa kho đề (exam_config.examBankLocked): không thêm, sửa, xóa nội dung mã đề; chỉ bật/tắt mã đề
+    function bankLocked() {
+      return cfg().get('examBankLocked', false) == true;
+    }
+
+    function bankWriteAllowed() {
+      return isTeacher() && (!bankLocked()
+        || (request.method == 'update' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active'])));
+    }
+
+    function allowedAttempts(attempt) {
+      return attempt.get('allowedAttempts', cfg().get('maxExamAttempts', 1));
+    }
+
+    function attemptAfter(attemptId) {
+      return getAfter(/databases/$(database)/documents/exam_attempts/$(attemptId)).data;
+    }
+
+    function archiveDeleteAllowed(collection, sourceId) {
+      let path = /databases/$(database)/documents/drive_archive_jobs/$(collection + '_' + sourceId);
+      return cfg().get('driveArchiveProtectDeletes', false) != true
+        || (exists(path) && get(path).data.pending == false
+          && get(path).data.archivedRevision == get(path).data.revision);
+    }
+
+    // Cấu hình công khai cho cổng học sinh (lớp nào đang mở, phân công mã đề, thời lượng). Không chứa mật khẩu.
+    match /exam_config/{docId} {
+      allow read: if signedIn();
+      allow write: if isTeacher();
+    }
+
+    // Mã đề kèm đáp án và mật khẩu phòng thi: chỉ giáo viên
+    match /exam_bank/{docId} {
+      allow read: if isTeacher();
+      allow create, update: if bankWriteAllowed();
+      allow delete: if bankWriteAllowed() && archiveDeleteAllowed('exam_bank', docId);
+    }
+    match /exam_secrets/{docId} {
+      allow read, write: if isTeacher();
+    }
+
+    // Mật khẩu học sinh vừa nhập: chỉ để rules đối chiếu, không ai đọc được
+    match /exam_keys/{uid} {
+      allow create, update: if signedIn() && uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['password', 'at'])
+        && request.resource.data.password is string
+        && request.resource.data.password.size() <= 100;
+      allow read, delete: if isTeacher() || (signedIn() && uid == request.auth.uid);
+    }
+
+    // Lượt thi theo mã LMS, id = g<khối>_<MÃ LMS>
+    match /exam_attempts/{attemptId} {
+      function validNewAttempt(d) {
+        return d.keys().hasOnly(['grade', 'studentId', 'studentClass', 'fullName', 'uid', 'examCode',
+                                 'attemptsUsed', 'submitted', 'startedAt', 'deviceChanges', 'durationMinutes', 'extraTimeSeconds'])
+          && d.grade in [8, 9, 10]
+          && d.studentId is string && d.studentId.matches('[A-Z0-9_-]{1,30}')
+          && d.studentClass is string && d.studentClass.matches(string(d.grade) + '/[0-9]{1,3}')
+          && (attemptId == 'g' + string(d.grade) + '_' + d.studentClass.replace('/', '_') + '_' + d.studentId
+              || attemptId == 'g' + string(d.grade) + '_' + d.studentClass.replace('/', '-') + '_' + d.studentId
+              || attemptId == 'g' + string(d.grade) + '_' + d.studentId)
+          && d.fullName is string && d.fullName.size() > 0 && d.fullName.size() <= 80
+          && d.uid == request.auth.uid
+          && d.attemptsUsed == 1
+          && d.deviceChanges == 0
+          && d.durationMinutes is number && d.durationMinutes > 0
+          && d.durationMinutes == cfg().get('examDurationMinutes', 45)
+          && d.extraTimeSeconds is int && d.extraTimeSeconds == 0
+          && d.submitted == false
+          && d.startedAt == request.time
+          && classOpen(d.studentClass)
+          && codeAllowed(d.grade, d.studentClass, d.examCode)
+          && roomPasswordOk();
+      }
+
+      // Đổi máy giữa giờ (hoặc vào lại trên máy khác): nhận lại lượt bằng mật khẩu phòng thi, ghi số lần đổi máy
+      function takeover() {
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['uid', 'deviceChanges'])
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.deviceChanges == resource.data.deviceChanges + 1
+          && classOpen(resource.data.studentClass)
+          && roomPasswordOk();
+      }
+
+      // Làm lại khi còn lượt (giáo viên tăng allowedAttempts hoặc maxExamAttempts)
+      function retake() {
+        let d = request.resource.data;
+        return resource.data.uid == request.auth.uid
+          && resource.data.submitted == true
+          && resource.data.get('locked', false) == false
+          && resource.data.attemptsUsed < allowedAttempts(resource.data)
+          && d.diff(resource.data).affectedKeys().hasOnly(['attemptsUsed', 'submitted', 'startedAt', 'examCode', 'submittedAt',
+                                                           'violations', 'locked', 'lockCount', 'lockReason', 'durationMinutes', 'extraTimeSeconds'])
+          && d.attemptsUsed == resource.data.attemptsUsed + 1
+          && d.durationMinutes is number && d.durationMinutes > 0
+          && d.durationMinutes == cfg().get('examDurationMinutes', 45)
+          && d.extraTimeSeconds is int && d.extraTimeSeconds == 0
+          && d.get('violations', 0) == 0 && d.get('locked', false) == false && d.get('lockCount', 0) == 0
+          && !('lockReason' in d)
+          && d.submitted == false
+          && d.startedAt == request.time
+          && !('submittedAt' in d)
+          && classOpen(resource.data.studentClass)
+          && codeAllowed(resource.data.grade, resource.data.studentClass, d.examCode)
+          && roomPasswordOk();
+      }
+
+      // Ghi vi phạm chống gian lận: số vi phạm và số lần khóa chỉ TĂNG; học sinh chỉ được khóa (false -> true),
+      // không được tự mở khóa. Chỉ giáo viên đặt locked = false (nhánh isTeacher()).
+      function reportViolation() {
+        let d = request.resource.data;
+        let o = resource.data;
+        return o.uid == request.auth.uid
+          && o.submitted == false
+          && d.diff(o).affectedKeys().hasOnly(['violations', 'locked', 'lockCount'])
+          && d.get('violations', 0) is int && d.get('violations', 0) >= o.get('violations', 0) && d.get('violations', 0) < 1000
+          && d.get('lockCount', 0) is int && d.get('lockCount', 0) >= o.get('lockCount', 0) && d.get('lockCount', 0) < 1000
+          && d.get('locked', false) is bool
+          && (d.get('locked', false) == true || o.get('locked', false) == false);
+      }
+
+      // Nộp bài: chỉ cùng lúc tạo bài nộp submissions/<attemptId>_<lượt>
+      function submit() {
+        return resource.data.uid == request.auth.uid
+          && resource.data.submitted == false
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['submitted', 'submittedAt'])
+          && request.resource.data.submitted == true
+          && request.resource.data.submittedAt == request.time
+          && existsAfter(/databases/$(database)/documents/submissions/$(attemptId + '_' + string(resource.data.attemptsUsed)));
+      }
+
+      allow read: if isTeacher() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow create: if signedIn() && validNewAttempt(request.resource.data);
+      allow update: if isTeacher() || (signedIn() && (takeover() || retake() || submit() || reportViolation()));
+      allow delete: if isTeacher() && archiveDeleteAllowed('exam_attempts', attemptId);
+    }
+
+    // Phiên thi hiện tại của thiết bị: cho biết thiết bị được đọc mã đề nào
+    match /exam_sessions/{uid} {
+      allow read: if isTeacher() || (signedIn() && uid == request.auth.uid);
+      allow create, update: if signedIn() && uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['attemptId', 'examDocId'])
+        && roomPasswordOk()
+        && attemptAfter(request.resource.data.attemptId).uid == request.auth.uid
+        && attemptAfter(request.resource.data.attemptId).submitted == false
+        && request.resource.data.examDocId == 'g' + string(attemptAfter(request.resource.data.attemptId).grade)
+             + '_' + attemptAfter(request.resource.data.attemptId).examCode;
+      allow delete: if isTeacher();
+    }
+
+    // Đề đã bỏ đáp án: học sinh đọc được đề của lượt đang làm hoặc khi giáo viên mở xem lại bài thi
+    match /exam_public/{docId} {
+      function sessionAllows() {
+        let sessionPath = /databases/$(database)/documents/exam_sessions/$(request.auth.uid);
+        let hasSession = exists(sessionPath);
+        return hasSession
+          && get(sessionPath).data.examDocId == docId
+          && exists(/databases/$(database)/documents/exam_attempts/$(get(sessionPath).data.attemptId))
+          && get(/databases/$(database)/documents/exam_attempts/$(get(sessionPath).data.attemptId)).data.uid == request.auth.uid
+          && get(/databases/$(database)/documents/exam_attempts/$(get(sessionPath).data.attemptId)).data.submitted == false
+          && get(/databases/$(database)/documents/exam_attempts/$(get(sessionPath).data.attemptId)).data.get('locked', false) == false;
+      }
+      function reviewAllows() {
+        let c = cfg();
+        return c.get('allowStudentReviewOfficialExam', false) == true
+          || (c.get('classReviewControl', {}) is map && c.get('classReviewControl', {}).keys().size() > 0);
+      }
+      allow get: if isTeacher() || (signedIn() && (reviewAllows() || sessionAllows()));
+      allow list: if isTeacher();
+      allow write: if bankWriteAllowed();
+    }
+
+    // Bài nộp chính thức: học sinh chỉ gửi bài làm, không có trường điểm; giáo viên chấm
+    match /submissions/{subId} {
+      function canStudentReview() {
+        let c = cfg();
+        return signedIn() && (
+          c.get('allowStudentReviewOfficialExam', false) == true
+          || c.get('classReviewControl', {}).get(resource.data.studentClass, false) == true
+        );
+      }
+
+      function validSubmission(d) {
+        let a = attemptAfter(d.attemptId);
+        return d.keys().hasOnly(['id', 'uid', 'attemptId', 'sessionId', 'fullName', 'studentClass', 'studentId',
+                                 'grade', 'mode', 'examCode', 'attemptNumber', 'deviceChanges', 'answers',
+                                 'violations', 'startedAt', 'submittedAt', 'serverSubmittedAt',
+                                 'isGraded', 'essayScores', 'essayTotal', 'teacherFeedback', 'durationMinutes', 'extraTimeSeconds'])
+          && d.id == subId
+          && d.attemptId is string
+          && subId == d.attemptId + '_' + string(d.attemptNumber)
+          && a.uid == request.auth.uid
+          && a.submitted == true
+          && a.attemptsUsed == d.attemptNumber
+          && d.uid == request.auth.uid
+          && d.grade == a.grade
+          && d.studentId == a.studentId
+          && d.studentClass == a.studentClass
+          && d.fullName == a.fullName
+          && d.examCode == a.examCode
+          && d.startedAt == a.startedAt
+          // Không chặn bài muộn; giữ mốc tin cậy để giáo viên xử lý. Lượt cũ thiếu thời lượng để null.
+          && d.get('durationMinutes', null) == a.get('durationMinutes', null)
+          && (d.get('durationMinutes', null) == null || (d.durationMinutes is number && d.durationMinutes > 0))
+          && d.extraTimeSeconds is int && d.extraTimeSeconds >= 0
+          && d.extraTimeSeconds == a.get('extraTimeSeconds', 0)
+          && d.deviceChanges == a.deviceChanges
+          && d.serverSubmittedAt == request.time
+          && d.mode == 'exam'
+          && d.answers is map
+          && d.violations is int && d.violations == a.get('violations', 0)
+          && d.sessionId is string && d.submittedAt is string
+          && d.isGraded == false && d.essayScores == {} && d.essayTotal == 0 && d.teacherFeedback == '';
+      }
+      allow read: if isTeacher() || (signedIn() && resource.data.uid == request.auth.uid) || canStudentReview();
+      allow create: if signedIn() && validSubmission(request.resource.data);
+      allow update: if isTeacher() || (
+        signedIn()
+        && (resource.data.uid == request.auth.uid || canStudentReview())
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['scoreConfirmed', 'scoreConfirmedAt'])
+        && request.resource.data.scoreConfirmed == true
+        && request.resource.data.scoreConfirmedAt == request.time
+      );
+      allow delete: if isTeacher() && archiveDeleteAllowed('submissions', subId);
+    }
+
+    // Hàng chờ điểm ôn tập: học sinh ghi dòng của mình, trang quản trị đẩy lên Google Sheets rồi xóa.
+    // Không có trường nào của bài thi chính thức; giới hạn kiểu và độ dài để không dùng làm kho chứa tùy ý.
+    match /practice_results/{rowId} {
+      function validPracticeRow(d) {
+        return d.keys().hasOnly(['id', 'uid', 'mode', 'studentId', 'fullName', 'studentClass', 'grade', 'attemptNumber',
+                                 'score', 'finalScore', 'mcqPoints', 'tfPoints', 'correctCount', 'totalQuestions',
+                                 'violations', 'durationSeconds', 'durationFormatted', 'submittedAt'])
+          && d.id == rowId && rowId.size() <= 80
+          && d.uid == request.auth.uid
+          && d.mode == 'practice'
+          && d.grade in [8, 9, 10]
+          && d.studentId is string && d.studentId.size() <= 30
+          && d.fullName is string && d.fullName.size() <= 80
+          && d.studentClass is string && d.studentClass.size() <= 10
+          && d.score is number && d.score >= 0 && d.score <= 10
+          && d.finalScore is number && d.finalScore >= 0 && d.finalScore <= 10
+          && d.durationFormatted is string && d.durationFormatted.size() <= 40
+          && d.submittedAt is string && d.submittedAt.size() <= 40;
+      }
+      allow create: if signedIn() && validPracticeRow(request.resource.data);
+      allow read: if isTeacher();
+      allow delete: if isTeacher() && archiveDeleteAllowed('practice_results', rowId);
+    }
+
+    // Phiên giám sát trực tiếp
+    match /live_sessions/{sessionId} {
+      function liveFields() {
+        return ['sessionId', 'uid', 'fullName', 'studentClass', 'studentId', 'grade',
+                                'mode', 'examCode', 'violations', 'status', 'isLocked', 'lockReason',
+                                'penaltyPoints', 'timeLeft', 'lastPing', 'score', 'maxScore',
+                                'attemptNumber', 'pendingGrading'];
+      }
+      function validLiveSession(d) {
+        return d.sessionId == sessionId && sessionId.size() <= 150
+          && d.uid == request.auth.uid
+          && d.grade in [8, 9, 10] && d.mode in ['exam', 'practice']
+          && d.get('fullName', '') is string && d.get('fullName', '').size() <= 80
+          && d.get('studentClass', '') is string && d.get('studentClass', '').size() <= 10
+          && d.get('studentId', '') is string && d.get('studentId', '').size() <= 30
+          && d.get('examCode', '') is string && d.get('examCode', '').size() <= 20
+          && d.get('status', 'in_progress') in ['in_progress', 'practicing', 'locked', 'submitted']
+          && d.get('violations', 0) is int && d.get('violations', 0) >= 0 && d.get('violations', 0) <= 1000000
+          && d.get('isLocked', false) is bool
+          && (d.get('lockReason', '') == null || (d.get('lockReason', '') is string && d.get('lockReason', '').size() <= 100))
+          && d.get('timeLeft', '') is string && d.get('timeLeft', '').size() <= 40
+          && d.lastPing is int && d.lastPing >= 0
+          && d.get('score', 0) is number && d.get('score', 0) >= 0 && d.get('score', 0) <= 10
+          && d.get('maxScore', 10) is number && d.get('maxScore', 10) >= 0 && d.get('maxScore', 10) <= 10
+          && d.get('penaltyPoints', 0) is number && d.get('penaltyPoints', 0) == 0
+          && d.get('attemptNumber', 0) is int && d.get('attemptNumber', 0) >= 0 && d.get('attemptNumber', 0) <= 1000000
+          && d.get('pendingGrading', false) is bool;
+      }
+      allow read: if isTeacher() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.keys().hasOnly(liveFields())
+        && validLiveSession(request.resource.data);
+      allow update: if isTeacher() || (signedIn() && resource.data.uid == request.auth.uid
+        // Trường lạ của phiên cũ được giữ bất biến; heartbeat không bị chặn, không cho thêm/sửa trường lạ.
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(liveFields())
+        && validLiveSession(request.resource.data));
+      allow delete: if isTeacher() || (signedIn() && resource.data.uid == request.auth.uid);
+    }
+
+    // Lệnh giám thị (cộng giờ, mở khóa, thu bài): học sinh chỉ đọc
+    // Học sinh chỉ đọc lệnh gửi cho mình (targetUid) hoặc cả phòng ('all'); truy vấn phía học sinh lọc theo targetUid
+    match /proctor_commands/{cmdId} {
+      allow read: if isTeacher() || (signedIn() && resource.data.get('targetUid', '') in [request.auth.uid, 'all']);
+      allow create, update: if isTeacher();
+      allow delete: if isTeacher() && archiveDeleteAllowed('proctor_commands', cmdId);
+    }
+
+    // File công việc chỉ chứa tham chiếu. Chỉ worker OAuth/IAM được ghi xác nhận Drive.
+    match /drive_archive_jobs/{jobId} {
+      function appFields() {
+        return ['sourceCollection', 'sourceId', 'grade', 'studentClass', 'revision', 'pending', 'requestedAt'];
+      }
+      function validSource(d) {
+        let source = getAfter(/databases/$(database)/documents/$(d.sourceCollection)/$(d.sourceId)).data;
+        let reminder = source.get('payload', {}).get('reminder', {});
+        let grade = source.get('grade', reminder.get('grade', 0));
+        let studentClass = source.get('studentClass', reminder.get('studentClass', 'all'));
+        let reviewer = d.sourceCollection == 'submissions' && (
+          cfg().get('allowStudentReviewOfficialExam', false) == true
+          || cfg().get('classReviewControl', {}).get(source.get('studentClass', ''), false) == true);
+        return (isTeacher() || source.get('uid', '') == request.auth.uid || reviewer)
+          && d.grade == grade
+          && (d.sourceCollection == 'exam_bank'
+            ? (grade in [8, 9, 10] && d.studentClass == '_DE_CHUNG')
+            : (d.studentClass == studentClass
+              && ((grade in [8, 9, 10] && studentClass.matches(string(grade) + '/[0-9]{1,3}'))
+                || (d.sourceCollection == 'proctor_commands' && grade == 0 && studentClass == 'all'))));
+      }
+      function validJob(d) {
+        return signedIn()
+          && d.sourceCollection in ['submissions', 'exam_attempts', 'proctor_commands', 'exam_bank', 'practice_results']
+          && d.sourceId is string && d.sourceId.matches('[A-Za-z0-9_.:-]{1,250}')
+          && jobId == d.sourceCollection + '_' + d.sourceId
+          && d.grade is int && d.studentClass is string
+          && d.revision is int && d.revision > 0
+          && d.pending == true && d.requestedAt == request.time
+          && validSource(d);
+      }
+      allow read: if isTeacher();
+      allow create: if request.resource.data.keys().hasOnly(appFields())
+        && request.resource.data.revision == 1 && validJob(request.resource.data);
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(appFields())
+        && request.resource.data.sourceCollection == resource.data.sourceCollection
+        && request.resource.data.sourceId == resource.data.sourceId
+        && request.resource.data.revision == resource.data.revision + 1
+        && validJob(request.resource.data);
+      allow delete: if false;
+    }
+    match /drive_archive_status/{docId} {
+      allow read: if isTeacher();
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -4,8 +4,10 @@
  * html2canvas chỉ tải khi học sinh bấm chụp ảnh kết quả (student/actions/captureActions.js).
  */
 import '../core/exam-timing.js';
+import { installRuntimeEnvironment } from './runtimeEnvironment.js';
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
 import 'firebase/compat/firestore';
 
+installRuntimeEnvironment();
 window.firebase = firebase;

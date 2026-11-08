@@ -13,3 +13,10 @@ private/
 
 # Vite
 dist/
+
+# Dữ liệu thử Firebase cục bộ
+.local-sandbox/
+
+# Bản dựng và cấu hình web thử riêng
+dist-sandbox/
+.env*.local

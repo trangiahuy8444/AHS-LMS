@@ -91,7 +91,7 @@ test('firestore.rules: học sinh không đọc được đề kèm đáp án, k
     const start = rules.indexOf(`match /${name}/`);
     return rules.slice(start, rules.indexOf('\n    }', start));
   };
-  assert.match(block('exam_bank'), /allow read: if isTeacher\(\);\s*allow write: if bankWriteAllowed\(\);/);
+  assert.match(block('exam_bank'), /allow read: if isTeacher\(\);\s*allow create, update: if bankWriteAllowed\(\);/);
   assert.match(rules, /hasOnly\(\['active'\]\)/, 'Kho đề khóa: chỉ được bật/tắt mã đề');
   assert.match(block('exam_secrets'), /allow read, write: if isTeacher\(\);/);
   const sub = block('submissions');
@@ -211,7 +211,8 @@ test('Cổng học sinh không gửi thẳng lên webhook; rules có hàng chờ
   assert.ok(!practiceBranch.includes('syncRowToGoogleDrive'), 'Máy học sinh không gọi webhook');
   const rules = fs.readFileSync(path.join(__dirname, '../firestore.rules'), 'utf8');
   const block = rules.slice(rules.indexOf('match /practice_results/'), rules.indexOf('match /live_sessions/'));
-  assert.match(block, /allow read, delete: if isTeacher\(\);/);
+  assert.match(block, /allow read: if isTeacher\(\);/);
+  assert.match(block, /allow delete: if isTeacher\(\) && archiveDeleteAllowed\('practice_results', rowId\);/);
   assert.match(block, /d\.uid == request\.auth\.uid/);
 });
 

@@ -439,11 +439,20 @@ export function useAdminController() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    const isWebSandbox = window.AsianSchoolRuntime?.mode === 'web-sandbox';
+    const form = isWebSandbox ? new FormData(e.currentTarget) : null;
     setLoginError('');
     try {
-      await window.AsianSchoolAuth.signInTeacher();
+      if (isWebSandbox) {
+        await window.AsianSchoolAuth.signInTeacher({
+          username: String(form.get('username') || '').trim(),
+          password: String(form.get('password') || '')
+        });
+      } else {
+        await window.AsianSchoolAuth.signInTeacher();
+      }
     } catch (err) {
-      setLoginError('Đăng nhập Google chưa thành công: ' + (err.message || err.code));
+      setLoginError((isWebSandbox ? 'Đăng nhập hệ thống thử chưa thành công: ' : 'Đăng nhập Google chưa thành công: ') + (err.message || err.code));
     }
   };
 

@@ -4,12 +4,13 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 
-function cloudHarness({ submitted = false, metadata = {}, readError, commitError, locked = false, durationMinutes, extraTimeSeconds, configDurationMinutes = 45 } = {}) {
+function cloudHarness({ submitted = false, metadata = {}, readError, commitError, locked = false, durationMinutes, extraTimeSeconds, configDurationMinutes = 45, withArchive = false } = {}) {
   const reads = [], writes = [], updates = [];
   const attempt = { uid: 'fake-owner', fullName: 'Học Sinh Giả', studentClass: '8/1', studentId: '999999',
     examCode: '101', attemptsUsed: 1, allowedAttempts: 2, submitted, locked, violations: 3,
     durationMinutes, extraTimeSeconds, startedAt: { seconds: Math.floor(Date.now() / 1000) - 60 } };
   const ref = {
+    id: 'g8_999999', path: 'exam_attempts/g8_999999',
     async get(options) { reads.push(options); if (readError) throw readError; return { exists: true, metadata, data: () => attempt }; },
     async update(data) { updates.push(data); },
     async set(data) { updates.push(data); }
@@ -22,7 +23,7 @@ function cloudHarness({ submitted = false, metadata = {}, readError, commitError
       return { path: `${name}/${id}`, set: async () => {}, get: async () => ({ exists: true, data: () => ({ exam: {} }) }) };
     } }; },
     batch() { return { update: (...args) => writes.push(['update', ...args]), set: (...args) => writes.push(['set', ...args]),
-      commit: async () => { if (commitError) throw commitError; attempt.submitted = true; } }; }
+      commit: async () => { if (commitError) throw commitError; if (writes.some(w => w[0] === 'update' && w[2]?.submitted === true)) attempt.submitted = true; } }; }
   };
   const firestore = Object.assign(() => db, { FieldValue: { serverTimestamp: () => 'SERVER_TIME', increment: n => n, delete: () => 'DELETE' } });
   const auth = { currentUser: { uid: 'fake-owner' }, onAuthStateChanged() {} };
@@ -30,6 +31,7 @@ function cloudHarness({ submitted = false, metadata = {}, readError, commitError
   const context = { window, document: { readyState: 'loading', addEventListener() {} }, CustomEvent: class {},
     console: { log() {}, warn() {} }, firebase: { apps: [{}], app: () => ({}), firestore, auth: () => auth },
     setTimeout: (fn, ms) => { const t = setTimeout(fn, ms); t.unref(); return t; }, clearTimeout };
+  if (withArchive) vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/core/drive-archive.js'), 'utf8'), context);
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/core/firebase-config.js'), 'utf8'), context);
   return { cloud: window.AsianSchoolCloud, reads, writes, updates, attempt };
 }
@@ -104,4 +106,28 @@ test('submitExam retry sau xác nhận thành công giữ cùng ID và không gh
   const payload = h.writes.find(w => w[0] === 'set')[2];
   assert.equal(payload.durationMinutes, null);
   assert.equal(payload.extraTimeSeconds, 0);
+});
+
+test('real archive helper enqueues attempt and submission jobs in the canonical submit commit', async () => {
+  const h = cloudHarness({withArchive:true});
+  const result = await h.cloud.submitExam(input);
+  assert.equal(result.submissionId,'g8_999999_1');
+  assert.equal(h.writes.length,4);
+  const jobs=h.writes.filter(w=>w[0]==='set'&&w[1].path?.startsWith('drive_archive_jobs/'));
+  assert.equal(jobs.length,2);
+  assert.deepEqual(jobs.map(w=>w[1].path),['drive_archive_jobs/exam_attempts_g8_999999','drive_archive_jobs/submissions_g8_999999_1']);
+  for(const write of jobs) {
+    assert.equal(write[2].grade,8);assert.equal(write[2].studentClass,'8/1');
+    assert.equal(write[2].pending,true);assert.equal(write[2].revision,1);
+    assert.equal(write[2].answers,undefined);assert.equal(write[3].merge,true);
+  }
+});
+test('real archive helper commits violation increment with the matching attempt job', async () => {
+  const h=cloudHarness({withArchive:true});
+  const ok=await h.cloud.reportViolation({grade:8,studentClass:'8/1',studentId:'999999',lock:true});
+  assert.equal(ok,true);assert.equal(h.writes.length,2);
+  const update=h.writes.find(w=>w[0]==='update');
+  assert.equal(update[2].violations,1);assert.equal(update[2].locked,true);
+  const job=h.writes.find(w=>w[1].path==='drive_archive_jobs/exam_attempts_g8_999999');
+  assert.equal(job[2].pending,true);assert.equal(job[2].studentClass,'8/1');
 });

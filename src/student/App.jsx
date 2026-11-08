@@ -10,6 +10,7 @@ import NoticeDialog from './components/NoticeDialog.jsx';
 import EntryScreen from './screens/EntryScreen.jsx';
 import ExamScreen from './screens/ExamScreen.jsx';
 import ResultScreen from './screens/ResultScreen.jsx';
+import LocalSandboxBanner from '../shared/components/LocalSandboxBanner.jsx';
 
 function App() {
   const student = useStudentController();
@@ -17,6 +18,7 @@ function App() {
   return (
     <StudentContext.Provider value={student}>
       <div className="min-h-screen bg-slate-100 text-slate-900">
+      <LocalSandboxBanner />
       
         {/* MÀN HÌNH PHONG TỎA KHÓA BÀI THI KHI VI PHẠM 3 LẦN HOẶC GIÁM THỊ KHÓA */}
         <LockScreen />

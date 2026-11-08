@@ -95,3 +95,31 @@ Không upload/thay kho đề hoặc sửa bài nộp/điểm trong lần phát h
 - [ ] Diễn tập ca chính thức sau khi giáo viên chọn chế độ phù hợp; không dùng test cục bộ thay cho ca thật.
 
 - Phát hành thật02/11: client `d36625a`, [GitHub Pages build/deploy đạt](https://github.com/trangiahuy8444/AHS-LMS/actions/runs/41369616826); rules mới đã Publish và đối chiếu khớp hash. Trang gốc/test/admin HTTP200, mọi asset tham chiếu khớp build. Cấu hình phân mã hiện hành được giữ, giáo viên chủ động bật tự chọn.
+
+
+### 07/11/2026 — Hướng dẫn và nhắc nhở của giáo viên
+
+- [x] Quản trị → Cấu hình cho phép sửa tiêu đề/nội dung hướng dẫn riêng cho ôn tập và thi chính thức; học sinh thấy trong bài làm, cập nhật khi cấu hình được lưu.
+- [x] Giám sát → Nhắc nhở học sinh: giáo viên nhập nội dung, đếm riêng theo lượt, giữ sau tải lại và hiển thị cả khi bài đang khóa. Giáo viên tự quyết định xử lý theo xác nhận; nhắc nhở không tự khóa hoặc trừ điểm.
+- [x] Gửi lại cùng yêu cầu không tăng trùng; gửi đồng thời được xử lý nguyên tử. Phân biệt đúng lớp và học sinh, hỗ trợ lượt thi cũ.
+- [x] Kiểm cuối:123 Node đạt/3 private skip,107 Vitest đạt,23 rules emulator đạt; lint/build/chặn lọt đề đạt. Mô phỏng trình duyệt: sửa hướng dẫn, gửi hai lần, kiểm màn hình nhỏ, không lỗi trang. Review độc lập không còn blocker sau sửa nhắc nhở bị che trên màn hình khóa.
+- [x] Đã phát hành client `8db089c`; [GitHub Pages build/deploy đạt](https://github.com/trangiahuy8444/AHS-LMS/actions/runs/42339355177). Trang gốc/test/admin HTTP200; mọi JS/CSS tham chiếu khớp bản build đã kiểm thử.
+
+### 08/11/2026 — Trình bày tự luận thống nhất
+
+- [x] Mã và kiểm tự động: tách các ý a), b) cho gói đề cũ, dùng cùng cách trình bày với ôn tập; giữ nguyên nội dung và cách chấm. `npm run check` đạt ở bản sao cục bộ.
+- [ ] Phát hành và xác nhận hiển thị trên trang thật.
+
+- [x] Đồng bộ thêm màn hình xem lại, tra đáp án và chấm tự luận; barem quản trị hỗ trợ alias. Kiểm tự động:123 Node đạt/3 private skip,116 Vitest đạt; lint/build/chặn lọt đề đạt.
+- [x] Môi trường thử cục bộ theo lựa chọn giáo viên: Auth/Firestore Emulator riêng, dữ liệu giả, AI/Sheets mô phỏng rõ nhãn, bộ mở bằng một tệp.135 Node đạt/3 private skip,127 Vitest,23 rules emulator; lint/build/chặn lọt đề đạt. Diễn tập start/lock/unlock/extend/submit/grading và stop/restart đạt. Xem THU_NGHIEM_CUC_BO.md.
+- [ ] Phát hành client thật khi được yêu cầu; các chức năng thử cục bộ hiện dùng được trên máy, chưa cập nhật tab mới lên website thật.
+
+### 09/11/2026 — Thay lựa chọn bộ thử bằng website đồng bộ
+
+- [x] Tạo dự án/Firestore miễn phí riêng, đăng nhập thử riêng, không anonymous; phát hành hai cổng web thử và diễn tập nhập/nộp dữ liệu giả.
+- [x] Thông báo trước/trong bài dùng chung cấu hình; đã kiểm trên bộ thử web.
+- [x] Mã Drive tự động theo lớp: worker riêng tư, outbox nguyên tử, receipt/retry, status UI, JSON+Sheet. Kiểm cuối184 Node/151 Vitest/30 rules đạt (3 private skip).
+- [x] Người dùng cấp quyền Firebase CLI và Apps Script CLI, công cụ xác nhận đăng nhập.
+- [ ] Cài/upload worker vào Google Apps Script, bật trigger, nghiệm thu ghi Drive khi admin đóng. Thư mục gốc đã tạo riêng tư, chưa báo lưu tự động hoạt động.
+- [ ] Phát hành lần cập nhật cuối bộ thử: lệnh bị chặn vì hết hạn mức xét duyệt tự động, chưa thực thi; bản phát hành đầu vẫn dùng được.
+- [ ] Chuẩn bị và duyệt phát hành client/rules sản xuất, không đồng nhất với website thử. Không phát hành main hoặc rules thật trong phiên này.

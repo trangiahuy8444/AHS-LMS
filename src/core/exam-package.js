@@ -11,7 +11,7 @@
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (root) root.AsianSchoolExamPackage = api;
 }(typeof self !== 'undefined' ? self : (typeof globalThis !== 'undefined' ? globalThis : this), function () {
-  const ANSWER_FIELDS = ['correctAnswer', 'answerLetter', 'modelAnswer', 'rubric', 'explanation'];
+  const ANSWER_FIELDS = ['correctAnswer', 'answerLetter', 'modelAnswer', 'rubric', 'answerGuide', 'explanation'];
 
   // Hệ số chấm câu Đúng/Sai theo số ý đúng (quy ước tổ, trùng ngan-hang-de-web/domain/scoring.py)
   const TF_COEFFICIENTS = { 0: 0, 1: 0.1, 2: 0.25, 3: 0.5, 4: 1 };
@@ -33,20 +33,18 @@
   }
 
   function stripItem(item) {
+    if (Array.isArray(item)) return item.map(stripItem);
+    if (!item || typeof item !== 'object') return item;
     const out = {};
     Object.keys(item).forEach(key => {
       if (ANSWER_FIELDS.indexOf(key) !== -1) return;
-      out[key] = key === 'subQuestions' && Array.isArray(item[key]) ? item[key].map(stripItem) : item[key];
+      out[key] = stripItem(item[key]);
     });
     return out;
   }
 
   function stripAnswers(exam) {
-    const out = {};
-    Object.keys(exam).forEach(key => {
-      out[key] = Array.isArray(exam[key]) ? exam[key].map(item => (item && typeof item === 'object' ? stripItem(item) : item)) : exam[key];
-    });
-    return out;
+    return stripItem(exam);
   }
 
   function maxObjectivePoints(exam) {
@@ -77,7 +75,7 @@
       }
       mcqResults[q.num] = {
         isCorrect,
-        userChoice: mcqAnswers[q.num],
+        userChoice: mcqAnswers[q.num] ?? null,
         correctAnswer: q.correctAnswer,
         answerLetter: q.answerLetter || (Number.isInteger(q.correctAnswer) ? String.fromCharCode(65 + q.correctAnswer) : null),
         pointsEarned: isCorrect ? (q.points || 0.25) : 0
@@ -92,7 +90,7 @@
         const isSubCorrect = userSub[sub.letter] === sub.correctAnswer;
         subResults[sub.letter] = {
           isCorrect: isSubCorrect,
-          userChoice: userSub[sub.letter],
+          userChoice: userSub[sub.letter] ?? null,
           correctAnswer: sub.correctAnswer
         };
       });

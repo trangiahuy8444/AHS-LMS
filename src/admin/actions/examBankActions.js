@@ -31,6 +31,7 @@ export function createExamBankActions(s) {
           grade, code, active: true, exam: exams[code],
           uploadedAt: new Date().toISOString(), uploadedBy: teacherEmail
         });
+        window.AsianSchoolDriveArchive?.addArchiveWrite(batch, 'exam_bank', `g${grade}_${code}`, { grade });
         // Bản đã bỏ đáp án cho học sinh (firestore.rules chỉ cho đọc đúng mã đề của lượt đang làm)
         batch.set(window.firebaseDb.collection('exam_public').doc(`g${grade}_${code}`), {
           grade, code, active: true, exam: window.AsianSchoolExamPackage.stripAnswers(exams[code])
@@ -127,6 +128,7 @@ export function createExamBankActions(s) {
         const allowed = Number.isInteger(d.allowedAttempts) ? d.allowedAttempts : (config.maxExamAttempts || 1);
         if (d.submitted !== true) throw new Error('Học sinh đang làm dở lượt hiện tại; chờ nộp bài rồi mới cấp thêm lượt.');
         tx.update(ref, { allowedAttempts: Math.max(allowed, d.attemptsUsed || 0) + 1 });
+        window.AsianSchoolDriveArchive?.addArchiveWrite(tx, 'exam_attempts', ref.id, d);
         return { ...d, allowedAttempts: Math.max(allowed, d.attemptsUsed || 0) + 1 };
       });
       window.AsianSchoolStorage.logAudit('Cấp thêm lượt thi', `Khối ${attemptGrade} - ${updated.studentClass ? `Lớp ${updated.studentClass} - ` : ''}Mã LMS ${updated.studentId}: ${updated.allowedAttempts} lượt`);
@@ -141,22 +143,33 @@ export function createExamBankActions(s) {
       : String(attemptLms || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (!key) return setAttemptStatus('Nhập mã LMS cần reset lượt thi.');
     try {
-      const found = await findAttemptDocRef();
-      const col = window.firebaseDb?.collection('exam_attempts');
-      if (found?.allDocs && found.allDocs.length > 0) {
-        for (const d of found.allDocs) {
-          await d.ref.delete();
-        }
-      } else if (found?.ref) {
-        await found.ref.delete().catch(() => {});
-      }
+      const db = window.firebaseDb;
+      const col = db?.collection('exam_attempts');
+      if (!col) throw new Error('Chưa kết nối máy chủ.');
+      const refs = new Map();
+      const addExisting = (ref, snapshot, fallbackId) => {
+        if (!snapshot.exists) return;
+        const data = snapshot.data();
+        if (attemptClass && data.studentClass !== attemptClass) return;
+        if (data.grade !== undefined && Number(data.grade) !== Number(attemptGrade)) return;
+        if (data.studentId !== key) return;
+        refs.set(ref.path || ref.id || fallbackId, ref);
+      };
       const classKey = attemptClass ? String(attemptClass).trim().replace(/[^a-zA-Z0-9]/g, '_') : '';
-      if (col) {
-        if (classKey) {
-          await col.doc(`g${attemptGrade}_${classKey}_${key}`).delete().catch(() => {});
-        }
-        await col.doc(`g${attemptGrade}_${key}`).delete().catch(() => {});
+      const ids = [...new Set([...(classKey ? [`g${attemptGrade}_${classKey}_${key}`] : []), `g${attemptGrade}_${key}`])];
+      // Không xóa ID giả định: rules lưu Drive có thể từ chối tài liệu không tồn tại.
+      for (const id of ids) {
+        const ref = col.doc(id);
+        addExisting(ref, await ref.get({ source: 'server' }), id);
       }
+      if (!attemptClass && typeof col.where === 'function') {
+        const snapshots = await col.where('grade', '==', Number(attemptGrade)).where('studentId', '==', key).get();
+        for (const snapshot of snapshots.docs || []) addExisting(snapshot.ref, snapshot, snapshot.id);
+      }
+      if (!refs.size) throw new Error('Không tìm thấy lượt thi phù hợp để reset.');
+      const batch = db.batch();
+      for (const ref of refs.values()) batch.delete(ref);
+      await batch.commit();
       window.AsianSchoolStorage.logAudit('Reset lượt thi', `Khối ${attemptGrade} - ${attemptClass ? `Lớp ${attemptClass} - ` : ''}Mã LMS ${key}`);
       setAttemptStatus(`✅ Đã reset lượt thi cho Mã LMS ${key} thành công! Học sinh có thể đăng nhập vào làm bài thi mới từ đầu.`);
     } catch (err) {
@@ -183,6 +196,7 @@ export function createExamBankActions(s) {
     const batch = window.firebaseDb.batch();
     batch.set(window.firebaseDb.collection('exam_bank').doc(`g${grade}_${code}`), { active }, { merge: true });
     batch.set(window.firebaseDb.collection('exam_public').doc(`g${grade}_${code}`), { active }, { merge: true });
+    window.AsianSchoolDriveArchive?.addArchiveWrite(batch, 'exam_bank', `g${grade}_${code}`, { grade });
     await batch.commit();
     window.AsianSchoolStorage.logAudit(active ? 'Bật mã đề' : 'Tắt mã đề', `Khối ${grade} - Mã ${code}`);
   };

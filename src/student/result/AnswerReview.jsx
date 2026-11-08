@@ -1,5 +1,6 @@
 import React from 'react';
 import { useStudent } from '../StudentContext.js';
+import { essayPresentation } from '../../shared/essayPresentation.js';
 
 // PHẦN ĐÁNH GIÁ ĐÚNG/SAI & MỞ ĐÁP ÁN TỰ LUẬN CHO HỌC SINH
 export default function AnswerReview() {
@@ -552,6 +553,7 @@ export default function AnswerReview() {
           </div>
 
           {examEssayList.map((eq) => {
+            const { stem, subItems } = essayPresentation(eq);
             const studentAnswer = (mode === 'practice'
               ? practiceAnswers?.essay?.[eq.num]
               : (answers.essay?.[eq.num] ?? answers.essay?.[String(eq.num)] ?? '')) || '';
@@ -569,15 +571,15 @@ export default function AnswerReview() {
                 </div>
 
                 <p className="font-bold text-slate-900 text-sm leading-relaxed whitespace-pre-line bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                  {eq.context || eq.question}
+                  {stem}
                 </p>
 
-                {eq.subItems && eq.subItems.length > 0 && (
+                {subItems.length > 0 && (
                   <div className="space-y-2 bg-indigo-50/60 p-4 rounded-2xl border border-indigo-200 text-xs sm:text-sm">
                     <span className="font-bold text-indigo-900 text-xs block uppercase">
                       Các ý yêu cầu trả lời:
                     </span>
-                    {eq.subItems.map(item => (
+                    {subItems.map(item => (
                       <div key={item.letter} className="flex items-start space-x-2 text-slate-800 font-semibold">
                         <span className="font-black text-indigo-700 shrink-0">Ý {item.letter})</span>
                         <span className="leading-relaxed">{item.text}</span>

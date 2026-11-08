@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAdmin } from '../AdminContext.js';
+import { essayPresentation } from '../../shared/essayPresentation.js';
 import { gradeSingleEssayWithGemini, getEssayQuestionsForSubmission, getGeminiApiKey } from '../../core/gemini-grading-service.js';
 
 // MODAL XEM TOÀN BỘ BÀI THI & CHẤM ĐIỂM TỰ LUẬN TÍCH HỢP GEMINI AI (DUYỆT THỦ CÔNG)
@@ -643,6 +644,7 @@ export default function EssayGradingModal() {
                 <p className="text-xs text-slate-400 italic">Không có câu tự luận trong bài làm này.</p>
               ) : (
                 essayQuestions.map((q, idx) => {
+                  const { stem, subItems } = essayPresentation(q);
                   const qNum = q.num !== undefined ? q.num : (idx + 1);
                   const studentText = gradingSubmission.answers?.essay?.[qNum] ?? gradingSubmission.answers?.essay?.[String(qNum)] ?? '';
                   const currentScore = tempEssayScores[qNum] !== undefined ? tempEssayScores[qNum] : '';
@@ -673,14 +675,14 @@ export default function EssayGradingModal() {
                         <div className="space-y-2">
                           <span className="font-bold text-slate-700 block uppercase text-[10px]">Đề bài:</span>
                           <p className="p-3 bg-white rounded-xl text-slate-800 leading-relaxed whitespace-pre-line border border-slate-200">
-                            {q.context || q.question}
+                            {stem}
                           </p>
-                          {q.subItems && q.subItems.length > 0 && (
+                          {subItems.length > 0 && (
                             <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl space-y-1.5 text-xs">
                               <span className="font-bold text-blue-900 text-[10px] block uppercase">
                                 Các câu hỏi con cần trả lời:
                               </span>
-                              {q.subItems.map(item => (
+                              {subItems.map(item => (
                                 <div key={item.letter} className="flex items-start space-x-2 text-slate-700">
                                   <span className="font-black text-blue-700 shrink-0">Ý {item.letter})</span>
                                   <span className="leading-relaxed">{item.text}</span>
@@ -693,7 +695,7 @@ export default function EssayGradingModal() {
                             Barem & Hướng Dẫn Chấm Chuẩn Của Trường (100% Bám Sát):
                           </span>
                           <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 leading-relaxed whitespace-pre-line text-[11px]">
-                            {q.modelAnswer || 'Chưa cập nhật hướng dẫn.'}
+                            {q.modelAnswer || q.rubric || q.answerGuide || 'Chưa cập nhật hướng dẫn.'}
                           </div>
                         </div>
 

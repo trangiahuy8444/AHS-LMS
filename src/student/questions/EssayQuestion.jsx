@@ -1,5 +1,6 @@
 import React from 'react';
 import { useStudent } from '../StudentContext.js';
+import { essayPresentation } from '../../shared/essayPresentation.js';
 
 // 3. Tự luận (Essay)
 export default function EssayQuestion({ currentItem }) {
@@ -7,15 +8,17 @@ export default function EssayQuestion({ currentItem }) {
 
   if (!((currentItem.type === 'essay' || currentItem.type === 'exam_essay'))) return null;
 
+  const { stem, subItems } = essayPresentation(currentItem.data);
+
   return (
     <div className="space-y-5">
       <p className="text-base sm:text-lg font-bold text-slate-900 leading-relaxed whitespace-pre-line bg-slate-50 p-5 rounded-2xl border-2 border-slate-200">
-        {currentItem.data.context || currentItem.data.question}
+        {stem}
       </p>
 
-      {currentItem.data.subItems && currentItem.data.subItems.length > 0 && (
+      {subItems.length > 0 && (
         <div className="space-y-2.5 bg-indigo-50/50 p-4 rounded-2xl border border-indigo-200">
-          {currentItem.data.subItems.map(item => (
+          {subItems.map(item => (
             <div key={item.letter} className="text-sm text-slate-800 flex items-start space-x-2 font-semibold">
               <span className="font-black text-indigo-700">{item.letter})</span>
               <span>{item.text}</span>

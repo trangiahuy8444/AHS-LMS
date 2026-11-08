@@ -12,6 +12,8 @@ import EssayGradingModal from './components/EssayGradingModal.jsx';
 import BroadcastModal from './components/BroadcastModal.jsx';
 import AdminToast from './components/AdminToast.jsx';
 import AdminDialog from './components/AdminDialog.jsx';
+import LocalSandboxBanner from '../shared/components/LocalSandboxBanner.jsx';
+import LocalSandboxTab from './tabs/LocalSandboxTab.jsx';
 
 function AdminApp() {
   const admin = useAdminController();
@@ -21,6 +23,7 @@ function AdminApp() {
   if (!isAuthenticated) {
     return (
       <AdminContext.Provider value={admin}>
+        <LocalSandboxBanner />
         <LoginScreen />
       </AdminContext.Provider>
     );
@@ -29,6 +32,7 @@ function AdminApp() {
   return (
     <AdminContext.Provider value={admin}>
       <div className="min-h-screen flex flex-col bg-slate-100 text-slate-900">
+        <LocalSandboxBanner />
       
         {/* HEADER CHÍNH CHUẨN ASIAN SCHOOL */}
         <header className="bg-[#1e3a8a] text-white shadow-md sticky top-0 z-40 border-b-2 border-amber-400 no-print">
@@ -45,7 +49,7 @@ function AdminApp() {
                 <div className="flex items-center space-x-2">
                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold flex items-center space-x-1 ${cloudStatus?.connected ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-400/40' : 'bg-blue-900/60 text-blue-200 border border-blue-700'}`} title={cloudStatus?.connected ? 'Đang đồng bộ thời gian thực với Cloud Firestore (ahs-lms)' : 'Đang chạy lưu trữ cục bộ LocalStorage'}>
                     <span className={`w-1.5 h-1.5 rounded-full ${cloudStatus?.connected ? 'bg-emerald-400 animate-pulse' : 'bg-slate-300'}`}></span>
-                    <span>{cloudStatus?.connected ? 'Firebase Cloud' : 'Offline Mode'}</span>
+                    <span>{cloudStatus?.connected ? (window.AsianSchoolRuntime?.mode === 'local-sandbox' ? 'Bộ thử trên máy' : window.AsianSchoolRuntime?.mode === 'web-sandbox' ? 'Hệ thống thử trên web' : 'Firebase Cloud') : 'Offline Mode'}</span>
                   </span>
                   <h1 className="font-black text-sm sm:text-base text-white tracking-wide uppercase">
                     HỆ THỐNG ĐIỀU HÀNH KHẢO THÍ & CHẤM ĐIỂM
@@ -162,6 +166,10 @@ function AdminApp() {
               <span>⚙️</span>
               <span>Cấu Hình & Bảo Mật</span>
             </button>
+            <button type="button" onClick={() => setActiveTab('sandbox')}
+              className={`px-4 py-3 text-xs font-bold uppercase border-b-4 shrink-0 ${activeTab === 'sandbox' ? 'border-amber-400 text-amber-300 bg-blue-950' : 'border-transparent text-blue-100 hover:bg-blue-800'}`}>
+              🧪 {window.AsianSchoolRuntime?.mode === 'local-sandbox' ? 'Thử nghiệm trên máy' : 'Thử nghiệm trên web'}
+            </button>
           </div>
         </header>
 
@@ -184,6 +192,7 @@ function AdminApp() {
 
           {/* TAB 6: CẤU HÌNH & BẢO MẬT ADMIN */}
           {activeTab === 'config' && <ConfigTab />}
+          {activeTab === 'sandbox' && <LocalSandboxTab />}
 
         </main>
 

@@ -3,6 +3,7 @@ import { useAdmin } from '../AdminContext.js';
 import ExamTimingCard from '../config/ExamTimingCard.jsx';
 import StudentReviewAccessCard from '../config/StudentReviewAccessCard.jsx';
 import ExamAllocationCard from '../config/ExamAllocationCard.jsx';
+import GuidanceConfigCard from '../config/GuidanceConfigCard.jsx';
 import RoomPasswordCard from '../config/RoomPasswordCard.jsx';
 import ExamBankCard from '../config/ExamBankCard.jsx';
 import AttemptsCard from '../config/AttemptsCard.jsx';
@@ -26,6 +27,7 @@ export default function ConfigTab() {
 
       {/* 1. CẤU HÌNH THỜI GIAN & CHẾ ĐỘ TRỘN ĐỀ THI */}
       <ExamTimingCard />
+      <GuidanceConfigCard />
 
       {/* QUYỀN XEM LẠI BÀI THI & CHỐT ĐIỂM CHÍNH THỨC */}
       <StudentReviewAccessCard />

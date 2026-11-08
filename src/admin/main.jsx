@@ -2,6 +2,7 @@
 import '../styles/main.css';
 import '../shared/globals.js';
 import '../core/normalize.js';
+import '../core/drive-archive.js';
 import '../core/firebase-config.js';
 import '../core/exam-package.js';
 import '../../data/questions_grade8.js';

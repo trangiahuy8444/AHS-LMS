@@ -3,6 +3,52 @@
 > Tệp trạng thái sống. Mỗi phiên có thay đổi đáng kể thêm một mục **ở đầu** tệp: ngày, đã làm gì (kèm commit), kết quả `npm run check`, việc còn dở, câu hỏi chờ thầy. Repo công khai: không ghi bí mật hay dữ liệu học sinh.
 
 
+## 09/11/2026 — Bộ thử trên web, thông báo chung và chuẩn bị Drive theo lớp
+
+- Theo lựa chọn mới, tạo dự án Spark riêng ahs-lms-sandbox và Firestore miễn phí asia-southeast1. Đã phát hành website thử tại https://ahs-lms-sandbox.web.app/admin/ và https://ahs-lms-sandbox.firebaseapp.com/test/; chỉ tài khoản dùng chung đã được giáo viên chỉ định, không bật anonymous. Không ghi thông tin đăng nhập vào nhật ký. Alias xác thực riêng chỉ có quyền ở rules thử.
+- Hai cổng web đăng nhập thành công; diễn tập ôn tập, chọn MCQ, nhập tự luận và nộp thành công. Kiểm tra cloud: hàng chờ practice_results theo đúng lớp xuất hiện nguyên tử với nguồn. Không đọc hoặc sửa dữ liệu thi thật trong kiểm chứng.
+- Entry và màn hình làm bài dùng chung thông báo theo chế độ, cập nhật từ cấu hình admin, cùng thời lượng thi. Tự luận đã dùng chung cách trình bày ở làm/xem/chấm bài.
+- Drive: đã tạo thư mục gốc riêng tư cho chủ tài khoản; có worker Apps Script hai môi trường, trigger5phút, chia năm/kỳ/khối/lớp, JSON đầy đủ và Sheet upsert. Có outbox nguyên tử tại các đường ghi, retry, receipt đúng revision, backfill theo trang. Cờ worker driveArchiveEnabled tách khỏi driveArchiveProtectDeletes. Không lưu token hoặc mật khẩu vào mã worker/nhật ký.
+- Kiểm tích hợp cuối:184 Node đạt/3 private skip,151 Vitest đạt;30 rules emulator đạt; lint/build/chặn lọt đề đạt. Đã sửa thêm nhầm bản dựng trên domain thử phải dừng trước khi khởi tạo Firebase thật, và reset lượt chỉ báo thành công sau batch ack.
+- Bản thử đã phát hành thành công lần đầu. Bản cập nhật cuối (nhãn điều hướng web và tách cờ bảo vệ xóa) đã kiểm xong nhưng lệnh phát hành chưa chạy: auto-review không thể xét duyệt do hết hạn mức, không kết luận thao tác nguy hiểm. Không thử đường khác để bỏ qua xét duyệt.
+- Quyền CLI Firebase và Apps Script đã được người dùng xác nhận và công cụ xác minh đăng nhập thành công. Worker Drive chưa được tạo/upload/install/ủy quyền chạy và chưa có lượt ghi Drive thực tế; không được báo đã bật sao lưu. Bản mã riêng để upload đã chuẩn bị trong /tmp/ahs-drive-worker-upload. Không phát hành client/rules thật; sản xuất vẫn cần cổng phát hành riêng.
+
+
+## 08/11/2026 — Hệ thống thử cục bộ đầy đủ
+
+- Giáo viên chọn chạy thử trên máy này. Thêm mode sandbox dùng cùng ứng dụng/rules với Auth/Firestore Emulator project demo-ahs-local, chỉ loopback. Admin/student tách origin; không dùng Firebase thật hoặc tự chuyển sang cloud khi lỗi. CSP bản thử chỉ cho kết nối dịch vụ cục bộ.
+- Tách roster, đề ôn tập và 12 mã đề thi bằng dữ liệu giả. Admin có tab Thử nghiệm trên máy; banner rõ trên hai cổng. AI/Sheets dùng phản hồi mô phỏng có nhãn; nhật ký Sheets tải xuống được, không gọi dịch vụ thật. Bản thường giữ cấu hình/luồng hiện hành.
+- Bộ chạy Java/Firebase riêng ngoài Drive tại Developer; tệp MO_HE_THONG_THU.command đồng bộ mã nguồn vào bản chạy và mở hệ thống. Dừng sạch có lưu/khôi phục emulator; xử lý Ctrl+C lặp để tránh mất bản xuất.
+- Kiểm tự động trên snapshot:135 Node đạt/3 private skip,127 Vitest đạt; lint/build/chặn lọt đề đạt.23 rules emulator đạt. Review độc lập phát hiện và đã sửa lỗi mã hóa tên tài khoản giả và gửi trùng tín hiệu dừng; kiểm thử hồi quy/diễn tập dừng-mở lại đạt.
+- Trình duyệt cục bộ: đăng nhập hai vai; bắt đầu thi, nhập trắc nghiệm+tự luận, cộng5phút, khóa/mở và giữ bài, nộp, xem/chấm AI mô phỏng, duyệt/lưu điểm. Đã đối chiếu bản ghi emulator lưu điểm; không có lỗi trang hoặc yêu cầu đến Firebase thật. REST kiểm quyền học sinh không đọc kho đáp án hoặc tự mở khóa. Dữ liệu kiểm chứng đều giả, không ghi chi tiết đề/danh tính vào log công khai.
+- Diễn tập thêm trên bản cài cuối: ôn tập Khối10, câu Đ/S, nộp/xem lại trên màn hình390px không tràn. Phát hiện lỗi có sẵn khi tự lưu điểm bài thi bỏ trống câu: userChoice undefined bị Firestore từ chối; đổi dữ liệu lưu thành null (giữ nguyên lựa chọn0/false và cách chấm), kiểm thử đỏ→xanh. Đã kiểm backend tự lưu điểm trắc nghiệm và autoGradedAt thành công khi bỏ trống câu.
+- Không phát hành web/rules thật. Bộ thử không xác nhận Google OAuth, chất lượng Gemini hoặc gửi Google Sheets thật; không thay thế nghiệm thu thật.
+
+
+## 08/11/2026 — Đồng bộ tự luận tại các màn hình xem/chấm
+
+- Dùng chung hàm trình bày tự luận tại bài làm, xem lại ôn tập, tra đáp án và cửa sổ chấm. Giữ các ý tách sẵn; không tách câu đơn/chuỗi ký hiệu mơ hồ. Barem quản trị đọc cả `modelAnswer`, `rubric`, `answerGuide`.
+- Thêm kiểm thử thành phần thực và trường hợp biên. Kiểm đầy đủ trên bản sao nguồn: 123 Node đạt, 3 private skip, 116 Vitest đạt; lint/build/chặn lọt đề đạt. Đã rà soát độc lập phần dùng chung và các điểm tích hợp.
+- Chưa phát hành. Giáo viên yêu cầu chạy thử toàn bộ chức năng không ảnh hưởng học sinh; đang chốt chọn môi trường riêng trên web hoặc máy cục bộ, chưa thay cấu hình/rules/dữ liệu thật.
+
+
+## 08/11/2026 — Thống nhất trình bày tự luận giữa thi và ôn tập
+
+- Giao diện tự luận nhận cả dữ liệu tách sẵn `subItems` và dạng cũ gộp các ý a), b) trong đề bài; chỉ tách chuỗi ký hiệu liên tiếp, giữ nguyên nội dung, ví dụ và điểm từng ý. Không sửa dữ liệu kho đề hoặc cách chấm.
+- Kiểm thử hồi quy cho cả hai chế độ: đã chứng kiến 2 test thất bại trước sửa, 4 test tương thích đạt sau sửa. `npm run check` trên bản sao cục bộ đạt: lint, Node, 109 Vitest, build và chặn lọt đề. Các test cần gói đề riêng tư bỏ qua trong bản sao.
+- Chưa phát hành lên web thật; cần kiểm tra hiển thị thực tế sau phát hành.
+
+
+## 07/11/2026 — Hướng dẫn trong bài làm và nhắc nhở riêng
+
+- Theo xác nhận giáo viên: đếm riêng nhắc nhở, giáo viên tự xử lý. Thêm nút gửi nội dung riêng trên thẻ giám sát; lưu số lần trên dữ liệu được bảo vệ, không tăng trùng khi thử lại và giữ khi học sinh tải lại.
+- Thêm cấu hình tiêu đề/nội dung hướng dẫn riêng cho ôn tập và thi chính thức, hiển thị trong bài làm. Chờ máy chủ xác nhận trước khi báo lưu/gửi thành công.
+- Phân biệt lớp trong nhóm thẻ giám sát để tránh gộp học sinh trùng mã LMS/họ tên giữa các lớp.
+- Review độc lập phát hiện banner bị che khi bài khóa; đã sửa và kiểm thử hồi quy đỏ → xanh. Không còn blocker trong phạm vi review.
+- Kiểm cuối:123 Node đạt/3 private skip,107 Vitest đạt,23 rules emulator đạt; lint/build/chặn lọt đề đạt. Mô phỏng trình duyệt bằng dữ liệu giả: sửa hướng dẫn, gửi nhắc hai lần, màn hình nhỏ không tràn; không ghi vào Firebase thật.
+- Không cần thay rules cho tính năng này; dùng quyền ghi giáo viên đã có. Đã phát hành client `8db089c`, GitHub Pages run42339355177 đạt; trang gốc/test/admin HTTP200 và JS/CSS khớp build.
+
+
 ## 03/11/2026 — Nâng cấp Khảo thí: Chống nộp sớm, Khóa bài làm, Chốt điểm học sinh, Bảo toàn dữ liệu & Google Sheets 5 Tab
 
 - **1. Chống nộp bài sớm (Anti-Early Submission)**:

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAdmin } from '../AdminContext.js';
+import DriveArchiveStatusCard from './DriveArchiveStatusCard.jsx';
 
 // 3. KẾT NỐI GOOGLE DRIVE & GOOGLE SHEETS
 export default function DriveSyncCard() {
@@ -9,17 +10,18 @@ export default function DriveSyncCard() {
 
   return (
     <div className="bg-white p-6 rounded-3xl border-2 border-slate-200/80 shadow-sm space-y-4">
+      <DriveArchiveStatusCard />
       <div className="flex items-center justify-between border-b border-slate-100 pb-3">
         <h3 className="font-black text-sm text-blue-950 uppercase tracking-wider flex items-center space-x-2">
           <span>☁️</span>
-          <span>KẾT NỐI GOOGLE DRIVE & GOOGLE SHEETS (LƯU TRỮ VĨNH VIỄN)</span>
+          <span>ĐỒNG BỘ GOOGLE SHEETS THỦ CÔNG (CHỨC NĂNG CŨ)</span>
         </h3>
         <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
           100% Miễn Phí
         </span>
       </div>
       <p className="text-xs text-slate-500 font-medium">
-        Tự động đồng bộ từng dòng điểm vào Google Sheets và lưu trữ tệp sao lưu kỳ thi lên Google Drive cá nhân của Thầy mà không lo mất dữ liệu.
+        Đây là chức năng đồng bộ bảng điểm cũ qua webhook. Không thay thế bộ lưu trữ dữ liệu thi tự động ở trên; trạng thái hai chức năng được theo dõi riêng.
       </p>
 
       <div className="space-y-3">

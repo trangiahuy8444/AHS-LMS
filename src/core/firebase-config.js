@@ -6,7 +6,22 @@
 
 (function () {
   // Firebase configuration được cung cấp cho dự án ahs-lms
-  const firebaseConfig = {
+  const runtime = window.AsianSchoolRuntime;
+  const isLocalSandbox = runtime?.mode === 'local-sandbox';
+  const isWebSandbox = runtime?.mode === 'web-sandbox';
+  const isSandbox = isLocalSandbox || isWebSandbox;
+  if (['ahs-lms-sandbox.web.app','ahs-lms-sandbox.firebaseapp.com'].includes(window.location.hostname) && !isWebSandbox) {
+    throw new Error('Website thử nhận nhầm bản dựng; không được kết nối hệ thống học sinh.');
+  }
+  if (isWebSandbox && (runtime.projectId !== 'ahs-lms-sandbox' || runtime.firebaseConfig?.projectId !== 'ahs-lms-sandbox' || runtime.firebaseConfig?.authDomain !== 'ahs-lms-sandbox.firebaseapp.com' || !['ahs-lms-sandbox.web.app','ahs-lms-sandbox.firebaseapp.com'].includes(window.location.hostname) || window.location.protocol !== 'https:')) {
+    throw new Error('Bản thử trên web không được kết nối hệ thống học sinh.');
+  }
+  if (isLocalSandbox && (runtime.projectId !== 'demo-ahs-local' || runtime.host !== '127.0.0.1' || runtime.authPort !== 9098 || runtime.firestorePort !== 8188 || !['localhost', '127.0.0.1'].includes(window.location.hostname) || window.location.port !== '5188')) {
+    throw new Error('Cấu hình hệ thống thử không hợp lệ; đã dừng để bảo vệ dữ liệu thật.');
+  }
+  const firebaseConfig = isLocalSandbox ? {
+    apiKey: 'local-sandbox-not-a-real-key', authDomain: 'localhost', projectId: 'demo-ahs-local', appId: 'demo-ahs-local'
+  } : isWebSandbox ? runtime.firebaseConfig : {
     apiKey: "AIzaSyDCP1lUNYeiJbZuUfOwe-as7Eg13xIAzF8",
     authDomain: "ahs-lms.firebaseapp.com",
     projectId: "ahs-lms",
@@ -43,11 +58,18 @@
         app = firebase.app();
       }
 
+      if (isSandbox && app.options?.projectId !== firebaseConfig.projectId) throw new Error('Không được dùng Firebase thật trong hệ thống thử.');
+      if (isLocalSandbox) {
+        if (app.options?.projectId !== 'demo-ahs-local') throw new Error('Không được dùng Firebase thật trong hệ thống thử.');
+        firebase.auth().useEmulator('http://127.0.0.1:9098', { disableWarnings: true });
+      }
+
       if (typeof firebase.firestore === 'function') {
         db = firebase.firestore();
+        if (isLocalSandbox) db.useEmulator('127.0.0.1', 8188);
         // Cho phép lưu cache offline trên trình duyệt
         try {
-          db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
+          if (!isLocalSandbox) db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
             if (err.code === 'failed-precondition') {
               console.warn('[Firebase] Đa tab đang mở, persistence kích hoạt tab đầu tiên.');
             } else if (err.code === 'unimplemented') {
@@ -73,8 +95,9 @@
         lastError: null
       });
 
-      console.log('✅ [Firebase] Khởi tạo thành công kết nối Cloud Firestore (Project: ahs-lms)');
+      console.log(isWebSandbox ? '🧪 Hệ thống thử trên web: ahs-lms-sandbox' : isLocalSandbox ? '🧪 Hệ thống thử cục bộ: demo-ahs-local' : '✅ [Firebase] Khởi tạo thành công kết nối Cloud Firestore (Project: ahs-lms)');
     } catch (err) {
+      if (isSandbox) throw err; // Không dùng tiếp app thật hoặc lùi sang kết nối khác.
       console.warn('⚠️ [Firebase] Khởi tạo không thành công:', err.message);
       updateStatus({
         connected: false,
@@ -377,6 +400,7 @@
   // Xác thực: học sinh đăng nhập ẩn danh; giáo viên đăng nhập Google.
   // Danh sách này phải khớp hàm isTeacher() trong firestore.rules (rules mới là nơi chặn thật).
   const TEACHER_EMAILS = ['trangiahuy8444@gmail.com'];
+  const allowedTeacherEmails = isWebSandbox ? ['admin@ahs-lms-sandbox.invalid'] : TEACHER_EMAILS;
   const auth = (app && typeof firebase.auth === 'function') ? firebase.auth() : null;
   const authListeners = [];
   let authState = { user: null, isTeacher: false, ready: false };
@@ -454,6 +478,19 @@
     return `g${Number(grade)}_${lmsKey(studentId)}`;
   }
 
+  function archiveWrite(batch, collection, id, routing) {
+    window.AsianSchoolDriveArchive?.addArchiveWrite(batch, collection, id, routing);
+  }
+
+  function persistArchived(ref, collection, id, value, routing, replace = false) {
+    if (!window.AsianSchoolDriveArchive) return replace ? ref.set(value) : ref.update(value);
+    const batch = db.batch();
+    if (replace) batch.set(ref, value);
+    else batch.update(ref, value);
+    archiveWrite(batch, collection, id || ref.id, routing || value);
+    return batch.commit();
+  }
+
   async function startExam(data) {
     const user = await waitForUser();
     const uid = user.uid;
@@ -500,13 +537,13 @@
     // rules vẫn kiểm mật khẩu và ca thi, chỉ thay uid/deviceChanges, không đổi mã hay số lượt.
     if (!attempt && cfg.codeAllocationMode === 'student_choice') {
       try {
-        await attemptRef.update({ uid, deviceChanges: FieldValue.increment(1) });
+        await persistArchived(attemptRef, 'exam_attempts', attemptId, { uid, deviceChanges: FieldValue.increment(1) }, { grade, studentClass: data.studentClass });
         attempt = await readAttempt(attemptRef);
       } catch (e) { /* Không có lượt hoặc chưa được phép nhận lại: tiếp tục kiểm lượt mới bên dưới. */ }
       if (!attempt && scopedAttemptId !== legacyAttemptId) {
         try {
           const legacyRef = db.collection('exam_attempts').doc(legacyAttemptId);
-          await legacyRef.update({ uid, deviceChanges: FieldValue.increment(1) });
+          await persistArchived(legacyRef, 'exam_attempts', legacyAttemptId, { uid, deviceChanges: FieldValue.increment(1) }, { grade, studentClass: data.studentClass });
           const legacyAttempt = await readAttempt(legacyRef);
           if (legacyAttempt && legacyAttempt.studentClass === data.studentClass) {
             attemptId = legacyAttemptId;
@@ -522,7 +559,7 @@
         ? 'Em hãy chọn một mã đề đang được bật của đúng khối trước khi bắt đầu lượt thi mới.'
         : `Chưa có mã đề đang bật cho Lớp ${data.studentClass}. Em báo Thầy/Cô giám thị.`);
       try {
-        await attemptRef.set({
+        await persistArchived(attemptRef, 'exam_attempts', attemptId, {
           grade,
           studentId: key,
           studentClass: data.studentClass,
@@ -535,12 +572,12 @@
           deviceChanges: 0,
           durationMinutes: cfg.examDurationMinutes || 45,
           extraTimeSeconds: 0
-        });
+        }, { grade, studentClass: data.studentClass }, true);
       } catch (createErr) {
         console.warn('[startExam] Lượt thi mới không tạo được, thử nhận lại lượt từ máy khác:', createErr?.message || createErr);
         // Mã LMS này đã có lượt thi từ máy khác: nhận lại lượt bằng mật khẩu phòng thi
         try {
-          await attemptRef.update({ uid, deviceChanges: FieldValue.increment(1) });
+          await persistArchived(attemptRef, 'exam_attempts', attemptId, { uid, deviceChanges: FieldValue.increment(1) }, { grade, studentClass: data.studentClass });
         } catch (takeoverErr) {
           console.warn('[startExam] Nhận lại lượt thất bại:', takeoverErr?.message || takeoverErr);
           const isPerm = (createErr && createErr.code === 'permission-denied') || (takeoverErr && takeoverErr.code === 'permission-denied');
@@ -568,7 +605,7 @@
         ? 'Em hãy chọn một mã đề đang được bật của đúng khối trước khi bắt đầu lượt thi mới.'
         : `Chưa có mã đề đang bật cho Lớp ${attempt.studentClass}. Em báo Thầy/Cô giám thị.`);
       try {
-        await attemptRef.update({
+        await persistArchived(attemptRef, 'exam_attempts', attemptId, {
           attemptsUsed: FieldValue.increment(1),
           submitted: false,
           startedAt: FieldValue.serverTimestamp(),
@@ -580,7 +617,7 @@
           locked: false,
           lockCount: 0,
           lockReason: FieldValue.delete()
-        });
+        }, attempt);
       } catch (e) {
         throw denied;
       }
@@ -672,7 +709,7 @@
       update.lockCount = FieldValue.increment(1);
     }
     return resolveAttemptDocRef(grade, studentClass, studentId)
-      .then(ref => ref.update(update))
+      .then(ref => persistArchived(ref, 'exam_attempts', ref.id, update, { grade, studentClass }))
       .then(() => true)
       .catch((e) => { console.warn('[Firestore] Ghi vi phạm thất bại:', e.message); return false; });
   }
@@ -730,13 +767,127 @@
   async function setAttemptLock({ grade, studentClass, studentId, locked }) {
     const FieldValue = firebase.firestore.FieldValue;
     const ref = await resolveAttemptDocRef(grade, studentClass, studentId);
-    return ref.update(locked
+    return persistArchived(ref, 'exam_attempts', ref.id, locked
       ? { locked: true, lockReason: 'proctor_lock', lockCount: FieldValue.increment(1) }
-      : { locked: false, lockReason: FieldValue.delete() });
+      : { locked: false, lockReason: FieldValue.delete() }, { grade, studentClass });
   }
 
   // Giáo viên gia hạn trên lượt thi, không phụ thuộc một tab/session cụ thể.
   // Transaction đọc trạng thái mới nhất nên ca đã nộp không được cộng giờ và hai giám thị không ghi đè nhau.
+  function reminderTargetMatches(data, target) {
+    return Number(data.grade) === Number(target.grade)
+      && data.studentClass === target.studentClass && data.studentId === target.studentId
+      && data.mode === target.mode;
+  }
+
+  function reminderForRun(data, target, runId) {
+    const reminder = data.teacherReminder;
+    return reminder && reminderTargetMatches(reminder, target) && reminder.runId === runId
+      && Number.isSafeInteger(reminder.count) && reminder.count > 0 ? reminder : null;
+  }
+
+  // Ghi nhắc nhở riêng của giáo viên. Event id giữ nguyên khi gửi lại sau lỗi mạng.
+  async function recordTeacherReminder(target) {
+    await waitForUser();
+    const message = String(target.message || '').trim();
+    if (!message || message.length > 1000 || !/^[A-Za-z0-9_-]{1,100}$/.test(target.requestId || '')) {
+      throw new Error('Nội dung nhắc nhở hoặc mã gửi chưa hợp lệ.');
+    }
+    const liveRef = db.collection('live_sessions').doc(target.sessionId);
+    const eventRef = db.collection('proctor_commands').doc('reminder-' + target.requestId);
+    const stateRef = db.collection('proctor_commands').doc('reminder-state-' + target.sessionId);
+    const attemptRef = target.mode === 'exam'
+      ? await resolveAttemptDocRef(target.grade, target.studentClass, target.studentId) : null;
+    return db.runTransaction(async transaction => {
+      const previousEvent = await transaction.get(eventRef);
+      if (previousEvent.exists) {
+        const event = previousEvent.data();
+        if (event.targetSessionId !== target.sessionId || !reminderTargetMatches(event.payload.reminder, target)) {
+          throw new Error('Mã gửi không khớp phiên học sinh.');
+        }
+        return event.payload.reminder;
+      }
+      const liveSnap = await transaction.get(liveRef);
+      if (!liveSnap.exists) throw new Error('Phiên học sinh đã kết thúc.');
+      const live = liveSnap.data();
+      if (!reminderTargetMatches(live, target) || live.uid !== target.uid || !live.uid
+        || !['in_progress', 'practicing', 'locked'].includes(live.status)) {
+        throw new Error('Phiên học sinh đã thay đổi. Thầy chọn lại thẻ đang làm bài.');
+      }
+      let data = live;
+      let runId = 'practice:' + target.sessionId;
+      if (attemptRef) {
+        const attemptSnap = await transaction.get(attemptRef);
+        if (!attemptSnap.exists) throw new Error('Không tìm thấy lượt thi.');
+        data = attemptSnap.data();
+        if (data.submitted || data.uid !== live.uid || data.studentClass !== live.studentClass
+          || data.studentId !== live.studentId || Number(data.grade) !== Number(live.grade)) {
+          throw new Error('Lượt thi đã thay đổi hoặc đã nộp. Thầy kiểm tra lại thẻ học sinh.');
+        }
+        runId = 'exam:' + toMillis(data.startedAt);
+      } else {
+        const state = await transaction.get(stateRef);
+        data = state.exists ? { teacherReminder: state.data().payload.reminder } : {};
+      }
+      const previous = reminderForRun(data, target, runId);
+      const reminder = {
+        id: target.requestId, runId, count: (previous?.count || 0) + 1, message,
+        grade: Number(target.grade), studentClass: target.studentClass,
+        studentId: target.studentId, mode: target.mode, createdAt: Date.now()
+      };
+      if (attemptRef) {
+        transaction.update(attemptRef, { teacherReminder: reminder });
+        archiveWrite(transaction, 'exam_attempts', attemptRef.id, { grade: target.grade, studentClass: target.studentClass });
+      } else {
+        transaction.set(stateRef, {
+          cmdId: 'reminder-state-' + target.sessionId, targetSessionId: target.sessionId,
+          targetUid: live.uid, command: 'teacher_reminder_state', payload: { reminder },
+          createdAt: reminder.createdAt, consumedBy: []
+        });
+        archiveWrite(transaction, 'proctor_commands', 'reminder-state-' + target.sessionId, { payload: { reminder } });
+      }
+      transaction.update(liveRef, { teacherReminder: reminder });
+      transaction.set(eventRef, {
+        cmdId: 'reminder-' + target.requestId, targetSessionId: target.sessionId,
+        targetUid: live.uid, command: 'teacher_reminder', payload: { reminder },
+        createdAt: reminder.createdAt, consumedBy: []
+      });
+      archiveWrite(transaction, 'proctor_commands', 'reminder-' + target.requestId, { payload: { reminder } });
+      return reminder;
+    });
+  }
+
+  function watchTeacherReminder(target, callback) {
+    if (!db) return () => {};
+    if (target.mode === 'exam') {
+      let unsubscribe = null;
+      let cancelled = false;
+      resolveAttemptDocRef(target.grade, target.studentClass, target.studentId).then(ref => {
+        if (cancelled) return;
+        unsubscribe = ref.onSnapshot({ includeMetadataChanges: true }, snapshot => {
+          if (snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites) return;
+          const data = snapshot.exists ? snapshot.data() : null;
+          callback(data ? reminderForRun(data, target, 'exam:' + toMillis(data.startedAt)) : null);
+        }, error => console.warn('[Firestore] Chưa đọc được nhắc nhở:', error.code));
+      }).catch(error => console.warn('[Firestore] Chưa tìm được lượt nhắc nhở:', error.code));
+      return () => { cancelled = true; unsubscribe?.(); };
+    }
+    const uid = target.uid || auth?.currentUser?.uid;
+    if (!uid) return () => {};
+    // Trạng thái ôn tập do giáo viên ghi trong collection lệnh, học sinh chỉ đọc được của mình.
+    return db.collection('proctor_commands').where('targetUid', '==', uid).onSnapshot({ includeMetadataChanges: true }, snapshot => {
+      if (snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites) return;
+      let reminder = null;
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.command === 'teacher_reminder_state' && data.targetSessionId === target.sessionId) {
+          reminder = reminderForRun({ teacherReminder: data.payload?.reminder }, target, 'practice:' + target.sessionId);
+        }
+      });
+      callback(reminder);
+    }, error => console.warn('[Firestore] Chưa đọc được nhắc nhở:', error.code));
+  }
+
   async function extendExamTime({ grade, studentClass, studentId, minutes }) {
     await waitForUser();
     const extra = Number(minutes) * 60;
@@ -755,6 +906,7 @@
       }
       const extraTimeSeconds = oldExtra + extra;
       tx.update(ref, { extraTimeSeconds });
+      archiveWrite(tx, 'exam_attempts', ref.id, attempt);
       return { applied: true, extraTimeSeconds };
     });
   }
@@ -844,6 +996,8 @@
         essayTotal: 0,
         teacherFeedback: ''
       });
+      archiveWrite(batch, 'exam_attempts', attemptId, { grade, studentClass: a.studentClass });
+      archiveWrite(batch, 'submissions', subId, { grade, studentClass: a.studentClass });
       await withTimeout(batch.commit(), 20000,
         'Mạng chậm, bài chưa gửi xong. Em giữ nguyên trang này, kiểm tra mạng rồi bấm nộp lại.');
     }
@@ -880,10 +1034,16 @@
     if (!db || !subId) return false;
     await waitForUser();
     const FieldValue = firebase.firestore.FieldValue;
-    await db.collection('submissions').doc(subId).update({
-      scoreConfirmed: true,
-      scoreConfirmedAt: FieldValue.serverTimestamp()
-    });
+    const ref = db.collection('submissions').doc(subId);
+    if (window.AsianSchoolDriveArchive) {
+      const source = await ref.get({ source: 'server' });
+      if (!source.exists) throw new Error('Không tìm thấy bài nộp để xác nhận.');
+      await persistArchived(ref, 'submissions', subId, {
+        scoreConfirmed: true, scoreConfirmedAt: FieldValue.serverTimestamp()
+      }, source.data());
+    } else {
+      await ref.update({ scoreConfirmed: true, scoreConfirmedAt: FieldValue.serverTimestamp() });
+    }
     return true;
   }
 
@@ -1171,6 +1331,17 @@
     window.firebaseAnalytics = analytics;
     window.AsianSchoolCloudSyncStatus = syncStatus;
 
+    async function signInWebSandbox(credentials = {}) {
+      if (!isWebSandbox || !auth) throw new Error('Không phải hệ thống thử trên web.');
+      if (String(credentials.username || '').trim().toLowerCase() !== 'admin' || !credentials.password) {
+        throw new Error('Nhập tài khoản và mật khẩu của hệ thống thử.');
+      }
+      const bytes = new TextEncoder().encode('ahs-lms-sandbox:' + String(credentials.password));
+      const digest = await crypto.subtle.digest('SHA-256', bytes);
+      const password = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+      return auth.signInWithEmailAndPassword('admin@ahs-lms-sandbox.invalid', password);
+    }
+
     window.AsianSchoolAuth = {
       getState: () => authState,
       onChange(cb) {
@@ -1178,8 +1349,20 @@
         if (authState.ready) cb(authState);
         return () => { const i = authListeners.indexOf(cb); if (i >= 0) authListeners.splice(i, 1); };
       },
-      signInTeacher() {
+      signInSandbox: signInWebSandbox,
+      signInTeacher(credentials) {
+        if (isWebSandbox) return signInWebSandbox(credentials);
         if (!auth) return Promise.reject(new Error('Chưa nạp Firebase Auth.'));
+        if (isLocalSandbox) {
+          // Danh tính giả chỉ Auth Emulator chấp nhận; vẫn áp dụng firestore.rules gốc.
+          const encode = (value) => btoa(JSON.stringify(value)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+          const idToken = encode({ alg: 'none', typ: 'JWT' }) + '.' + encode({
+            sub: 'ahs-local-teacher', email: TEACHER_EMAILS[0], email_verified: true,
+            name: 'Giao Vien Thu', aud: 'demo-ahs-local', iss: 'https://accounts.google.com',
+            iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + 3600
+          }) + '.';
+          return auth.signInWithCredential(firebase.auth.GoogleAuthProvider.credential(idToken));
+        }
         const provider = new firebase.auth.GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
         return auth.signInWithPopup(provider);
@@ -1192,7 +1375,7 @@
       }
     };
 
-    window.AsianSchoolCloud = { startExam, submitExam, loadExam, reportViolation, watchAttempt, setAttemptLock, extendExamTime, watchSubmission, confirmSubmissionScore, lookupSubmissionForReview };
+    window.AsianSchoolCloud = { recordTeacherReminder, watchTeacherReminder, startExam, submitExam, loadExam, reportViolation, watchAttempt, setAttemptLock, extendExamTime, watchSubmission, confirmSubmissionScore, lookupSubmissionForReview };
 
     const pathname = (window.location && window.location.pathname) || '';
     const isStudentPortal = pathname.includes('/test');
@@ -1206,7 +1389,7 @@
 
     if (auth) {
       auth.onAuthStateChanged(async (user) => {
-        if (!user && isStudentPortal) {
+        if (!user && isStudentPortal && !isWebSandbox) {
           auth.signInAnonymously().catch((err) => {
             console.warn('[Firebase Auth] Đăng nhập ẩn danh thất bại:', err.message);
             updateStatus({ lastError: err.message });
@@ -1215,7 +1398,7 @@
         }
         let isTeacher = false;
         if (user && !user.isAnonymous) {
-          isTeacher = user.emailVerified && TEACHER_EMAILS.includes(String(user.email || '').toLowerCase());
+          isTeacher = user.emailVerified && allowedTeacherEmails.includes(String(user.email || '').toLowerCase());
         }
         setAuthState({ user, isTeacher, ready: true });
         // Trang học sinh: gắn listener khi đã có phiên ẩn danh. Trang quản trị: chỉ khi là giáo viên.

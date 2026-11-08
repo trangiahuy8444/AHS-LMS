@@ -5,8 +5,17 @@
  */
 
 (function () {
+  function writeArchivedSource(collection, id, data, options, routing) {
+    const archive = typeof window !== 'undefined' ? window.AsianSchoolDriveArchive : null;
+    if (archive) return archive.writeCanonical(collection, id, data, options, routing);
+    // Legacy embedders and unit-test harnesses that have not loaded the outbox yet.
+    const ref = window.firebaseDb.collection(collection).doc(id);
+    return options ? ref.set(data, options) : ref.set(data);
+  }
+
   const SUBMISSIONS_KEY = 'asian_school_submissions_v1';
   const PRACTICE_SUBMISSIONS_KEY = 'asian_school_practice_submissions_v1';
+  const PRACTICE_QUEUE_LEDGER_KEY = 'asian_school_practice_queue_ledger_v1';
   const LIVE_KEY = 'asian_school_live_sessions_v1';
   // Giao kèo heartbeat với firestore.rules; bỏ trường cũ/lạ trước khi gửi.
   const LIVE_FIELDS = ['sessionId', 'uid', 'fullName', 'studentClass', 'studentId', 'grade',
@@ -555,6 +564,9 @@
     }
 
     deleteSubmission(subId) {
+      if (this.getConfig().driveArchiveProtectDeletes === true && typeof window !== 'undefined' && window.AsianSchoolDriveArchive?.enabled()) {
+        return { success: false, error: 'Đang bảo vệ dữ liệu lưu Drive. Cần đối chiếu bản lưu hiện tại trước khi xóa hoặc đặt lại lượt thi.' };
+      }
       const targetId = String(subId || '').trim();
       if (!targetId) return { success: false, error: 'Mã bài nộp không hợp lệ' };
 
@@ -627,6 +639,9 @@
     }
 
     async resetExamAttempt({ grade, studentClass, studentId, attemptId } = {}) {
+      if (this.getConfig().driveArchiveProtectDeletes === true && typeof window !== 'undefined' && window.AsianSchoolDriveArchive?.enabled()) {
+        return { success: false, error: 'Đang bảo vệ dữ liệu lưu Drive. Cần đối chiếu bản lưu hiện tại trước khi xóa hoặc đặt lại lượt thi.' };
+      }
       if (typeof window === 'undefined' || !window.firebaseDb || typeof window.firebaseDb.collection !== 'function') {
         return { success: false, error: 'Chưa kết nối Cloud Firestore' };
       }
@@ -668,6 +683,9 @@
     }
 
     async clearAllData() {
+      if (this.getConfig().driveArchiveProtectDeletes === true && typeof window !== 'undefined' && window.AsianSchoolDriveArchive?.enabled()) {
+        return { success: false, error: 'Đang bảo vệ dữ liệu lưu Drive. Cần đối chiếu bản lưu hiện tại trước khi xóa hoặc đặt lại lượt thi.' };
+      }
       // 1. Xóa sạch dữ liệu cục bộ LocalStorage
       localStorage.removeItem(SUBMISSIONS_KEY);
       localStorage.removeItem(PRACTICE_SUBMISSIONS_KEY);
@@ -777,7 +795,7 @@
       if (typeof window !== 'undefined' && window.firebaseDb) {
         try {
           if (typeof window.firebaseDb.collection === 'function') {
-            window.firebaseDb.collection('submissions').doc(newDoc.id).set(newDoc).catch(e => console.warn('Firestore sub err', e));
+            writeArchivedSource('submissions', newDoc.id, newDoc).catch(e => console.warn('Firestore sub err', e));
           } else {
             const { collection, addDoc } = window.firebaseFirestoreModule || {};
             if (collection && addDoc) {
@@ -853,14 +871,14 @@
         if (typeof window !== 'undefined' && window.firebaseDb) {
           try {
             if (typeof window.firebaseDb.collection === 'function') {
-              window.firebaseDb.collection('submissions').doc(targetId).set({
+              writeArchivedSource('submissions', targetId, {
                 essayScores,
                 essayTotal,
                 finalScore,
                 teacherFeedback: sub.teacherFeedback,
                 isGraded: true,
                 gradedAt: sub.gradedAt
-              }, { merge: true }).catch(e => console.warn('Firestore grade sync err', e));
+              }, { merge: true }, sub).catch(e => console.warn('Firestore grade sync err', e));
             }
           } catch (e) { /* fallback local */ }
         }
@@ -919,7 +937,7 @@
       this.notify(this.submissionListeners, list);
       if (typeof window !== 'undefined' && window.firebaseDb && typeof window.firebaseDb.collection === 'function') {
         graded.forEach(({ id, update }) => {
-          window.firebaseDb.collection('submissions').doc(id).set(update, { merge: true })
+          writeArchivedSource('submissions', id, update, { merge: true }, list.find(sub => sub.id === id))
             .catch(e => console.warn('Firestore auto-grade err', e));
         });
       }
@@ -1097,6 +1115,9 @@
     }
 
     purgeOldExamSubmissions(options = {}) {
+      if (this.getConfig().driveArchiveProtectDeletes === true && typeof window !== 'undefined' && window.AsianSchoolDriveArchive?.enabled()) {
+        return { success: false, error: 'Đang bảo vệ dữ liệu lưu Drive. Cần đối chiếu bản lưu hiện tại trước khi xóa hoặc đặt lại lượt thi.' };
+      }
       const { purgeAll = true, olderThanDays = 0 } = options;
       const all = this.getSubmissions();
       const now = Date.now();
@@ -1150,6 +1171,21 @@
     // Gửi tới Web App Apps Script và ĐỌC phản hồi { success, error } (Apps Script trả CORS cho yêu cầu text/plain).
     // Trước đây gửi không đọc phản hồi nên mọi yêu cầu đều bị coi là thành công, kể cả khi sai token.
     async postToWebhook(url, payload) {
+      if (typeof window !== 'undefined' && ['local-sandbox', 'web-sandbox'].includes(window.AsianSchoolRuntime?.mode)) {
+        try {
+          const logKey = 'ahs_local_sandbox_webhook_log';
+          let entries;
+          try { entries = JSON.parse(localStorage.getItem(logKey) || '[]'); } catch { entries = []; }
+          if (!Array.isArray(entries)) entries = [];
+          const safePayload = { ...payload };
+          delete safePayload.token;
+          entries.push({ timestamp: new Date().toISOString(), simulated: true, payload: safePayload });
+          localStorage.setItem(logKey, JSON.stringify(entries.slice(-50)));
+          return { success: true, data: { success: true, simulated: true, spreadsheetName: 'BẢNG TÍNH THỬ MÔ PHỎNG' } };
+        } catch {
+          return { success: false, error: 'Không lưu được nhật ký đồng bộ thử trên máy. Không có yêu cầu nào được gửi tới Google Sheets.' };
+        }
+      }
       try {
         const res = await fetch(url, {
           method: 'POST',
@@ -1293,9 +1329,28 @@
       const uid = window.AsianSchoolAuth && window.AsianSchoolAuth.uid ? window.AsianSchoolAuth.uid() : null;
       if (!uid) return false;
       const row = { ...this.toPracticeQueueRow(doc), uid };
-      window.firebaseDb.collection('practice_results').doc(row.id).set(row)
+      writeArchivedSource('practice_results', row.id, row)
         .catch(e => console.warn('Firestore practice queue err', e));
       return true;
+    }
+
+    // Chỉ lưu ID và cờ xử lý; mọi nguồn còn trong snapshot được giữ bất kể số lượng.
+    // Ngoài snapshot, giữ tối đa 2.000 ID gần nhất để nhận diện callback cũ mà không tăng bộ nhớ vô hạn.
+    readPracticeQueueLedger() {
+      try {
+        const entries = JSON.parse(localStorage.getItem(PRACTICE_QUEUE_LEDGER_KEY) || '[]');
+        return new Map(Array.isArray(entries) ? entries.filter(entry => Array.isArray(entry)
+          && typeof entry[0] === 'string' && entry[0].length > 0 && entry[0].length <= 250
+          && typeof entry[1] === 'boolean' && typeof entry[2] === 'boolean' && Number.isFinite(entry[3]))
+          .map(([id, merged, webhook, at]) => [id, { merged, webhook, at }]) : []);
+      } catch { return new Map(); }
+    }
+
+    savePracticeQueueLedger(ledger, activeIds) {
+      const pinned = [], recent = [];
+      for (const [id, state] of ledger) (activeIds.has(id) ? pinned : recent).push([id, state.merged, state.webhook, state.at]);
+      recent.sort((a, b) => b[3] - a[3]);
+      localStorage.setItem(PRACTICE_QUEUE_LEDGER_KEY, JSON.stringify([...pinned, ...recent.slice(0, 2000)]));
     }
 
     // Trang quản trị: nhận điểm ôn tập từ hàng chờ, lưu vào bảng điểm ôn tập, đẩy lên Google Sheets, rồi xóa khỏi hàng chờ.
@@ -1304,25 +1359,63 @@
       const cfg = this.getConfig();
       const hasWebhook = (cfg.googleDriveWebhookUrl || '').trim().startsWith('http');
       this._practiceQueueSeen = this._practiceQueueSeen || new Set();
+      this._practiceQueueInFlight = this._practiceQueueInFlight || new Set();
+      this._practiceQueueRemoved = this._practiceQueueRemoved || new Set();
       const known = new Set(this.getPracticeSubmissions().flatMap(s => [s.id, s._queueId, s.submittedAt]).filter(Boolean));
+      this._practiceQueueLedger = this._practiceQueueLedger || this.readPracticeQueueLedger();
+      const ledger = this._practiceQueueLedger;
+      this._practiceQueueActiveIds = new Set((rows || []).filter(row => row && row.id).map(row => row.id));
       let pushed = 0;
       for (const row of rows || []) {
-        if (!row || !row.id) continue;
-        if (!known.has(row.id)) {
-          this.savePracticeSubmission({ ...row, isPracticeOnly: true, isGraded: true, penaltyPoints: 0 });
-          known.add(row.id);
-          if (row.submittedAt) known.add(row.submittedAt);
+        if (!row || !row.id || this._practiceQueueRemoved.has(row.id)) continue;
+        const processed = ledger.get(row.id) || { merged: false, webhook: false, at: Date.now() };
+        if (!processed.merged) {
+          if (!known.has(row.id)) {
+            this.savePracticeSubmission({ ...row, isPracticeOnly: true, isGraded: true, penaltyPoints: 0 });
+            known.add(row.id);
+            if (row.submittedAt) known.add(row.submittedAt);
+          }
+          // Ghi dấu chỉ sau khi bảng điểm cục bộ đã lưu thành công.
+          processed.merged = true;
+          processed.at = Date.now();
+          ledger.set(row.id, processed);
+          this.savePracticeQueueLedger(ledger, this._practiceQueueActiveIds);
         }
-        if (!hasWebhook || this._practiceQueueSeen.has(row.id)) continue;
-        this._practiceQueueSeen.add(row.id);
-        const res = await this.syncRowToGoogleDrive(row);
+        if (!hasWebhook) continue;
+        if (this._practiceQueueInFlight.has(row.id)) continue;
+        const alreadyPushed = processed.webhook || this._practiceQueueSeen.has(row.id);
+        this._practiceQueueInFlight.add(row.id);
+        let res;
+        try { res = alreadyPushed ? { success: true } : await this.syncRowToGoogleDrive(row); }
+        finally { this._practiceQueueInFlight.delete(row.id); }
         if (res && res.success) {
-          pushed++;
-          if (typeof deleteRow === 'function') await Promise.resolve(deleteRow(row.id)).catch(() => {});
+          this._practiceQueueSeen.add(row.id);
+          if (!processed.webhook) {
+            processed.webhook = true;
+            processed.at = Date.now();
+            ledger.set(row.id, processed);
+            this.savePracticeQueueLedger(ledger, this._practiceQueueActiveIds);
+          }
+          if (!alreadyPushed) pushed++;
+          if (typeof deleteRow === 'function') {
+            const archive = typeof window !== 'undefined' ? window.AsianSchoolDriveArchive : null;
+            let archived = !archive?.enabled() || cfg.driveArchiveEnabled !== true;
+            if (archive?.enabled() && cfg.driveArchiveEnabled === true) {
+              try {
+                const receipt = await window.firebaseDb.collection('drive_archive_jobs').doc('practice_results_' + row.id).get();
+                const job = receipt.exists ? receipt.data() : null;
+                archived = !!job && job.pending === false && job.archivedRevision === job.revision;
+              } catch { archived = false; }
+            }
+            if (archived) {
+              try { await Promise.resolve(deleteRow(row.id)); this._practiceQueueRemoved.add(row.id); } catch { /* retry later */ }
+            }
+          }
         } else {
           this._practiceQueueSeen.delete(row.id);
         }
       }
+      this.savePracticeQueueLedger(ledger, this._practiceQueueActiveIds);
       return pushed;
     }
 
@@ -1522,6 +1615,8 @@
       const target = targetSessionId === 'all' ? null : this.getLiveSessions().find(x => x.sessionId === targetSessionId);
       const cmdObj = {
         cmdId: 'cmd-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+        grade: target ? Number(target.grade) : 0,
+        studentClass: target?.studentClass || 'all',
         targetSessionId, // 'all' hoặc sessionId cụ thể
         targetUid: targetSessionId === 'all' ? 'all' : ((target && target.uid) || (command === 'unlock_session' ? 'all' : 'khong_ro')),
         command, // 'extend_time' | 'force_submit' | 'unlock_session' | 'broadcast_message'
@@ -1538,7 +1633,7 @@
       if (typeof window !== 'undefined' && window.firebaseDb) {
         try {
           if (typeof window.firebaseDb.collection === 'function') {
-            window.firebaseDb.collection('proctor_commands').doc(cmdObj.cmdId).set(cmdObj)
+            writeArchivedSource('proctor_commands', cmdObj.cmdId, cmdObj)
               .catch(e => console.warn('Firestore cmd err', e));
           }
         } catch (e) { /* local fallback */ }

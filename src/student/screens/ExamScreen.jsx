@@ -4,13 +4,15 @@ import McqQuestion from '../questions/McqQuestion.jsx';
 import TrueFalseQuestion from '../questions/TrueFalseQuestion.jsx';
 import EssayQuestion from '../questions/EssayQuestion.jsx';
 import QuestionSidebar from '../questions/QuestionSidebar.jsx';
+import StudentGuidance from '../components/StudentGuidance.jsx';
+import TeacherReminderBanner from '../components/TeacherReminderBanner.jsx';
 import CalculatorWidget from '../components/CalculatorWidget.jsx';
 
 // 2 & 3. MÀN HÌNH LÀM BÀI 1 CÂU / LẦN (NỀN TRẮNG SÁNG, TƯƠNG PHẢN CAO, ĐẸP MẮT)
 export default function ExamScreen() {
   const { grade, mode, examState, assignedCode, activeQuestionIdx, setActiveQuestionIdx,
     timeLeftStr, practiceItems, examItems, config, elapsedSeconds,
-    formatElapsed, isCalculatorOpen, setIsCalculatorOpen } = useStudent();
+    formatElapsed, isSessionLocked, isCalculatorOpen, setIsCalculatorOpen } = useStudent();
 
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
@@ -34,31 +36,18 @@ export default function ExamScreen() {
       <div className="lg:col-span-3 space-y-5">
       
         {/* Banner Hướng Dẫn / Kỷ Luật Phòng Thi */}
-        {mode === 'practice' ? (
-          <div className="border-2 border-blue-400 bg-blue-50/80 rounded-2xl p-4 text-blue-950 flex items-start space-x-3 shadow-sm">
-            <span className="text-xl">📖</span>
-            <div className="text-xs space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="font-extrabold text-blue-900 uppercase tracking-wide">
-                  HƯỚNG DẪN ÔN TẬP ĐỀ CƯƠNG — TIN HỌC {grade}
-                </span>
-                <span className="text-blue-800 font-bold bg-blue-100 px-2.5 py-0.5 rounded-lg">Tài liệu SGK: Được phép</span>
-              </div>
-              <p className="text-slate-700 font-medium">Học sinh cần làm đạt từ <strong>6.0 điểm trở lên ít nhất 5 lần</strong> để đủ điều kiện kiểm tra giữa kỳ.</p>
-            </div>
-          </div>
-        ) : (
+        {!isSessionLocked && <TeacherReminderBanner />}
+        <StudentGuidance mode={mode} config={config} />
+        {mode === 'exam' && (
           <div className="border-2 border-red-500 bg-red-50/80 rounded-2xl p-4 text-red-950 space-y-1.5 shadow-sm">
             <div className="flex items-center justify-between border-b border-red-200 pb-1.5">
               <span className="font-black text-xs uppercase tracking-wider text-red-800 flex items-center space-x-1.5">
                 <span>⚠️</span>
-                <span>KỶ LUẬT PHÒNG THI CHÍNH THỨC — MÃ ĐỀ: {assignedCode}</span>
+                <span>THÔNG TIN LƯỢT THI — MÃ ĐỀ: {assignedCode}</span>
               </span>
               <span className="font-mono-code text-xs text-red-700 font-black bg-red-100 px-2.5 py-0.5 rounded-lg">⏱ Thời gian còn: {timeLeftStr}</span>
             </div>
-            <p className="text-xs text-slate-700 font-medium">
-              🚫 <strong>Cấm gian lận:</strong> Không chuyển tab/rời toàn màn hình. Vi phạm đến lần thứ 3 bài sẽ bị khóa, giám thị ghi nhận và xử lý theo quy chế.
-            </p>
+
           </div>
         )}
 

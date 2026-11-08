@@ -94,7 +94,17 @@ function getStorage() {
   return null;
 }
 
+function sandboxMode() {
+  const mode = typeof window !== 'undefined' ? window.AsianSchoolRuntime?.mode : null;
+  return mode === 'local-sandbox' || mode === 'web-sandbox' ? mode : null;
+}
+
+function simulationLabel() {
+  return sandboxMode() === 'web-sandbox' ? 'MÔ PHỎNG WEB THỬ' : 'MÔ PHỎNG CỤC BỘ';
+}
+
 export function getGeminiApiKey() {
+  if (sandboxMode()) return `${sandboxMode()}-not-a-real-key`;
   const s = getStorage();
   return s ? (s.getItem(STORAGE_KEY_API_KEY) || '') : '';
 }
@@ -177,6 +187,11 @@ export function cleanAndParseJSON(str) {
  * Kiểm tra kết nối API Key với Google Gemini (hỗ trợ tự động kiểm tra model dự phòng khi model chính quá tải)
  */
 export async function testGeminiConnection(apiKey, model = DEFAULT_GEMINI_MODEL, autoFallback = true) {
+  if (sandboxMode()) return {
+    success: true, simulated: true, workingModel: sandboxMode(),
+    message: `${simulationLabel()}: kiểm tra luồng kết nối, không gọi Gemini thật.`,
+    sample: simulationLabel()
+  };
   const key = (apiKey || getGeminiApiKey()).trim();
   if (!key) {
     return { success: false, error: 'Chưa nhập Gemini API Key!' };
@@ -316,6 +331,17 @@ export async function gradeSingleEssayWithGemini({
 }) {
   const points = Math.round((Number(maxPoints) || 1.0) * 100) / 100;
   const rawAnswer = String(studentAnswer || '').trim();
+
+  if (sandboxMode()) {
+    const maxScore = Math.max(0, points);
+    const score = rawAnswer ? Math.round(maxScore * 50) / 100 : 0;
+    const feedback = `${simulationLabel()}: điểm minh họa để thử thao tác chấm, không đánh giá chất lượng bài làm và không gọi Gemini thật.`;
+    return {
+      success: true, simulated: true, score, maxScore, feedback,
+      breakdown: [{ item: simulationLabel(), points: score, maxPoints: maxScore, status: 'Điểm minh họa', reason: feedback }],
+      usedModel: sandboxMode(), fallbackCount: 0
+    };
+  }
 
   // Tình huống học sinh bỏ trống: xử lý ngay lập tức không cần tốn lượt gọi API
   if (!rawAnswer) {

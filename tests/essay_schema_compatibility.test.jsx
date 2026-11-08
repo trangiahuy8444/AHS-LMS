@@ -13,3 +13,14 @@ for (const field of ['question', 'context']) {
     expect(screen.getByRole('textbox')).toBeTruthy();
   });
 }
+
+for (const mode of ['exam', 'practice']) {
+  it(`separates inline essay requirements in ${mode} without changing their text`, () => {
+    const value = { mode, examAnswers: { essay: {} }, practiceAnswers: { essay: {} }, setExamAnswers: vi.fn(), setPracticeAnswers: vi.fn() };
+    render(<StudentContext.Provider value={value}><EssayQuestion currentItem={{type: mode === 'exam' ? 'exam_essay' : 'essay', data: {num: 1, question: 'Tình huống giả. a) Yêu cầu thứ nhất (0,5 điểm). b) Yêu cầu thứ hai (ví dụ: nguồn tin). (0,5 điểm)'}}}/></StudentContext.Provider>);
+    expect(screen.getByText('Tình huống giả.')).toBeTruthy();
+    expect(screen.getByText('a)')).toBeTruthy();
+    expect(screen.getByText('Yêu cầu thứ nhất (0,5 điểm).')).toBeTruthy();
+    expect(screen.getByText('Yêu cầu thứ hai (ví dụ: nguồn tin). (0,5 điểm)')).toBeTruthy();
+  });
+}

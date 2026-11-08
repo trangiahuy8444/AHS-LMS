@@ -61,6 +61,13 @@ service cloud.firestore {
       return getAfter(/databases/$(database)/documents/exam_attempts/$(attemptId)).data;
     }
 
+    function archiveDeleteAllowed(collection, sourceId) {
+      let path = /databases/$(database)/documents/drive_archive_jobs/$(collection + '_' + sourceId);
+      return cfg().get('driveArchiveProtectDeletes', false) != true
+        || (exists(path) && get(path).data.pending == false
+          && get(path).data.archivedRevision == get(path).data.revision);
+    }
+
     // Cấu hình công khai cho cổng học sinh (lớp nào đang mở, phân công mã đề, thời lượng). Không chứa mật khẩu.
     match /exam_config/{docId} {
       allow read: if signedIn();
@@ -70,7 +77,8 @@ service cloud.firestore {
     // Mã đề kèm đáp án và mật khẩu phòng thi: chỉ giáo viên
     match /exam_bank/{docId} {
       allow read: if isTeacher();
-      allow write: if bankWriteAllowed();
+      allow create, update: if bankWriteAllowed();
+      allow delete: if bankWriteAllowed() && archiveDeleteAllowed('exam_bank', docId);
     }
     match /exam_secrets/{docId} {
       allow read, write: if isTeacher();
@@ -169,7 +177,7 @@ service cloud.firestore {
       allow read: if isTeacher() || (signedIn() && resource.data.uid == request.auth.uid);
       allow create: if signedIn() && validNewAttempt(request.resource.data);
       allow update: if isTeacher() || (signedIn() && (takeover() || retake() || submit() || reportViolation()));
-      allow delete: if isTeacher();
+      allow delete: if isTeacher() && archiveDeleteAllowed('exam_attempts', attemptId);
     }
 
     // Phiên thi hiện tại của thiết bị: cho biết thiết bị được đọc mã đề nào
@@ -258,7 +266,7 @@ service cloud.firestore {
         && request.resource.data.scoreConfirmed == true
         && request.resource.data.scoreConfirmedAt == request.time
       );
-      allow delete: if isTeacher();
+      allow delete: if isTeacher() && archiveDeleteAllowed('submissions', subId);
     }
 
     // Hàng chờ điểm ôn tập: học sinh ghi dòng của mình, trang quản trị đẩy lên Google Sheets rồi xóa.
@@ -281,7 +289,8 @@ service cloud.firestore {
           && d.submittedAt is string && d.submittedAt.size() <= 40;
       }
       allow create: if signedIn() && validPracticeRow(request.resource.data);
-      allow read, delete: if isTeacher();
+      allow read: if isTeacher();
+      allow delete: if isTeacher() && archiveDeleteAllowed('practice_results', rowId);
     }
 
     // Phiên giám sát trực tiếp
@@ -326,7 +335,54 @@ service cloud.firestore {
     // Học sinh chỉ đọc lệnh gửi cho mình (targetUid) hoặc cả phòng ('all'); truy vấn phía học sinh lọc theo targetUid
     match /proctor_commands/{cmdId} {
       allow read: if isTeacher() || (signedIn() && resource.data.get('targetUid', '') in [request.auth.uid, 'all']);
-      allow write: if isTeacher();
+      allow create, update: if isTeacher();
+      allow delete: if isTeacher() && archiveDeleteAllowed('proctor_commands', cmdId);
+    }
+
+    // File công việc chỉ chứa tham chiếu. Chỉ worker OAuth/IAM được ghi xác nhận Drive.
+    match /drive_archive_jobs/{jobId} {
+      function appFields() {
+        return ['sourceCollection', 'sourceId', 'grade', 'studentClass', 'revision', 'pending', 'requestedAt'];
+      }
+      function validSource(d) {
+        let source = getAfter(/databases/$(database)/documents/$(d.sourceCollection)/$(d.sourceId)).data;
+        let reminder = source.get('payload', {}).get('reminder', {});
+        let grade = source.get('grade', reminder.get('grade', 0));
+        let studentClass = source.get('studentClass', reminder.get('studentClass', 'all'));
+        let reviewer = d.sourceCollection == 'submissions' && (
+          cfg().get('allowStudentReviewOfficialExam', false) == true
+          || cfg().get('classReviewControl', {}).get(source.get('studentClass', ''), false) == true);
+        return (isTeacher() || source.get('uid', '') == request.auth.uid || reviewer)
+          && d.grade == grade
+          && (d.sourceCollection == 'exam_bank'
+            ? (grade in [8, 9, 10] && d.studentClass == '_DE_CHUNG')
+            : (d.studentClass == studentClass
+              && ((grade in [8, 9, 10] && studentClass.matches(string(grade) + '/[0-9]{1,3}'))
+                || (d.sourceCollection == 'proctor_commands' && grade == 0 && studentClass == 'all'))));
+      }
+      function validJob(d) {
+        return signedIn()
+          && d.sourceCollection in ['submissions', 'exam_attempts', 'proctor_commands', 'exam_bank', 'practice_results']
+          && d.sourceId is string && d.sourceId.matches('[A-Za-z0-9_.:-]{1,250}')
+          && jobId == d.sourceCollection + '_' + d.sourceId
+          && d.grade is int && d.studentClass is string
+          && d.revision is int && d.revision > 0
+          && d.pending == true && d.requestedAt == request.time
+          && validSource(d);
+      }
+      allow read: if isTeacher();
+      allow create: if request.resource.data.keys().hasOnly(appFields())
+        && request.resource.data.revision == 1 && validJob(request.resource.data);
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(appFields())
+        && request.resource.data.sourceCollection == resource.data.sourceCollection
+        && request.resource.data.sourceId == resource.data.sourceId
+        && request.resource.data.revision == resource.data.revision + 1
+        && validJob(request.resource.data);
+      allow delete: if false;
+    }
+    match /drive_archive_status/{docId} {
+      allow read: if isTeacher();
+      allow write: if false;
     }
 
     match /{document=**} {

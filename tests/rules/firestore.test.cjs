@@ -190,3 +190,80 @@ test('resuming an active exam requires the current room password', async () => {
   await assertSucceeds(setDoc(doc(d, 'exam_keys/owner'), { password: ' FAKE-ROOM ' }));
   await assertSucceeds(setDoc(session, data));
 });
+
+function reminderCloud(database, uid) {
+  const { createRequire } = require('node:module');
+  const firebase = createRequire(require.resolve('@firebase/rules-unit-testing'))('firebase/compat/app');
+  const window = { location: { pathname: '/admin/' }, dispatchEvent() {} };
+  const firestore = Object.assign(() => database, { FieldValue: firebase.firestore.FieldValue });
+  const run = new Function('window', 'firebase', 'document', 'CustomEvent', 'console', fs.readFileSync('src/core/firebase-config.js', 'utf8'));
+  run(window, { apps: [{}], app: () => ({}), firestore, auth: () => ({ currentUser: { uid }, onAuthStateChanged() {} }) },
+    { readyState: 'loading', addEventListener() {} }, class {}, { log() {}, warn() {} });
+  return window.AsianSchoolCloud;
+}
+
+function waitForReminder(cloud, target, count) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => { unsubscribe(); reject(new Error('Reminder snapshot timed out')); }, 5000);
+    const unsubscribe = cloud.watchTeacherReminder(target, value => {
+      if (value?.count === count) { clearTimeout(timeout); unsubscribe(); resolve(value); }
+    });
+  });
+}
+
+test('official teacher reminders are atomic, idempotent, protected and readable on legacy attempts', async () => {
+  await seedActive({ violations: 0, locked: false });
+  const t = teacher();
+  const liveExam = { ...live, mode: 'exam', status: 'in_progress' };
+  await assertSucceeds(setDoc(doc(db('owner'), 'live_sessions/' + live.sessionId), liveExam));
+  const cloud = reminderCloud(t, 'teacher');
+  const target = { ...liveExam, message: 'Em tập trung làm bài.', requestId: 'exam-reminder-1' };
+  const counts = await Promise.all([
+    cloud.recordTeacherReminder(target),
+    cloud.recordTeacherReminder({ ...target, requestId: 'exam-reminder-2' })
+  ]);
+  require('node:assert/strict').deepEqual(counts.map(x => x.count).sort(), [1, 2]);
+  await cloud.recordTeacherReminder(target);
+  const saved = (await getDoc(doc(t, 'exam_attempts/g8_100001'))).data();
+  require('node:assert/strict').equal(saved.teacherReminder.count, 2);
+  require('node:assert/strict').equal(saved.violations, 0);
+  require('node:assert/strict').equal(saved.locked, false);
+  const student = db('owner');
+  await assertFails(updateDoc(doc(student, 'exam_attempts/g8_100001'), { 'teacherReminder.count': 0 }));
+  await assertFails(updateDoc(doc(student, 'live_sessions/' + live.sessionId), { 'teacherReminder.count': 0 }));
+  await assertSucceeds(updateDoc(doc(student, 'live_sessions/' + live.sessionId), { lastPing: Date.now() }));
+  const received = await waitForReminder(reminderCloud(student, 'owner'), target, 2);
+  require('node:assert/strict').equal(received.message, 'Em tập trung làm bài.');
+});
+
+test('practice reminders survive live recreation and stay separate for the same LMS in different classes', async () => {
+  const t = teacher();
+  const { deleteDoc } = require('node:module').createRequire(require.resolve('@firebase/rules-unit-testing'))('firebase/firestore');
+  const other = { ...live, sessionId: 'session-other-tab', uid: 'other', studentClass: '8/20' };
+  await assertSucceeds(setDoc(doc(db('owner'), 'live_sessions/' + live.sessionId), live));
+  await assertSucceeds(setDoc(doc(db('other'), 'live_sessions/' + other.sessionId), other));
+  const cloud = reminderCloud(t, 'teacher');
+  await cloud.recordTeacherReminder({ ...live, message: 'Nhắc lớp 8/19.', requestId: 'practice-owner' });
+  await cloud.recordTeacherReminder({ ...other, message: 'Nhắc lớp 8/20.', requestId: 'practice-other' });
+  const student = db('owner');
+  await assertFails(updateDoc(doc(student, 'proctor_commands/reminder-state-' + live.sessionId), { 'payload.reminder.count': 0 }));
+  await assertFails(getDoc(doc(student, 'proctor_commands/reminder-state-' + other.sessionId)));
+  await assertSucceeds(deleteDoc(doc(student, 'live_sessions/' + live.sessionId)));
+  const received = await waitForReminder(reminderCloud(student, 'owner'), live, 1);
+  require('node:assert/strict').equal(received.message, 'Nhắc lớp 8/19.');
+  await assertSucceeds(setDoc(doc(student, 'live_sessions/' + live.sessionId), live));
+  const next = await cloud.recordTeacherReminder({ ...live, message: 'Nhắc lần hai.', requestId: 'practice-owner-2' });
+  require('node:assert/strict').equal(next.count, 2);
+  const teacherView = await waitForReminder(cloud, live, 2);
+  require('node:assert/strict').equal(teacherView.message, 'Nhắc lần hai.');
+});
+
+test('guidance merges only the selected mode and students cannot edit it', async () => {
+  const ref = doc(teacher(), 'exam_config/global_config');
+  await assertSucceeds(setDoc(ref, { studentGuidance: { exam: { title: 'Thi', body: 'Nội quy riêng' } } }, { merge: true }));
+  await assertSucceeds(setDoc(ref, { studentGuidance: { practice: { title: 'Ôn tập', body: 'Hoàn thành 3 lần.' } } }, { merge: true }));
+  const saved = (await getDoc(ref)).data();
+  require('node:assert/strict').equal(saved.studentGuidance.exam.body, 'Nội quy riêng');
+  require('node:assert/strict').equal(saved.studentGuidance.practice.body, 'Hoàn thành 3 lần.');
+  await assertFails(updateDoc(doc(db('owner'), 'exam_config/global_config'), { 'studentGuidance.practice.body': 'Tự sửa' }));
+});

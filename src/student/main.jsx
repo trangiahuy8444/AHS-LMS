@@ -2,6 +2,7 @@
 import '../styles/main.css';
 import '../shared/globals.js';
 import '../core/normalize.js';
+import '../core/drive-archive.js';
 import '../core/firebase-config.js';
 import '../../data/questions_grade8.js';
 import '../../data/questions_grade9.js';
@@ -11,5 +12,6 @@ import '../core/anti-cheat.js';
 import '../core/exam-timer.js';
 import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
+import WebSandboxStudentGate from './components/WebSandboxStudentGate.jsx';
 
-createRoot(document.getElementById('root')).render(<App />);
+createRoot(document.getElementById('root')).render(<WebSandboxStudentGate><App /></WebSandboxStudentGate>);

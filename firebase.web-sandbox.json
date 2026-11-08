@@ -1,0 +1,15 @@
+{
+  "firestore": { "rules": "firestore.web-sandbox.rules" },
+  "hosting": {
+    "site": "ahs-lms-sandbox",
+    "public": "dist-sandbox",
+    "ignore": ["firebase.web-sandbox.json", "**/.*", "**/node_modules/**"],
+    "cleanUrls": true,
+    "headers": [
+      { "source": "**/*.html", "headers": [{ "key": "Cache-Control", "value": "no-store" }] },
+      { "source": "/", "headers": [{ "key": "Cache-Control", "value": "no-store" }] },
+      { "source": "/admin{,/**}", "headers": [{ "key": "Cache-Control", "value": "no-store" }] },
+      { "source": "/test{,/**}", "headers": [{ "key": "Cache-Control", "value": "no-store" }] }
+    ]
+  }
+}

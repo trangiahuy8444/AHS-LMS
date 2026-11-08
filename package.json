@@ -10,7 +10,11 @@
     "test": "node --test tests/*.cjs && vitest run",
     "check": "npm run lint && npm test && npm run build && node scripts/kiem_tra_ban_build.cjs",
     "test:ui": "vitest",
-    "test:rules": "firebase emulators:exec --project demo-ahs-rules --only firestore --config firebase.test.json \"node --test tests/rules/*.test.cjs\""
+    "test:rules": "firebase emulators:exec --project demo-ahs-rules --only firestore --config firebase.test.json \"node --test tests/rules/*.test.cjs\"",
+    "sandbox": "node scripts/local-sandbox/start.cjs",
+    "sandbox:web:build": "vite build --mode sandbox-web",
+    "sandbox:web:seed": "node scripts/web-sandbox/seed.cjs",
+    "sandbox:web:deploy": "node scripts/web-sandbox/deploy.cjs"
   },
   "dependencies": {
     "firebase": "10.12.0",

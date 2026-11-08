@@ -14,7 +14,7 @@ function setup(data) {
   };
   const tx = { get: vi.fn().mockResolvedValue({ exists: true, data: () => data }), update: vi.fn() };
   window.firebaseDb = { collection: vi.fn().mockReturnValue({ doc: vi.fn().mockReturnValue(ref) }),
-    runTransaction: vi.fn(fn => fn(tx)) };
+    runTransaction: vi.fn(fn => fn(tx)), batch: () => ({delete: ref.delete, commit: async () => {}}) };
   window.AsianSchoolStorage = { logAudit: vi.fn() };
   const s = { config: { maxExamAttempts: 1 }, attemptGrade: 8, attemptLms: '999999', setAttemptStatus: vi.fn() };
   return { ...createExamBankActions(s), s, tx, ref };
