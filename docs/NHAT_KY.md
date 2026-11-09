@@ -1,3 +1,11 @@
+## 09/11/2026 — Hiển thị sĩ số và tiến độ nộp bài theo lớp
+
+- Sửa thiếu số đã nộp/sĩ số ở Admin: thêm khung Sĩ số / Đã nộp / Chưa nộp ở Bài nộp & chấm và từng nhóm lớp trong Giám sát.
+- Sĩ số lấy từ danh sách học sinh hiện có (roster-data); số đã nộp lấy từ CSDL bài làm đồng bộ, gộp mã LMS/Canvas và nhiều lượt của cùng học sinh. Bài không khớp danh sách báo riêng, không làm tăng sĩ số. Không suy sĩ số từ số đang trực tuyến hoặc số bài nộp.
+- Lớp có bài đã lưu vẫn hiển thị khi không còn phiên trực tuyến. Đếm riêng thi/ôn tập, không thay theo tìm tên hoặc trạng thái chấm. Khi mất kết nối có nhắc số liệu có thể chưa cập nhật đủ.
+- Đối chiếu bản sao dữ liệu thật lớp 9/21: 21/21 đã nộp, không có mã ngoài danh sách; danh sách lớp 9/25 có 22 học sinh. Không thay dữ liệu học sinh, điểm hoặc cấu hình thi.
+- Kiểm tra: 206 Node + 178 Vitest đạt (6 kiểm tra mới cho đếm và giao diện), 3 kiểm tra gói riêng tư bỏ qua; lint/build/không lọt đề đạt. Giao diện dữ liệu giả kiểm ở 1366×768 và 390×844 không tràn ngang.
+
 ## 09/11/2026 — Giáo viên cho phép commit/push; sửa nhận xét lớp 9/21
 
 - Giáo viên yêu cầu phát hành các thay đổi đang chờ trước khi chấm lớp 9/25.

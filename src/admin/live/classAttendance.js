@@ -30,3 +30,27 @@ export function classAttendance(sessions, studentClass, roster, now = Date.now()
     locked: active.filter(session => session.isLocked || session.status === 'locked').length
   };
 }
+
+// Sĩ số lấy từ danh sách lớp; đã nộp lấy từ bài lưu trong CSDL, không suy từ phiên trực tuyến.
+export function classSubmissionProgress(submissions, studentClass, roster = [], mode = 'exam') {
+  const normalize = value => String(value || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase().replace(/^0+(?=\d)/, '');
+  const aliases = new Map();
+  roster.forEach((student, index) => {
+    for (const field of ['studentId', 'lmsCode', 'loginId', 'sisId', 'canvasUserId']) {
+      const id = normalize(student[field]);
+      if (id) aliases.set(id, index);
+    }
+  });
+  const submitted = new Set(), unmatched = new Set();
+  const total = roster.length || null;
+  for (const row of submissions || []) {
+    if (String(row.studentClass || '').trim() !== studentClass || row.mode !== mode) continue;
+    if (row.grade != null && Number(row.grade) !== Number(studentClass.split('/')[0])) continue;
+    const id = normalize(row.studentId);
+    if (!id) continue;
+    if (aliases.has(id)) submitted.add(aliases.get(id));
+    else if (total === null) submitted.add(id);
+    else unmatched.add(id);
+  }
+  return { total, submitted: submitted.size, missing: total === null ? null : total - submitted.size, unmatched: unmatched.size };
+}

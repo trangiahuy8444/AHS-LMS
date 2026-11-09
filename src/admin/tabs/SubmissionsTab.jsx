@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAdmin } from '../AdminContext.js';
+import { ROSTER_BY_CLASS } from '../../core/roster-data.js';
+import ClassSubmissionSummary from '../components/ClassSubmissionSummary.jsx';
 import ClassGradingStatusBar from '../components/ClassGradingStatusBar.jsx';
 import '../../core/exam-timing.js';
 
@@ -24,9 +26,17 @@ export default function SubmissionsTab() {
     handleExportJSON,
     handleImportJSON,
     handleClearAllData,
+    submissions,
+    practiceSubs,
+    cloudStatus,
     filteredSubmissions,
     handleSetClassReviewMode
   } = useAdmin();
+
+  const savedRows = [...(submissions || []), ...(practiceSubs || [])];
+  const progressClasses = filterClass !== 'all' ? [filterClass] : [...new Set([
+    ...Object.keys(ROSTER_BY_CLASS), ...savedRows.map(row => row.studentClass).filter(Boolean)
+  ])].filter(cls => filterGrade === 'all' || cls.startsWith(filterGrade + '/')).sort((a,b) => a.localeCompare(b, 'vi', {numeric:true}));
 
   return (
     <div className="space-y-6">
@@ -99,6 +109,15 @@ export default function SubmissionsTab() {
             />
           </div>
         </div>
+
+        <section aria-label="Tiến độ nộp bài theo lớp" className="space-y-2">
+          <p className="text-xs font-bold text-slate-700">Tiến độ nộp bài · {filterMode === 'practice' ? 'Ôn tập' : 'Thi chính thức'}</p>
+          <div className={filterClass === 'all' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2' : ''}>
+            {progressClasses.map(cls => <ClassSubmissionSummary key={cls} studentClass={cls} submissions={savedRows} mode={filterMode === 'practice' ? 'practice' : 'exam'} />)}
+          </div>
+          <p className="text-[11px] text-slate-500">Sĩ số theo danh sách học sinh; đã nộp theo CSDL bài làm, mỗi học sinh tính một lần. Không đổi theo ô tìm kiếm hoặc trạng thái chấm.</p>
+          {cloudStatus?.connected === false && <p className="text-[11px] text-amber-800">Chưa kết nối máy chủ: số liệu có thể chưa cập nhật đủ.</p>}
+        </section>
 
         {/* BANNER ĐIỀU PHỐI CHỐT ĐIỂM THEO LỚP ĐANG LỌC */}
         {filterClass !== 'all' && (() => {

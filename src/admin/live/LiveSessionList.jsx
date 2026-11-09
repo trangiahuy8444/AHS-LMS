@@ -1,3 +1,4 @@
+import ClassSubmissionSummary from '../components/ClassSubmissionSummary.jsx';
 import TeacherReminderButton from './TeacherReminderButton.jsx';
 import React, { useEffect, useState } from 'react';
 import { getStudentsByClass } from '../../core/roster-data.js';
@@ -32,7 +33,9 @@ export default function LiveSessionList() {
           return true;
         });
 
-        if (filteredLive.length === 0) {
+        const savedRows = [...(submissions || []), ...(practiceSubs || [])];
+        const savedClasses = savedRows.filter(row => row.studentClass && row.mode === (liveFilter === 'practice' ? 'practice' : 'exam')).map(row => row.studentClass);
+        if (filteredLive.length === 0 && savedClasses.length === 0) {
           return (
             <div className="py-16 text-center text-slate-500 bg-white rounded-3xl border-2 border-slate-200">
               {liveFilter === 'all'
@@ -43,7 +46,7 @@ export default function LiveSessionList() {
         }
 
         // Phân nhóm theo Lớp học
-        const classGroups = {};
+        const classGroups = Object.fromEntries(savedClasses.map(cls => [cls, []]));
         filteredLive.forEach(session => {
           const cls = session.studentClass || 'Chưa rõ';
           if (!classGroups[cls]) classGroups[cls] = [];
@@ -116,6 +119,8 @@ export default function LiveSessionList() {
                 </div>
               </div>
 
+              <ClassSubmissionSummary studentClass={cls} submissions={savedRows} mode={liveFilter === 'practice' ? 'practice' : 'exam'} />
+              {sessionsInClass.length === 0 && <p className="text-xs text-slate-500">Không có phiên trực tuyến. Số đã nộp vẫn được giữ theo CSDL bài làm.</p>}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {sessionsInClass.map(session => {
                   const isLocked = session.isLocked === true || session.status === 'locked';
