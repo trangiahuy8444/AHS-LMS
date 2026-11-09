@@ -1,3 +1,10 @@
+## 09/11/2026 — Đồng nhất phong cách nhận xét lớp 9/25 với 9/21
+
+- Theo yêu cầu giáo viên, sửa nhận xét lớp 9/25 thành câu ngắn, chỉ lỗi sai/ý thiếu đã có, dùng “em”, tách mỗi câu hỏi thành một đoạn riêng. Không chấm lại hoặc sửa điểm.
+- Đã sao lưu riêng tư 22 bài trước khi sửa, cập nhật đúng 8 nhận xét có nội dung với điều kiện phiên bản chống ghi đè; giữ trống 14 bài trọn điểm. Đọc lại cả 22 bài xác nhận mọi trường khác giữ nguyên. Tạo 8 yêu cầu lưu Drive theo hàng đợi hiện có, không xác nhận đã xuất Drive.
+- Hướng dẫn AI áp dụng cả reason của từng ý (nguồn ghép nhận xét) và feedback: dùng em, không kể lại phần đúng, không nhắc điểm. Bài bỏ trống ghi ngắn “Em bỏ trống câu này.” Bộ chuẩn hóa cũng thay cách xưng hô cũ và tách các nhãn Câu trên cùng dòng thành đoạn riêng.
+- Kiểm tra: 207 Node + 179 Vitest đạt, 3 bài gói riêng tư bỏ qua; lint/build/không lọt đề đạt. Có kiểm thử đối chiếu cách xưng hô và xuống dòng ở cả bộ chuẩn hóa lẫn luồng chấm toàn bài.
+
 ## 09/11/2026 — Hiển thị sĩ số và tiến độ nộp bài theo lớp
 
 - Sửa thiếu số đã nộp/sĩ số ở Admin: thêm khung Sĩ số / Đã nộp / Chưa nộp ở Bài nộp & chấm và từng nhóm lớp trong Giám sát.

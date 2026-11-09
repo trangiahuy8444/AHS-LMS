@@ -301,6 +301,7 @@ ${studentAnswer || '(Học sinh bỏ trống)'}
 6. Câu đạt trọn điểm: feedback phải là chuỗi rỗng. Câu chưa trọn điểm: chỉ nêu ý sai/thiếu và lỗi cụ thể, không khen lại phần đã đúng, không ghi tên mô hình hoặc thông tin kỹ thuật.
 7. Mỗi ý chỉ nhận điểm theo bước 0.25: ý tối đa 0.5 chỉ được 0, 0.25 hoặc 0.5; ý tối đa 0.25 chỉ được 0 hoặc 0.25. KHÔNG có 0.125, 0.38, 0.88 hoặc điểm lẻ ngoài thang. Tổng score bằng tổng points của breakdown. Không tự chia thêm tiêu chí.
 8. breakdown phải theo đúng số lượng/thứ tự và điểm tối đa sau: ${JSON.stringify(essayRubricParts({question:questionText,subItems,maxPoints}))}.
+9. Mọi reason của ý chưa đạt và feedback đều viết ngắn gọn, trực tiếp cho em: dùng từ \"em\", không dùng \"học sinh\". Chỉ nêu lỗi sai hoặc ý thiếu, không diễn giải lại phần đã đúng, không nhắc điểm trong nhận xét. Mỗi câu hỏi có một đoạn nhận xét riêng, không gộp các câu trên cùng dòng. reason không lặp lại tên ý đã có trong item. Ví dụ reason: \"Em chưa chỉ ra nguồn tin cậy.\"
 
 Trả về kết quả duy nhất ở định dạng JSON với cấu trúc:
 {
@@ -358,9 +359,9 @@ export async function gradeSingleEssayWithGemini({
         points: 0,
         maxPoints: points,
         status: 'Chưa đạt',
-        reason: 'Học sinh bỏ trống không làm câu này.'
+        reason: 'Em bỏ trống câu này.'
       }],
-      feedback: 'Học sinh không làm bài (bỏ trống). Điểm chấm: 0 điểm.'
+      feedback: 'Em bỏ trống câu này.'
     };
   }
 

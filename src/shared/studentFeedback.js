@@ -1,6 +1,8 @@
 export function sanitizeStudentFeedback(value) {
   return String(value || '').replace(/[ \t]*\[(?:Dự phòng|Fallback)\s*:\s*(?:gemini-[\w.-]+|local-sandbox|web-sandbox)\s*\]/gi,'')
-    .split(/\n\s*\n/).filter(block=>{
+    .replace(/\bhọc[ \t]+sinh\b/gi, word => word[0] === 'H' ? 'Em' : 'em')
+    .replace(/(?:^|[ \t\r\n]+)(\[?Câu\s+\d+\s*(?:\(|:))/g, '\n\n$1')
+    .trim().split(/\n\s*\n/).filter(block=>{
       const match=block.match(/^\s*\[?Câu\s+\d+\s*\(([\d.,]+)\s*\/\s*([\d.,]+)\s*đ\)\]?\s*:/i);
       return !match || Number(match[1].replace(',','.')) < Number(match[2].replace(',','.'));
     }).join('\n\n').trim();

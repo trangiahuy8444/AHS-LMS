@@ -13,3 +13,7 @@ it('removes full-mark legacy comments without brackets and tolerates a missing c
  const text='Câu 1 (1/1đ): Trả lời tốt.\n\n[Câu 2 (0.75/1đ): Thiếu nguồn.\n\nCâu 3 (1/1đ): Đúng.';
  expect(sanitizeStudentFeedback(text)).toBe('[Câu 2 (0.75/1đ): Thiếu nguồn.');
 });
+
+it('addresses the pupil as em and starts every question comment in a separate paragraph',()=>{
+ expect(sanitizeStudentFeedback('Câu 1: Học sinh chưa nêu nguồn. Câu 3: Ý b của học sinh còn thiếu.')).toBe('Câu 1: Em chưa nêu nguồn.\n\nCâu 3: Ý b của em còn thiếu.');
+});

@@ -17,3 +17,13 @@ test('invalid AI decimals fail the grading result and do not turn into saved zer
  global.fetch=async()=>response({score:0.88,breakdown:[{item:'Ý a',points:0.5,maxPoints:0.5},{item:'Ý b',points:0.38,maxPoints:0.5}],feedback:'Không được dùng.'});
  try{const {gradeSubmissionWithGemini}=await import('../src/core/gemini-grading-service.js');const result=await gradeSubmissionWithGemini({...input,autoFallback:false});assert.equal(result.success,false);assert.equal(result.essayScores[1],undefined);assert.match(result.error,/barem/);assert.equal(result.teacherFeedback,'');}finally{global.fetch=previous;}
 });
+
+test('student comments address em and put each question in its own paragraph',async()=>{
+ const previous=global.fetch;
+ global.fetch=async()=>response({score:0.5,breakdown:[{item:'Ý a',points:0.5,maxPoints:0.5,reason:'Đúng.'},{item:'Ý b',points:0,maxPoints:0.5,reason:'Học sinh chưa chỉ ra nguồn tin cậy.'}]});
+ try{
+  const {gradeSubmissionWithGemini}=await import('../src/core/gemini-grading-service.js');
+  const result=await gradeSubmissionWithGemini({...input,autoFallback:false,submission:{...input.submission,answers:{essay:{1:'Bài giả',2:'Bài giả'}}},essayQuestions:[input.essayQuestions[0],{...input.essayQuestions[0],num:2}]});
+  assert.equal(result.teacherFeedback,'Câu 1: Ý b: Em chưa chỉ ra nguồn tin cậy.\n\nCâu 2: Ý b: Em chưa chỉ ra nguồn tin cậy.');
+ }finally{global.fetch=previous;}
+});
