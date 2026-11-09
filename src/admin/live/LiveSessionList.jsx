@@ -3,7 +3,7 @@ import ClassSubmissionSummary from '../components/ClassSubmissionSummary.jsx';
 import TeacherReminderButton from './TeacherReminderButton.jsx';
 import React, { useEffect, useState } from 'react';
 import { getStudentsByClass } from '../../core/roster-data.js';
-import { classAttendance } from './classAttendance.js';
+import { classAttendance, classSubmissionProgress } from './classAttendance.js';
 import { useAdmin } from '../AdminContext.js';
 
 // DANH SÁCH THÍ SINH ĐANG TRỰC TUYẾN THEO LỚP
