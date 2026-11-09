@@ -1,3 +1,4 @@
+import { filterLiveSessions, isLiveSessionLocked } from './liveSearch.js';
 import ClassSubmissionSummary from '../components/ClassSubmissionSummary.jsx';
 import TeacherReminderButton from './TeacherReminderButton.jsx';
 import React, { useEffect, useState } from 'react';
@@ -6,7 +7,7 @@ import { classAttendance } from './classAttendance.js';
 import { useAdmin } from '../AdminContext.js';
 
 // DANH SÁCH THÍ SINH ĐANG TRỰC TUYẾN THEO LỚP
-export default function LiveSessionList() {
+export default function LiveSessionList({ query = '', classFilter = 'all', statusFilter = 'all' } = {}) {
   const [now, setNow] = useState(Date.now);
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(timer); }, []);
   const { liveSessions, liveFilter, submissions, practiceSubs, setShowBroadcastModal, setBroadcastTarget, setBroadcastMsgInput,
@@ -27,18 +28,21 @@ export default function LiveSessionList() {
           const prev = latestByStudent.get(key);
           if (!prev || (s.lastPing || 0) > (prev.lastPing || 0)) latestByStudent.set(key, s);
         });
-        const filteredLive = Array.from(latestByStudent.values()).filter(s => {
+        const modeSessions = Array.from(latestByStudent.values()).filter(s => {
           if (liveFilter === 'exam') return s.mode === 'exam';
           if (liveFilter === 'practice') return s.mode === 'practice';
           return true;
         });
 
+        const filteredLive = filterLiveSessions(modeSessions, {query, studentClass: classFilter, status: statusFilter});
+        const hasFilters = !!query.trim() || classFilter !== 'all' || statusFilter !== 'all';
+        const isTargetedSearch = !!query.trim() || statusFilter !== 'all';
         const savedRows = [...(submissions || []), ...(practiceSubs || [])];
-        const savedClasses = savedRows.filter(row => row.studentClass && row.mode === (liveFilter === 'practice' ? 'practice' : 'exam')).map(row => row.studentClass);
+        const savedClasses = query.trim() || statusFilter !== 'all' ? [] : savedRows.filter(row => row.studentClass && (classFilter === 'all' || row.studentClass === classFilter) && row.mode === (liveFilter === 'practice' ? 'practice' : 'exam')).map(row => row.studentClass);
         if (filteredLive.length === 0 && savedClasses.length === 0) {
           return (
             <div className="py-16 text-center text-slate-500 bg-white rounded-3xl border-2 border-slate-200">
-              {liveFilter === 'all'
+              {hasFilters ? 'Không tìm thấy học sinh phù hợp. Thử tên không dấu, mã LMS hoặc đổi bộ lọc.' : liveFilter === 'all'
                 ? 'Hiện tại chưa có học sinh nào đang mở cổng làm bài.'
                 : (liveFilter === 'exam' ? 'Hiện không có học sinh nào đang thi chính thức.' : 'Hiện không có học sinh nào đang trong ca ôn tập đề cương.')}
             </div>
@@ -53,14 +57,17 @@ export default function LiveSessionList() {
           classGroups[cls].push(session);
         });
 
-        return Object.keys(classGroups).sort().map(cls => {
-          const sessionsInClass = classGroups[cls];
+        return <>
+          {hasFilters && <p role="status" className="live-search-results">Tìm thấy <strong>{filteredLive.length}</strong> học sinh phù hợp. Sĩ số và số đã nộp vẫn tính toàn lớp.</p>}
+          {Object.keys(classGroups).sort((a,b) => Number(classGroups[b].some(isLiveSessionLocked)) - Number(classGroups[a].some(isLiveSessionLocked)) || a.localeCompare(b,'vi',{numeric:true})).map(cls => {
+          const visibleSessions = classGroups[cls];
+          const sessionsInClass = modeSessions.filter(session => session.studentClass === cls);
           const attendance = classAttendance(liveSessions, cls, getStudentsByClass(cls), now);
           const { locked: lockedCount, exam: examCount, practice: practiceCount } = attendance;
 
           return (
             <div key={cls} className="bg-white rounded-3xl border-2 border-slate-200 p-4 shadow-sm space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-slate-100 pb-3">
+              {!isTargetedSearch && <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-slate-100 pb-3">
                 <div className="flex items-center space-x-3">
                   <span className="w-10 h-10 rounded-2xl bg-blue-100 text-blue-900 border border-blue-200 font-black text-sm flex items-center justify-center">
                     {cls}
@@ -117,18 +124,18 @@ export default function LiveSessionList() {
                     <span>Nhắn Cả Lớp</span>
                   </button>
                 </div>
-              </div>
+              </div>}
 
               <ClassSubmissionSummary studentClass={cls} submissions={savedRows} mode={liveFilter === 'practice' ? 'practice' : 'exam'} />
               {sessionsInClass.length === 0 && <p className="text-xs text-slate-500">Không có phiên trực tuyến. Số đã nộp vẫn được giữ theo CSDL bài làm.</p>}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {sessionsInClass.map(session => {
+              <div className={`live-candidate-grid ${isTargetedSearch ? 'live-search-grid' : ''}`}>
+                {visibleSessions.map(session => {
                   const isLocked = session.isLocked === true || session.status === 'locked';
                   const isPractice = session.mode === 'practice';
                   return (
                     <div
                       key={session.sessionId}
-                      className={`p-4 rounded-2xl border-2 transition shadow-sm space-y-3 ${
+                      className={`live-candidate-card p-4 rounded-2xl border transition ${
                         isLocked
                           ? 'bg-red-50 border-red-400 ring-2 ring-red-400/50'
                           : (session.violations > 0
@@ -196,6 +203,8 @@ export default function LiveSessionList() {
                         </div>
                       )}
 
+                      <TeacherReminderButton session={session} />
+
                       <div className="grid grid-cols-2 gap-2 text-xs bg-white p-2.5 rounded-xl border border-slate-200">
                         <div>
                           <span className="text-slate-500 text-[10px] block">Mã đề:</span>
@@ -218,7 +227,6 @@ export default function LiveSessionList() {
                         )}
                       </div>
 
-                      <TeacherReminderButton session={session} />
 
                       {/* LỊCH SỬ LÀM BÀI TRÊN CARD */}
                       {(() => {
@@ -242,18 +250,8 @@ export default function LiveSessionList() {
                         const hasHistory = userPracticeSubs.length > 0 || userOfficialSubs.length > 0;
 
                         return (
-                          <div className="bg-white p-2.5 rounded-xl border border-slate-200 text-xs space-y-1.5">
-                            <div className="flex items-center justify-between font-bold text-slate-700">
-                              <span className="flex items-center space-x-1">
-                                <span>📜</span>
-                                <span>Lịch sử làm bài:</span>
-                              </span>
-                              {userPracticeSubs.length > 0 && (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-100 text-purple-900 border border-purple-200">
-                                  Ôn tập: {userPracticeSubs.length} lần
-                                </span>
-                              )}
-                            </div>
+                          <details className="live-history bg-white p-2.5 rounded-xl border border-slate-200 text-xs space-y-1.5">
+                            <summary>Lịch sử làm bài · {userOfficialSubs.length} bài thi, {userPracticeSubs.length} lượt ôn tập</summary>
 
                             {!hasHistory ? (
                               <p className="text-[11px] text-slate-400 italic">Chưa có lượt nộp bài trước đó (Lần đầu làm)</p>
@@ -306,7 +304,7 @@ export default function LiveSessionList() {
                                 })}
                               </div>
                             )}
-                          </div>
+                          </details>
                         );
                       })()}
 
@@ -369,7 +367,7 @@ export default function LiveSessionList() {
               </div>
             </div>
           );
-        });
+        })}</>;
       })()}
     </div>
   );

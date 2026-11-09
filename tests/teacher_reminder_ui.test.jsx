@@ -36,7 +36,7 @@ it('reminder fades automatically, repeated snapshots do not replay it, and a new
   act(() => latest(message));
   expect(screen.getByText(message.message)).toBeTruthy();
   expect(screen.queryByRole('alertdialog')).toBeNull();
-  act(() => vi.advanceTimersByTime(11000));
+  act(() => vi.advanceTimersByTime(16000));
   expect(screen.queryByText(message.message)).toBeNull();
   act(() => latest({ ...message }));
   expect(screen.queryByText(message.message)).toBeNull();
@@ -64,4 +64,29 @@ it('a locked pupil can read the teacher reminder on the lock screen', async () =
   act(() => latest?.({ count: 2, message: 'Em giữ nguyên màn hình và báo giáo viên.' }));
   expect(screen.getByText('Em giữ nguyên màn hình và báo giáo viên.')).toBeTruthy();
   expect(screen.getByText(/BÀI THI BỊ TẠM THỜI KHÓA/)).toBeTruthy();
+});
+
+it('shows an urgent named warning for fifteen seconds, then keeps the teacher reminder count without blocking work',()=>{
+ vi.useFakeTimers();
+ render(<StudentContext.Provider value={{...target,examState:'in_progress'}}><TeacherReminderBanner/></StudentContext.Provider>);
+ const message={id:'strong-warning',count:2,message:'Em tập trung làm bài, không trao đổi.',createdAt:Date.now()};
+ act(()=>latest(message));
+ expect(screen.getByRole('alert').textContent).toContain('Học Sinh Giả');
+ expect(screen.getByRole('alert').textContent).toContain('999999');
+ expect(screen.getByText(/Nhắc nhở vi phạm của giáo viên/)).toBeTruthy();
+ expect(screen.queryByRole('dialog')).toBeNull();
+ act(()=>vi.advanceTimersByTime(14000));expect(screen.getByText(message.message)).toBeTruthy();
+ act(()=>vi.advanceTimersByTime(2000));expect(screen.queryByRole('alert')).toBeNull();
+ expect(screen.getByRole('status').textContent).toContain('Giáo viên đã nhắc');
+ expect(screen.getByRole('status').textContent).toContain('2');
+});
+it('uses the calibrated exam clock so a fast device clock cannot hide a new reminder immediately',()=>{
+ const previous=window.AsianSchoolTimer;
+ const serverNow=Date.now()-300000;
+ window.AsianSchoolTimer={clockAnchorMs:serverNow,now:()=>serverNow};
+ try {
+  render(<StudentContext.Provider value={{...target,examState:'in_progress'}}><TeacherReminderBanner/></StudentContext.Provider>);
+  act(()=>latest({id:'clock-warning',count:1,message:'Em tập trung.',createdAt:serverNow}));
+  expect(screen.getByRole('alert').textContent).toContain('Em tập trung.');
+ } finally {window.AsianSchoolTimer=previous;}
 });

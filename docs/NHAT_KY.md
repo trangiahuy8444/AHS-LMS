@@ -1,3 +1,18 @@
+## 09/11/2026 — Giáo viên duyệt commit/push bản giao diện, tìm nhanh và nhắc nhở
+
+- Giáo viên đã yêu cầu commit/push các thay đổi giao diện đang chờ: khung 88%, tìm nhanh Giám sát và nhắc nhở học sinh nổi bật.
+- Kiểm tra lại trước phát hành: 207 Node + 188 Vitest đạt, 3 kiểm tra gói riêng tư bỏ qua; lint/build/không lọt đề đạt. Chỉ phát hành mã, không sửa dữ liệu, điểm hoặc cấu hình kỳ thi thật.
+
+## 09/11/2026 — Bản chỉnh giao diện và nhắc nhở đang chờ duyệt (KHÔNG commit/push)
+
+- Theo chỉ dẫn mới của giáo viên, mọi thay đổi sau HEAD 2736cc1 chỉ lưu cục bộ, không stage/commit/push hoặc phát hành, không thay dữ liệu thật.
+- Khung nội dung học sinh và Admin rộng 88% trên màn hình lớn, 94% ở khoảng 901–1100px, 100% ở màn hình hẹp. Header và nội dung thẳng cùng khung; in bảng điểm vẫn dùng toàn khổ. Giữ chiều cao phòng làm bài/kết quả, chỉ cuộn nội dung dài.
+- Giám sát có tìm tên có dấu/không dấu hoặc mã LMS có/không dấu gạch, lọc lớp và trạng thái Đang khóa/Có vi phạm. Phím / đặt con trỏ vào ô tìm, Escape xóa từ khóa; không chiếm phím khi đang nhập ở ô khác. Thanh tìm bám dưới header khi cuộn, đo theo chiều cao header thực tế.
+- Ưu tiên lớp/thẻ đang khóa; kết quả tìm có bố cục gọn với nhắc nhở và mở khóa dễ thấy. Ẩn thao tác cả lớp khi đang tìm đích cá nhân; không thu hẹp đích lệnh cả lớp theo từ khóa. Lịch sử bài làm gấp gọn. Sĩ số và số đã nộp vẫn tính từ dữ liệu toàn lớp, không theo số thẻ tìm thấy.
+- Giáo viên phản ánh học sinh không nhận ra nhắc nhở: đổi thành thông báo nền đỏ sẫm, chữ trắng lớn, tiêu đề Nhắc nhở vi phạm của giáo viên/lần, có tên, lớp, mã LMS và nội dung. Tự ẩn sau 15 giây, còn dòng nhỏ lưu số lần GV đã nhắc. Không thêm hộp thoại chặn bài, không tự khóa/trừ điểm hoặc đổi số lần rời giao diện. Hiệu ứng nhấn biểu tượng ngắn, tôn trọng chế độ giảm chuyển động; có nhãn tiếng Anh. Dùng đồng hồ đã hiệu chỉnh của bài khi có, tránh ẩn thông báo mới vì máy lệch giờ.
+- Kiểm tra cuối: lint/build/không lọt đề đạt; 207 Node + 188 Vitest đạt, 3 bài gói riêng tư bỏ qua. Kiểm thử tìm đúng học sinh/nhắc/mở đúng phiên, không trộn danh tính; thao tác chỉ dùng dữ liệu giả.
+- Rà trình duyệt: 42 trường hợp làm bài (7 cỡ × 3 dạng × VI/EN), Admin 1366/1920/390px (khung/tìm/nhắc/mở/sticky), 4 cỡ kết quả không tràn chiều cao, nhắc nhở 1366×768/390×844/844×390 đọc được tên/nội dung, tự ẩn và không làm tràn trang. Ảnh xem thử chỉ dùng dữ liệu giả trong /tmp.
+
 ## 09/11/2026 — Tự đóng hộp chấm sau khi lưu điểm
 
 - Theo yêu cầu giáo viên, khi thao tác lưu điểm trả thành công: cập nhật bảng bài nộp/ôn tập, tự đóng hộp chấm và hiện thông báo ngắn ở trang quản trị. Không cần bấm Đóng hộp thoại thêm lần nữa.

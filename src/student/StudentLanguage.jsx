@@ -1,5 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 const EN = {
+  'Nhắc nhở vi phạm của giáo viên':'Teacher warning',
+  'Giáo viên đã nhắc':'Teacher reminders:',
+  'Em cần nghiêm túc làm bài.':'Please focus and follow the exam rules.',
+  'Thông báo tự ẩn sau 15 giây.':'This notice closes automatically after 15 seconds.',
+
   'Họ tên':'Name','Mã LMS':'LMS ID','Lớp':'Class','Chưa nhập':'Not entered','Chưa chọn':'Not selected','Thông tin học sinh':'Student information',
   'Nội quy & hướng dẫn':'Rules & instructions','Thời gian làm bài':'Time allowed','phút':'minutes',
   'Câu trước':'Previous','Câu tiếp theo':'Next','Đã đến câu cuối':'Last question','Câu':'Question','câu':'questions','điểm':'points',

@@ -1,10 +1,26 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { ROSTER_BY_CLASS } from '../../core/roster-data.js';
 import { useAdmin } from '../AdminContext.js';
 import ClassAccessPanel from '../live/ClassAccessPanel.jsx';
 import LiveSessionList from '../live/LiveSessionList.jsx';
 
 export default function LiveTab() {
   const { liveSessions, liveFilter, setLiveFilter, handleExtendTimeAll, handleCleanStaleSessions } = useAdmin();
+
+  const [query, setQuery] = useState('');
+  const [classFilter, setClassFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const searchRef = useRef(null);
+  const classes = [...new Set([...Object.keys(ROSTER_BY_CLASS), ...liveSessions.map(s => s.studentClass).filter(Boolean)])].sort((a,b) => a.localeCompare(b,'vi',{numeric:true}));
+  useEffect(() => {
+    const focusSearch = event => {
+      if (event.key !== '/' || event.metaKey || event.ctrlKey || event.altKey || event.target?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
+      event.preventDefault();
+      searchRef.current?.focus();
+    };
+    document.addEventListener('keydown', focusSearch);
+    return () => document.removeEventListener('keydown', focusSearch);
+  }, []);
 
   return (
     <div className="space-y-3">
@@ -97,8 +113,29 @@ export default function LiveTab() {
         </button>
       </div>
 
+      <section className="live-search-tools" aria-label="Tìm nhanh học sinh">
+        <label>Tìm học sinh <span className="font-normal text-slate-500">· phím /</span>
+          <input ref={searchRef} type="search" aria-label="Tên hoặc mã LMS" placeholder="Tên có dấu/không dấu hoặc mã LMS…" value={query}
+            onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Escape') setQuery(''); }} />
+        </label>
+        <label>Lớp
+          <select aria-label="Lọc lớp giám sát" value={classFilter} onChange={event => setClassFilter(event.target.value)}>
+            <option value="all">Tất cả lớp</option>
+            {classes.map(cls => <option key={cls} value={cls}>Lớp {cls}</option>)}
+          </select>
+        </label>
+        <label>Trạng thái
+          <select aria-label="Lọc trạng thái giám sát" value={statusFilter} onChange={event => setStatusFilter(event.target.value)}>
+            <option value="all">Tất cả trạng thái</option>
+            <option value="locked">Đang khóa</option>
+            <option value="violations">Có vi phạm</option>
+          </select>
+        </label>
+        <button type="button" disabled={!query && classFilter === 'all' && statusFilter === 'all'} onClick={() => { setQuery(''); setClassFilter('all'); setStatusFilter('all'); searchRef.current?.focus(); }}>Xóa tìm / lọc</button>
+      </section>
+
       {/* DANH SÁCH THÍ SINH ĐANG TRỰC TUYẾN THEO LỚP */}
-      <LiveSessionList />
+      <LiveSessionList query={query} classFilter={classFilter} statusFilter={statusFilter} />
     </div>
   );
 }

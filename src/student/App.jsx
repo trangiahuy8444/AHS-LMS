@@ -37,7 +37,7 @@ function App() {
         <StudentHeader />
 
         {/* NỘI DUNG CHÍNH */}
-        <main className={['in_progress','submitted'].includes(student.examState) ? 'student-workspace-main' : 'max-w-7xl mx-auto px-4 py-6 sm:py-8'}>
+        <main className={['in_progress','submitted'].includes(student.examState) ? 'student-workspace-main ahs-page-frame' : 'ahs-page-frame px-4 py-6 sm:py-8'}>
         
           {/* 1. MÀN HÌNH CHỌN CHẾ ĐỘ & ĐĂNG KÝ VÀO PHÒNG LÀM BÀI */}
           <EntryScreen />

@@ -719,7 +719,8 @@ test('Kiểm tra Thích Ứng Đa Thiết Bị & Widget Thời Gian Trực Tiế
   assert.ok(adminHtml.includes('BẢNG TỔNG HỢP KẾT QUẢ ÔN TẬP ĐỀ CƯƠNG TIN HỌC'), 'Tab 5 phải có tiêu đề bảng điểm ôn tập');
   assert.ok(adminHtml.includes('Dọn phiên hết ca'), 'Tab 1 phải có nút dọn dẹp thí sinh hết ca');
   assert.ok(adminHtml.includes('Xóa Lớp Này'), 'Tab 1 phải có nút dọn dẹp thí sinh theo lớp');
-  assert.ok(adminHtml.includes('xl:grid-cols-4'), 'Lưới giám sát Tab 1 phải hỗ trợ responsive 4 cột trên laptop');
+  assert.ok(adminHtml.includes('live-candidate-grid'), 'Lưới giám sát phải dùng bố cục thích ứng theo chiều rộng khung');
+  assert.match(fs.readFileSync(path.join(__dirname, '../src/styles/main.css'), 'utf8'), /grid-template-columns: repeat\(auto-(?:fit|fill),\s*minmax/, 'Số cột giám sát phải tự điều chỉnh theo không gian hiển thị');
 });
 
 test('Kiểm tra Bật/Tắt Khóa Vi Phạm & Lưu Unique Mã LMS & Đặt Tên Bản In Theo Lớp', (t) => {

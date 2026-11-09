@@ -13,6 +13,32 @@
   }
 }
 
+/* Khung chung theo tỉ lệ màn hình, giữ hai lề thoáng ở máy tính. */
+.ahs-page-frame { width: 88%; margin-inline: auto; min-width: 0; }
+@media (min-width: 901px) and (max-width: 1100px) { .ahs-page-frame { width: 94%; } }
+@media (max-width: 900px) { .ahs-page-frame { width: 100%; } }
+@media print { .ahs-page-frame { width: 100%; margin: 0; } }
+.live-search-tools { position: sticky; top: var(--admin-header-height, 100px); z-index: 30; display: grid; grid-template-columns: minmax(0, 1fr) 160px 180px auto; align-items: end; gap: 12px; padding: 14px; background: #fff; border: 1px solid #cbd5e1; border-radius: 12px; box-shadow: 0 3px 8px #0f172a08; }
+.live-search-tools label { display: block; font-size: 12px; font-weight: 600; color: #334155; }
+.live-search-tools input, .live-search-tools select { width: 100%; min-width: 0; margin-top: 5px; padding: 9px 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; font-size: 14px; color: #0f172a; }
+.live-search-tools :is(input, select, button):focus-visible { outline: 2px solid #0267b1; outline-offset: 2px; }
+.live-search-tools > button { padding: 10px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 12px; font-weight: 600; color: #475569; }
+.live-search-tools > button:disabled { opacity: 0.4; }
+@media (max-width: 1100px) {
+  .live-search-tools { grid-template-columns: minmax(0,1fr) minmax(0,1fr) auto; gap: 8px; padding: 10px; }
+  .live-search-tools > label:first-child { grid-column: 1/-1; }
+}
+.live-search-results { font-size: 12px; color: #475569; }
+.live-candidate-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(min(100%,265px),1fr)); gap: 12px; }
+.live-candidate-card { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+@media (min-width: 1101px) {
+  .live-search-grid { grid-template-columns: minmax(0,1fr); }
+  .live-search-grid .live-candidate-card { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); align-items: start; }
+}
+.live-candidate-card h4 { overflow-wrap: anywhere; }
+.live-history > summary { cursor: pointer; color: #475569; font-size: 12px; font-weight: 600; }
+.live-history[open] > summary { margin-bottom: 8px; }
+
 /* Phòng làm bài: giữ các điều khiển trong khung nhìn, chỉ cuộn nội dung dài. */
 .student-workspace { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
 .student-workspace > header, .student-workspace > aside { flex: none; }
@@ -20,7 +46,7 @@
 .student-workspace > header img { max-height: 36px; }
 .student-workspace > aside { padding-block: 4px; }
 .student-workspace > aside p, .student-workspace > aside nav { display: none; }
-.student-workspace-main { flex: 1; min-height: 0; width: 100%; padding: 10px 14px; }
+.student-workspace-main { flex: 1; min-height: 0; padding: 10px 14px; }
 .exam-workspace-grid { height: 100%; min-height: 0; display: grid; grid-template-columns: minmax(0,1fr) 270px; gap: 12px; }
 .exam-main-column { min-height: 0; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
 .exam-main-column > section[aria-label="Thông tin học sinh"] { padding-block: 7px; flex: none; }
@@ -50,10 +76,20 @@
 .exam-palette { flex: 1; min-height: 0; overflow: auto; padding: 4px; overscroll-behavior: contain; }
 .exam-palette > div + div { margin-top: 12px; }
 .exam-palette-toggle { display: none; }
-.student-reminder { position: fixed; z-index: 80; top: 70px; left: 50%; transform: translateX(-50%); width: min(620px,90vw); text-align: center; color: #9a3412; text-shadow: 0 0 5px white, 0 0 12px white, 0 0 18px white; pointer-events: none; font-size: 16px; line-height: 1.5; animation: reminder-arrive 10s ease-out forwards; }
-.student-reminder p + p { margin-top: 4px; }
-@keyframes reminder-arrive { 0% { opacity: 0; translate: 0 -10px; } 4%, 85% { opacity: 1; translate: 0 0; } 100% { opacity: 0; translate: 0 -4px; } }
-@media (prefers-reduced-motion: reduce) { .student-reminder { animation: none; } }
+.student-reminder { position: fixed; z-index: 80; top: 70px; left: 50%; transform: translateX(-50%); width: min(780px,calc(100vw - 24px)); max-height: 45dvh; overflow: auto; padding: 18px 22px; text-align: left; color: #fff; background: #991b1b; border-radius: 12px; box-shadow: 0 10px 36px #7f1d1d66; font-size: 18px; line-height: 1.45; animation: reminder-arrive 15s ease-out forwards; }
+.student-reminder-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.student-reminder-heading > span { font-size: 38px; line-height: 1; color: #fde68a; animation: reminder-emphasis 0.8s ease-in-out 3; }
+.student-reminder-heading h2 { font-size: 20px; font-weight: 900; text-transform: uppercase; }
+.student-reminder-heading h2 span { color: #fde68a; }
+.student-reminder-recipient { font-size: 17px; font-weight: 800; }
+.student-reminder-recipient span { font-size: 13px; font-weight: 500; color: #fee2e2; }
+.student-reminder-message { font-size: 20px; font-weight: 750; white-space: pre-line; overflow-wrap: anywhere; margin-top: 10px; }
+.student-reminder-instruction { font-size: 12px; color: #fee2e2; margin-top: 10px; }
+.student-reminder-history { flex: none; padding: 5px 10px; border-left: 3px solid #dc2626; background: #fef2f2; color: #991b1b; font-size: 12px; font-weight: 600; }
+@keyframes reminder-arrive { 0% { opacity: 0; translate: 0 -12px; } 2%, 94% { opacity: 1; translate: 0 0; } 100% { opacity: 0; translate: 0 -4px; } }
+@keyframes reminder-emphasis { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+@media (prefers-reduced-motion: reduce) { .student-reminder, .student-reminder-heading > span { animation: none; } }
+@media (max-width: 900px) { .student-reminder { top: 60px; padding: 12px 14px; } .student-reminder-heading h2 { font-size: 16px; } .student-reminder-message { font-size: 17px; } .student-reminder-recipient span { display: block; } }
 @media (max-width: 900px) {
   .student-workspace-main { padding: 6px 8px; }
   .exam-workspace-grid { grid-template-columns: minmax(0,1fr); grid-template-rows: minmax(0,1fr) auto; gap: 6px; }

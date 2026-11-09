@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { AdminContext } from './AdminContext.js';
 import { useAdminController } from './hooks/useAdminController.js';
 import LoginScreen from './LoginScreen.jsx';
@@ -20,6 +20,18 @@ function AdminApp() {
   const { activeTab, setActiveTab, liveSessions, submissions, setShowBroadcastModal,
     cloudStatus, handleLogout, isAuthenticated } = admin;
 
+  const headerRef = useRef(null);
+  useEffect(() => {
+    const header = headerRef.current;
+    if (!header) return;
+    const measure = () => header.parentElement.style.setProperty('--admin-header-height', `${header.getBoundingClientRect().height}px`);
+    measure();
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+    observer?.observe(header);
+    window.addEventListener('resize', measure);
+    return () => { observer?.disconnect(); window.removeEventListener('resize', measure); };
+  }, [isAuthenticated]);
+
   if (!isAuthenticated) {
     return (
       <AdminContext.Provider value={admin}>
@@ -34,8 +46,8 @@ function AdminApp() {
       <div className="min-h-screen flex flex-col bg-slate-100 text-slate-900">
         <LocalSandboxBanner />
       
-        <header className="sticky top-0 z-40 bg-white border-b border-slate-200 no-print">
-          <div className="px-4 py-2 flex items-center justify-between gap-3">
+        <header ref={headerRef} className="sticky top-0 z-40 bg-white border-b border-slate-200 no-print">
+          <div className="ahs-page-frame px-4 py-3 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <img src={window.ASIAN_SCHOOL_LOGO_BASE64 || '../assets/logo_asian_school.png'} alt="Asian School" className="h-9 w-auto" />
               <div>
@@ -50,7 +62,7 @@ function AdminApp() {
               <button type="button" onClick={handleLogout} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold">Đăng xuất</button>
             </div>
           </div>
-          <nav aria-label="Chức năng quản trị" className="px-3 pb-2 grid grid-cols-4 lg:grid-cols-7 gap-1">
+          <nav aria-label="Chức năng quản trị" className="ahs-page-frame px-3 pb-2 grid grid-cols-4 lg:grid-cols-7 gap-1">
             {[
               ['live', 'Giám sát', liveSessions.filter(session => ['in_progress', 'practicing', 'locked'].includes(session.status)).length],
               ['submissions', 'Bài nộp & chấm', submissions.length],
@@ -65,7 +77,7 @@ function AdminApp() {
           </nav>
         </header>
 
-        <main className="mx-auto px-4 py-4 flex-1 w-full print:max-w-none print:p-0 print:m-0">
+        <main className="ahs-page-frame px-4 py-5 flex-1 print:max-w-none print:p-0 print:m-0">
         
           {/* TAB 1: GIÁM SÁT TRỰC TIẾP & ĐIỀU KHIỂN GIÁM THỊ */}
           {activeTab === 'live' && <LiveTab />}
