@@ -1,4 +1,4 @@
-import { sanitizeStudentFeedback } from '../../shared/studentFeedback.js';
+import { sanitizeStudentFeedback, getEssayFeedbackForQuestion } from '../../shared/studentFeedback.js';
 import React from 'react';
 import { useStudent } from '../StudentContext.js';
 import { essayPresentation } from '../../shared/essayPresentation.js';
@@ -130,7 +130,9 @@ export default function AnswerReview() {
           {/* BẢNG TỔNG KẾT ĐIỂM SỐ ĐỐI SOÁT */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
             <div className="bg-white p-3 rounded-2xl border border-blue-200 text-center">
-              <span className="text-[11px] font-bold text-slate-500 uppercase block">Trắc Nghiệm</span>
+              <span className="text-[11px] font-bold text-slate-500 uppercase block">
+                {Number(grade) === 10 ? 'Trắc Nghiệm & Đ/S' : 'Trắc Nghiệm'}
+              </span>
               <span className="text-base sm:text-lg font-black text-blue-900">
                 {scoreResult?.mcqPoints !== undefined ? scoreResult.mcqPoints : (scoreResult?.score || 0)} đ
               </span>
@@ -138,7 +140,7 @@ export default function AnswerReview() {
             <div className="bg-white p-3 rounded-2xl border border-blue-200 text-center">
               <span className="text-[11px] font-bold text-slate-500 uppercase block">Tự Luận (Thầy Chấm)</span>
               <span className="text-base sm:text-lg font-black text-indigo-700">
-                {scoreResult?.essayTotal || 0} đ
+                {scoreResult?.essayTotal !== undefined ? `${scoreResult.essayTotal} đ` : (scoreResult?.isGraded ? '0 đ' : 'Chờ chấm')}
               </span>
             </div>
             <div className="bg-white p-3 rounded-2xl border border-blue-200 text-center">
@@ -540,16 +542,16 @@ export default function AnswerReview() {
         </div>
       )}
 
-      {/* PHẦN III: CHI TIẾT BÀI LÀM TỰ LUẬN, BAREM VÀ ĐIỂM THẦY CHẤM */}
+      {/* PHẦN TỰ LUẬN: BÀI LÀM, ĐIỂM SỐ VÀ NHẬN XÉT CỦA GIÁO VIÊN */}
       {examEssayList.length > 0 && (
         <div className="space-y-4 pt-4">
-          <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
             <h3 className="font-black text-base text-slate-900 flex items-center space-x-2">
               <span>📖</span>
-              <span>PHẦN III: CHI TIẾT PHẦN TỰ LUẬN ({examEssayList.length} câu)</span>
+              <span>{examTfList.length > 0 ? 'PHẦN III' : 'PHẦN II'}: CHI TIẾT PHẦN TỰ LUẬN ({examEssayList.length} câu)</span>
             </h3>
             <span className="px-3 py-1 rounded-full text-xs font-black bg-indigo-100 text-indigo-900 border border-indigo-200">
-              Thang điểm Rubric LMS
+              {Number(grade) === 10 ? 'Thang điểm: 2,25 điểm (0,75đ / câu)' : 'Thang điểm: 3,0 điểm (1,0đ / câu)'}
             </span>
           </div>
 
@@ -559,12 +561,16 @@ export default function AnswerReview() {
               ? practiceAnswers?.essay?.[eq.num]
               : (answers.essay?.[eq.num] ?? answers.essay?.[String(eq.num)] ?? '')) || '';
             const essayScore = scoreResult?.essayScores?.[eq.num] ?? scoreResult?.essayScores?.[String(eq.num)];
+            const maxPoints = Math.round((Number(eq.points) || parseFloat(String(eq.pointsText || '').replace(/[^\d.,]/g, '').replace(',', '.')) || (Number(grade) === 10 ? 0.75 : 1.0)) * 100) / 100;
+            const pointsLabel = eq.pointsText || `${maxPoints.toString().replace('.', ',')} điểm`;
+            const questionFeedback = getEssayFeedbackForQuestion(scoreResult?.teacherFeedback, eq.num);
+            const isGraded = scoreResult?.isGraded || essayScore !== undefined;
 
             return (
               <div key={eq.num} className="bg-white border-2 border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                   <span className="font-black text-sm text-indigo-900 uppercase">
-                    Câu {eq.num} (Tự luận) {eq.pointsText && `— ${eq.pointsText}`}
+                    Câu {eq.num} (Tự luận) — {pointsLabel}
                   </span>
                   <span className="text-xs text-slate-500 font-bold">
                     {studentAnswer.trim() ? '✓ Đã làm bài' : 'Chưa nhập bài làm'}
@@ -599,29 +605,61 @@ export default function AnswerReview() {
                   </div>
                 </div>
 
-                {/* Điểm Thầy chấm cho câu tự luận này (nếu đã chấm) */}
-                {mode === 'exam' && essayScore !== undefined && (
-                  <div className="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-3.5 flex items-center justify-between text-xs font-bold text-indigo-950 shadow-sm">
-                    <span className="flex items-center space-x-2">
-                      <span className="text-base">✍️</span>
-                      <span>Điểm Thầy chấm câu này:</span>
-                    </span>
-                    <span className="text-sm font-black text-indigo-800 bg-indigo-100 px-3 py-1 rounded-xl border border-indigo-300">
-                      {essayScore} / {eq.points || (grade === 10 ? 0.75 : 1)} điểm
-                    </span>
-                  </div>
+                {/* ĐIỂM SỐ & NHẬN XÉT CỦA GIÁO VIÊN */}
+                {mode === 'exam' && (
+                  isGraded ? (
+                    <div className="bg-indigo-50/70 border-2 border-indigo-200 rounded-2xl p-4 space-y-3 shadow-sm">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-100 pb-2.5">
+                        <span className="flex items-center space-x-2 text-xs font-black text-indigo-950 uppercase tracking-wide">
+                          <span className="text-base">✍️</span>
+                          <span>Điểm đạt được:</span>
+                        </span>
+                        <span className="text-sm font-black text-indigo-900 bg-white px-3.5 py-1 rounded-xl border border-indigo-300 shadow-sm">
+                          {essayScore !== undefined ? essayScore : 0} / {maxPoints} điểm
+                        </span>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <span className="text-xs font-bold text-indigo-900 uppercase block tracking-wider">
+                          💬 Nhận xét của Thầy:
+                        </span>
+                        <div className="bg-white/95 border border-indigo-200 rounded-xl p-3.5 text-xs sm:text-sm text-slate-800 font-medium leading-relaxed whitespace-pre-line shadow-inner">
+                          {questionFeedback || (
+                            Number(essayScore) >= maxPoints
+                              ? '✓ Em làm bài tốt, đạt trọn vẹn điểm yêu cầu.'
+                              : (sanitizeStudentFeedback(scoreResult?.teacherFeedback) || 'Đã ghi nhận điểm chấm cho câu hỏi này.')
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-amber-50/80 border-2 border-amber-200 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-amber-950 shadow-sm">
+                      <span className="flex items-center space-x-2">
+                        <span className="text-base">⏳</span>
+                        <span>Điểm & nhận xét tự luận:</span>
+                      </span>
+                      <span className="text-xs font-black text-amber-900 bg-white px-3 py-1 rounded-xl border border-amber-300">
+                        Đang chờ Thầy chấm điểm
+                      </span>
+                    </div>
+                  )
                 )}
 
-                {/* ĐÁP ÁN MẪU & RUBRIC CHẤM */}
-                <div className="bg-blue-50/80 border-2 border-blue-300 rounded-2xl p-4 space-y-2">
-                  <div className="flex items-center space-x-2 text-blue-900 font-black text-xs uppercase tracking-wide">
-                    <span>💡</span>
-                    <span>Hướng Dẫn Chấm Điểm & Gợi Ý Đáp Án Chuẩn:</span>
-                  </div>
-                  <p className="text-xs sm:text-sm text-blue-950 font-semibold leading-relaxed whitespace-pre-line pl-6">
-                    {eq.modelAnswer || 'Đang cập nhật hướng dẫn trả lời chi tiết từ giáo viên.'}
-                  </p>
-                </div>
+                {/* GỢI Ý ĐÁP ÁN (CHỈ DÀNH CHO ÔN TẬP TỰ LUYỆN) */}
+                {mode === 'practice' && (
+                  <details className="group bg-blue-50/70 border-2 border-blue-200 rounded-2xl p-3.5 text-xs">
+                    <summary className="cursor-pointer font-black text-blue-900 uppercase tracking-wide flex items-center justify-between">
+                      <span className="flex items-center space-x-2">
+                        <span>💡</span>
+                        <span>Gợi Ý Đáp Án & Hướng Dẫn Tự Ôn Tập</span>
+                      </span>
+                      <span className="text-[11px] text-blue-600 font-semibold group-open:hidden">Nhấn để xem gợi ý ▾</span>
+                    </summary>
+                    <p className="mt-2.5 text-xs sm:text-sm text-blue-950 font-medium leading-relaxed whitespace-pre-line pl-6 border-t border-blue-100 pt-2">
+                      {eq.modelAnswer || 'Đang cập nhật hướng dẫn trả lời chi tiết từ giáo viên.'}
+                    </p>
+                  </details>
+                )}
               </div>
             );
           })}

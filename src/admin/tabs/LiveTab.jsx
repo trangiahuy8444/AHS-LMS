@@ -93,7 +93,7 @@ export default function LiveTab() {
         >
           <span>📝 Đang Thi Chính Thức</span>
           <span className="px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-mono-code font-bold">
-            {liveSessions.filter(s => s.mode === 'exam').length}
+            {liveSessions.filter(s => s.mode === 'exam' && ['in_progress', 'locked'].includes(s.status)).length}
           </span>
         </button>
 
@@ -108,7 +108,7 @@ export default function LiveTab() {
         >
           <span>📖 Đang Ôn Tập Đề Cương</span>
           <span className="px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-800 text-[10px] font-mono-code font-bold">
-            {liveSessions.filter(s => s.mode === 'practice').length}
+            {liveSessions.filter(s => s.mode === 'practice' && ['in_progress', 'practicing', 'locked'].includes(s.status)).length}
           </span>
         </button>
       </div>

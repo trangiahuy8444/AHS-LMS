@@ -3,7 +3,7 @@ import { getExamDurationMinutes } from '../../shared/studentGuidance.js';
 import React, { useState } from 'react';
 import { useStudent } from '../StudentContext.js';
 import { CLASS_LISTS } from '../constants.js';
-import { getStudentsByClass } from '../../core/roster-data.js';
+import { getStudentsByClass, verifyStudentLms } from '../../core/roster-data.js';
 
 // 1. MÀN HÌNH CHỌN CHẾ ĐỘ & ĐĂNG KÝ VÀO PHÒNG LÀM BÀI
 export default function EntryScreen() {
@@ -16,6 +16,7 @@ export default function EntryScreen() {
     lmsErrorCount, setLmsErrorCount } = useStudent();
 
   const [isManualName, setIsManualName] = useState(false);
+  const [showGuidanceConfirm, setShowGuidanceConfirm] = useState(false);
 
   const classRoster = getStudentsByClass(studentClass);
   const matchedStudent = classRoster.find(s => s.fullName === fullName);
@@ -29,6 +30,42 @@ export default function EntryScreen() {
     : [];
 
   const onStartClick = () => {
+    const N = window.AsianSchoolNormalize;
+    const cleanFullName = N ? N.normalizeStudentName(fullName) : String(fullName || '').trim();
+    const cleanStudentId = N ? N.normalizeLmsCode(studentId) : String(studentId || '').trim();
+    if (!cleanFullName) {
+      showDialog('Yêu Cầu Nhập Họ Tên', 'Vui lòng nhập đầy đủ Họ và tên học sinh trước khi bắt đầu!', 'warning');
+      return;
+    }
+    if (!cleanStudentId) {
+      showDialog('Yêu Cầu Nhập Mã LMS', 'Vui lòng nhập Mã LMS của em (chỉ gồm các chữ số) trước khi bắt đầu!', 'warning');
+      return;
+    }
+    if (matchedStudent && !verifyStudentLms(matchedStudent, cleanStudentId) && !isEmergencyLmsOverride) {
+      handleStart();
+      return;
+    }
+    if (mode === 'exam' && classAccessMode === 'practice_only') {
+      showDialog('Thông Báo Ca Thi', `🔒 Ca thi chính thức của Lớp ${studentClass} chưa bắt đầu!\n\nEm vui lòng chọn chế độ "ÔN TẬP ĐỀ CƯƠNG" để luyện tập nhé.`, 'info');
+      return;
+    }
+    if (mode === 'practice' && classAccessMode === 'exam_only') {
+      showDialog('Ca Thi Đang Diễn Ra', `⚠️ Lớp ${studentClass} hiện đang trong ca kiểm tra chính thức ${examDurationMinutes} phút!\n\nEm vui lòng chọn chế độ "THI GIỮA HK1" để làm bài.`, 'warning');
+      return;
+    }
+    if (classAccessMode === 'closed') {
+      showDialog('Cổng Làm Bài Tạm Đóng', `🔒 Cổng làm bài tạm thời đóng đối với Lớp ${studentClass}.\n\nVui lòng báo Giám thị Thầy Trần Gia Huy để được hỗ trợ.`, 'warning');
+      return;
+    }
+    if (mode === 'exam' && !examPasswordInput.trim()) {
+      showDialog('Yêu Cầu Mật Khẩu', '⚠️ VUI LÒNG NHẬP MẬT KHẨU PHÒNG THI!\n\nMật khẩu do Thầy/Cô giám thị cung cấp trước giờ làm bài.', 'warning');
+      return;
+    }
+    setShowGuidanceConfirm(true);
+  };
+
+  const handleConfirmAndStart = () => {
+    setShowGuidanceConfirm(false);
     handleStart();
   };
 
@@ -500,6 +537,93 @@ export default function EntryScreen() {
           }
         </p>
       </div>
+
+      {/* MODAL XÁC NHẬN NỘI QUY & HƯỚNG DẪN KHI ĐĂNG NHẬP VÀO LÀM BÀI */}
+      {showGuidanceConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 overflow-y-auto">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="guidance-confirm-title"
+            className="bg-white rounded-3xl shadow-2xl max-w-xl w-full p-6 sm:p-8 space-y-5 border-2 border-blue-500 my-auto animate-in fade-in zoom-in-95 duration-150"
+          >
+            <div className="text-center space-y-1">
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-900 border border-blue-200 uppercase tracking-wider inline-block">
+                Chuẩn Quy Chế Asian School
+              </span>
+              <h3 id="guidance-confirm-title" className="text-xl sm:text-2xl font-black text-blue-950">
+                NỘI QUY VÀ HƯỚNG DẪN LÀM BÀI
+              </h3>
+              <p className="text-xs text-slate-500">
+                Em vui lòng đọc kỹ thông báo và hướng dẫn bên dưới trước khi bắt đầu làm bài.
+              </p>
+            </div>
+
+            {/* Thẻ thông tin học sinh xác nhận */}
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-xs sm:text-sm space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="text-slate-500 block text-[11px]">Thí sinh:</span>
+                  <strong className="text-slate-900 font-bold">{fullName}</strong>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[11px]">Mã LMS:</span>
+                  <strong className="text-blue-900 font-mono-code font-bold">{studentId}</strong>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[11px]">Lớp / Khối:</span>
+                  <strong className="text-slate-900 font-bold">Lớp {studentClass} • Khối {grade}</strong>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[11px]">Thời gian làm bài:</span>
+                  <strong className="text-amber-800 font-bold">{mode === 'exam' ? `${examDurationMinutes} phút` : (config?.practiceDurationMinutes ? `${config.practiceDurationMinutes} phút` : 'Tự do rèn luyện')}</strong>
+                </div>
+              </div>
+              {mode === 'exam' && selectedExamCode && (
+                <div className="pt-1 border-t border-slate-200">
+                  <span className="text-slate-500 text-[11px]">Mã đề thi: </span>
+                  <strong className="text-blue-950 font-bold font-mono-code">Mã đề {selectedExamCode}</strong>
+                </div>
+              )}
+            </div>
+
+            {/* Nội dung và hướng dẫn làm bài */}
+            <div className="max-h-60 overflow-y-auto pr-1">
+              <StudentGuidance mode={mode} config={config} />
+            </div>
+
+            {/* Lưu ý an toàn thi */}
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs space-y-1">
+              <p className="font-bold flex items-center space-x-1">
+                <span>⚠️</span>
+                <span>Lưu ý quan trọng khi làm bài:</span>
+              </p>
+              <p className="leading-relaxed">
+                Ngay khi bấm xác nhận, hệ thống sẽ tự động kích hoạt chế độ <strong>Toàn Màn Hình</strong> và bắt đầu tính giờ. Em tuyệt đối <strong>không chuyển tab, không mở ứng dụng khác</strong> để tránh bài thi bị khóa.
+              </p>
+            </div>
+
+            {/* Nút xác nhận & quay lại */}
+            <div className="space-y-2.5 pt-2">
+              <button
+                type="button"
+                onClick={handleConfirmAndStart}
+                className="w-full py-4 bg-[#0267B1] hover:bg-[#025696] active:scale-[0.99] text-white font-black text-sm sm:text-base rounded-2xl shadow-lg shadow-blue-900/20 transition flex items-center justify-center space-x-2 uppercase tracking-wider"
+              >
+                <span>✓</span>
+                <span>XÁC NHẬN ĐÃ ĐỌC KĨ THÔNG BÁO VÀ LÀM BÀI</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowGuidanceConfirm(false)}
+                className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition"
+              >
+                Quay lại kiểm tra thông tin
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

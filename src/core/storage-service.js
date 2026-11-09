@@ -901,6 +901,69 @@
       return { success: true, submission: sub };
     }
 
+    // Admin duyệt và cập nhật lại mã LMS (và họ tên nếu có) cho bài nộp chưa khớp vào CSDL
+    updateSubmissionStudentId(subId, newStudentId, newFullName = null) {
+      const targetId = String(subId || '').trim();
+      const cleanNewId = String(newStudentId || '').trim();
+      if (!targetId || !cleanNewId) return { success: false, error: 'Thiếu ID bài nộp hoặc mã LMS mới.' };
+
+      let list = this.getSubmissions();
+      let idx = list.findIndex(s => String(s.id).trim() === targetId || String(s.sessionId).trim() === targetId);
+      let isPractice = false;
+
+      if (idx === -1) {
+        list = this.getPracticeSubmissions();
+        idx = list.findIndex(s => String(s.id).trim() === targetId || String(s.sessionId).trim() === targetId);
+        if (idx !== -1) isPractice = true;
+      }
+
+      if (idx === -1) return { success: false, error: 'Không tìm thấy bài nộp với ID: ' + targetId };
+
+      const sub = list[idx];
+      const oldId = sub.studentId;
+      sub.studentId = cleanNewId;
+      if (newFullName && String(newFullName).trim()) {
+        sub.fullName = String(newFullName).trim();
+      }
+      sub.updatedAt = new Date().toISOString();
+      list[idx] = sub;
+
+      const updatePayload = {
+        studentId: cleanNewId,
+        ...(newFullName ? { fullName: sub.fullName } : {}),
+        updatedAt: sub.updatedAt
+      };
+
+      if (isPractice) {
+        localStorage.setItem(PRACTICE_SUBMISSIONS_KEY, JSON.stringify(list));
+        this.notify(this.practiceSubmissionListeners, list);
+        if (typeof window !== 'undefined' && window.firebaseDb) {
+          try {
+            window.firebaseDb.collection('practice_results').doc(targetId).set(updatePayload, { merge: true })
+              .catch(e => console.warn('Firestore practice_results update err', e));
+          } catch (e) { /* fallback */ }
+        }
+      } else {
+        localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(list));
+        this.notify(this.submissionListeners, list);
+        if (typeof window !== 'undefined' && window.firebaseDb) {
+          try {
+            if (typeof writeArchivedSource === 'function') {
+              writeArchivedSource('submissions', targetId, updatePayload, { merge: true }, sub)
+                .catch(e => console.warn('Firestore update submission err', e));
+            } else {
+              window.firebaseDb.collection('submissions').doc(targetId).set(updatePayload, { merge: true })
+                .catch(e => console.warn('Firestore update submission err', e));
+            }
+          } catch (e) { /* fallback */ }
+        }
+      }
+
+      this.logAudit('Cập nhật mã LMS bài nộp', `${sub.fullName || cleanNewId} (${sub.studentClass}): Đổi mã LMS từ ${oldId} sang ${cleanNewId}`);
+      this.syncRowToGoogleDrive(sub);
+      return { success: true, submission: sub };
+    }
+
     // Chấm tự động phần trắc nghiệm (+ Đúng/Sai Khối 10) cho bài thi chính thức học sinh vừa nộp.
     // Gói Spark không có máy chủ: học sinh chỉ gửi bài làm, trang quản trị (đã nạp exam_bank kèm đáp án) chấm.
     // examsByGrade: { 8: { '101': exam, ... }, 9: {...}, 10: {...} }. Trả về số bài vừa chấm.

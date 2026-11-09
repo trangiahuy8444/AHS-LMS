@@ -42,15 +42,27 @@ export function classSubmissionProgress(submissions, studentClass, roster = [], 
     }
   });
   const submitted = new Set(), unmatched = new Set();
+  const unmatchedRows = [];
   const total = roster.length || null;
   for (const row of submissions || []) {
     if (String(row.studentClass || '').trim() !== studentClass || row.mode !== mode) continue;
     if (row.grade != null && Number(row.grade) !== Number(studentClass.split('/')[0])) continue;
     const id = normalize(row.studentId);
     if (!id) continue;
-    if (aliases.has(id)) submitted.add(aliases.get(id));
-    else if (total === null) submitted.add(id);
-    else unmatched.add(id);
+    if (aliases.has(id)) {
+      submitted.add(aliases.get(id));
+    } else if (total === null) {
+      submitted.add(id);
+    } else {
+      unmatched.add(id);
+      unmatchedRows.push(row);
+    }
   }
-  return { total, submitted: submitted.size, missing: total === null ? null : total - submitted.size, unmatched: unmatched.size };
+  const missingStudents = total === null ? [] : roster.filter((_, idx) => !submitted.has(idx));
+  const res = { total, submitted: submitted.size, missing: total === null ? null : total - submitted.size, unmatched: unmatched.size };
+  Object.defineProperties(res, {
+    missingStudents: { value: missingStudents, enumerable: false, writable: true },
+    unmatchedRows: { value: unmatchedRows, enumerable: false, writable: true }
+  });
+  return res;
 }

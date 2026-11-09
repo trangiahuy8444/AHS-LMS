@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useStudent } from '../StudentContext.js';
 import { useTeacherReminder } from '../../shared/useTeacherReminder.js';
 
-const REMINDER_DURATION_MS = 15000;
+const REMINDER_DURATION_MS = 3000;
 export default function TeacherReminderBanner() {
   const { t } = useStudentLanguage();
   const student = useStudent();
@@ -26,7 +26,7 @@ export default function TeacherReminderBanner() {
       <div className="student-reminder-heading"><span aria-hidden="true">⚠</span><h2>{t('Nhắc nhở vi phạm của giáo viên')} <span>· {t('Lần')} {count}</span></h2></div>
       <p className="student-reminder-recipient">{student.fullName} <span>· {t('Lớp')} {student.studentClass} · {t('Mã LMS')}: {student.studentId}</span></p>
       <p className="student-reminder-message">{message}</p>
-      <p className="student-reminder-instruction">{t('Em cần nghiêm túc làm bài.')} {t('Thông báo tự ẩn sau 15 giây.')}</p>
+      <p className="student-reminder-instruction">{t('Em cần nghiêm túc làm bài.')} {t('Thông báo tự ẩn sau 3 giây.')}</p>
     </section>
   );
 }

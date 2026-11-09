@@ -1,5 +1,5 @@
 import { readPracticeDraft } from './practiceDraft.js';
-import { createExamDraftIdentity, readExamDraft, readExamDraftPosition } from './examDraft.js';
+import { createExamDraftIdentity, readExamDraft, readExamDraftPosition, findRecoverableExamDraft, saveExamDraft } from './examDraft.js';
 import { getStudentsByClass, verifyStudentLms } from '../../core/roster-data.js';
 
 const PRACTICE_LOCK_KEY = 'asian_school_practice_lock_v1';
@@ -182,7 +182,23 @@ export function createStartActions(s) {
         uid: window.AsianSchoolAuth?.uid?.() || ''
       });
       restoredQuestionIdx = readExamDraftPosition(identity);
-      const restoredAnswers = readExamDraft(identity) || serverStart.draftAnswers || { mcq: {}, tf: {}, essay: {} };
+      let restoredAnswers = readExamDraft(identity) || serverStart.draftAnswers;
+
+      // Cứu hộ bài làm khi học sinh bị lỗi kỹ thuật (tắt máy, mở lại trình duyệt, đổi uid anonymous):
+      if (!restoredAnswers || (!Object.keys(restoredAnswers.mcq || {}).length && !Object.keys(restoredAnswers.tf || {}).length && !Object.keys(restoredAnswers.essay || {}).length)) {
+        const recovered = findRecoverableExamDraft({ grade, studentClass, studentId, examCode: serverStart.examCode });
+        if (recovered && recovered.answers) {
+          restoredAnswers = recovered.answers;
+          if (recovered.activeQuestionIdx !== undefined) {
+            restoredQuestionIdx = recovered.activeQuestionIdx;
+          }
+          if (identity) {
+            saveExamDraft(identity, restoredAnswers, undefined, restoredQuestionIdx);
+          }
+        }
+      }
+      if (!restoredAnswers) restoredAnswers = { mcq: {}, tf: {}, essay: {} };
+
       if (setExamAnswers) setExamAnswers(restoredAnswers);
       if (setExamDraftSession) setExamDraftSession(identity ? { identity, initialAnswers: restoredAnswers } : null);
       submittingExamRef.current = false;

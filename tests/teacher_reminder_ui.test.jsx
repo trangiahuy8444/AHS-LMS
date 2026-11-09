@@ -36,7 +36,7 @@ it('reminder fades automatically, repeated snapshots do not replay it, and a new
   act(() => latest(message));
   expect(screen.getByText(message.message)).toBeTruthy();
   expect(screen.queryByRole('alertdialog')).toBeNull();
-  act(() => vi.advanceTimersByTime(16000));
+  act(() => vi.advanceTimersByTime(3500));
   expect(screen.queryByText(message.message)).toBeNull();
   act(() => latest({ ...message }));
   expect(screen.queryByText(message.message)).toBeNull();
@@ -66,7 +66,7 @@ it('a locked pupil can read the teacher reminder on the lock screen', async () =
   expect(screen.getByText(/BÀI THI BỊ TẠM THỜI KHÓA/)).toBeTruthy();
 });
 
-it('shows an urgent named warning for fifteen seconds, then keeps the teacher reminder count without blocking work',()=>{
+it('shows an urgent named warning for three seconds, then keeps the teacher reminder count without blocking work',()=>{
  vi.useFakeTimers();
  render(<StudentContext.Provider value={{...target,examState:'in_progress'}}><TeacherReminderBanner/></StudentContext.Provider>);
  const message={id:'strong-warning',count:2,message:'Em tập trung làm bài, không trao đổi.',createdAt:Date.now()};
@@ -75,8 +75,8 @@ it('shows an urgent named warning for fifteen seconds, then keeps the teacher re
  expect(screen.getByRole('alert').textContent).toContain('999999');
  expect(screen.getByText(/Nhắc nhở vi phạm của giáo viên/)).toBeTruthy();
  expect(screen.queryByRole('dialog')).toBeNull();
- act(()=>vi.advanceTimersByTime(14000));expect(screen.getByText(message.message)).toBeTruthy();
- act(()=>vi.advanceTimersByTime(2000));expect(screen.queryByRole('alert')).toBeNull();
+ act(()=>vi.advanceTimersByTime(2500));expect(screen.getByText(message.message)).toBeTruthy();
+ act(()=>vi.advanceTimersByTime(1000));expect(screen.queryByRole('alert')).toBeNull();
  expect(screen.getByRole('status').textContent).toContain('Giáo viên đã nhắc');
  expect(screen.getByRole('status').textContent).toContain('2');
 });

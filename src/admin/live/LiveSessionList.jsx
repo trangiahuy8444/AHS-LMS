@@ -64,6 +64,9 @@ export default function LiveSessionList({ query = '', classFilter = 'all', statu
           const sessionsInClass = modeSessions.filter(session => session.studentClass === cls);
           const attendance = classAttendance(liveSessions, cls, getStudentsByClass(cls), now);
           const { locked: lockedCount, exam: examCount, practice: practiceCount } = attendance;
+          const progress = classSubmissionProgress(savedRows, cls, getStudentsByClass(cls), liveFilter === 'practice' ? 'practice' : 'exam');
+          const isClassFinished = (progress.total !== null && progress.submitted >= progress.total && attendance.active === 0)
+            || (progress.submitted > 0 && attendance.active === 0 && sessionsInClass.length > 0 && sessionsInClass.every(s => s.status === 'submitted' || savedRows.some(row => (s.sessionId && row.sessionId === s.sessionId) || (s.studentId && row.studentId === s.studentId))));
 
           return (
             <div key={cls} className="bg-white rounded-3xl border-2 border-slate-200 p-4 shadow-sm space-y-3">
@@ -73,9 +76,22 @@ export default function LiveSessionList({ query = '', classFilter = 'all', statu
                     {cls}
                   </span>
                   <div>
-                    <h3 className="font-black text-base text-blue-950 uppercase">
-                      LỚP {cls}
-                    </h3>
+                    <div className="flex items-center space-x-2">
+                      <h3 className="font-black text-base text-blue-950 uppercase">
+                        LỚP {cls}
+                      </h3>
+                      {isClassFinished ? (
+                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-[11px] flex items-center space-x-1">
+                          <span>✅</span>
+                          <span>ĐÃ THI XONG ({progress.submitted}/{progress.total ?? progress.submitted})</span>
+                        </span>
+                      ) : attendance.active > 0 ? (
+                        <span className="px-2.5 py-0.5 rounded-full bg-red-100 text-red-800 border border-red-300 font-bold text-[11px] flex items-center space-x-1 animate-pulse">
+                          <span>🔴</span>
+                          <span>ĐANG THI ({attendance.active} em)</span>
+                        </span>
+                      ) : null}
+                    </div>
                     <p className="text-xs text-slate-500 font-medium">
                       Sĩ số lớp: <strong className="text-blue-900 font-bold">{attendance.total ?? 'Chưa có danh sách'}</strong>
                       {' '}• Đang làm: <strong className="text-emerald-700">{attendance.active} / {attendance.total ?? '—'}</strong>
@@ -130,7 +146,10 @@ export default function LiveSessionList({ query = '', classFilter = 'all', statu
               {sessionsInClass.length === 0 && <p className="text-xs text-slate-500">Không có phiên trực tuyến. Số đã nộp vẫn được giữ theo CSDL bài làm.</p>}
               <div className={`live-candidate-grid ${isTargetedSearch ? 'live-search-grid' : ''}`}>
                 {visibleSessions.map(session => {
-                  const isLocked = session.isLocked === true || session.status === 'locked';
+                  const normLms = window.AsianSchoolNormalize ? window.AsianSchoolNormalize.normalizeLmsCode(session.studentId) : String(session.studentId || '').replace(/\D/g, '');
+                  const hasSavedSub = savedRows.some(row => (session.sessionId && row.sessionId === session.sessionId) || (normLms && (window.AsianSchoolNormalize ? window.AsianSchoolNormalize.normalizeLmsCode(row.studentId) : String(row.studentId || '').replace(/\D/g, '')) === normLms && row.mode === session.mode));
+                  const isSubmitted = session.status === 'submitted' || hasSavedSub;
+                  const isLocked = !isSubmitted && (session.isLocked === true || session.status === 'locked');
                   const isPractice = session.mode === 'practice';
                   return (
                     <div
@@ -160,7 +179,7 @@ export default function LiveSessionList({ query = '', classFilter = 'all', statu
                         <span className={`px-2 py-0.5 rounded-full text-[11px] font-black ${
                           isLocked
                             ? 'bg-red-600 text-white'
-                            : (session.status === 'submitted'
+                            : (isSubmitted
                                 ? 'bg-blue-100 text-blue-900 border border-blue-200'
                                 : (isPractice
                                     ? 'bg-purple-100 text-purple-900 border border-purple-200'
@@ -168,7 +187,7 @@ export default function LiveSessionList({ query = '', classFilter = 'all', statu
                         }`}>
                           {isLocked
                             ? '🚨 BỊ KHÓA'
-                            : (session.status === 'submitted'
+                            : (isSubmitted
                                 ? 'Đã nộp bài'
                                 : (isPractice ? '📖 Ôn tập' : '📝 Đang thi'))}
                         </span>
@@ -220,9 +239,9 @@ export default function LiveSessionList({ query = '', classFilter = 'all', statu
                         <span className={session.violations > 0 ? 'text-red-600 font-bold' : 'text-slate-500'}>
                           Vi phạm: <strong className="text-xs">{session.violations || 0}</strong> lần {session.violations >= 3 && <span className="text-red-600 font-extrabold">(đã từng bị khóa)</span>}
                         </span>
-                        {session.status === 'submitted' && (
+                        {isSubmitted && (
                           <span className="text-emerald-700 font-black text-xs">
-                            Điểm: {session.score !== undefined ? session.score : session.mcqPoints} / {session.maxScore || (parseInt(session.grade, 10) === 10 ? 7.75 : 7)}đ
+                            Điểm: {session.score !== undefined ? session.score : (session.mcqPoints ?? '—')} / {session.maxScore || (parseInt(session.grade, 10) === 10 ? 7.75 : 7)}đ
                           </span>
                         )}
                       </div>

@@ -24,3 +24,17 @@ export function setEssayQuestionFeedback(current, questionNum, result, maxPoints
   if(issue) blocks.push(`Câu ${questionNum}: ${issue}`);
   return blocks.join('\n\n');
 }
+
+export function getEssayFeedbackForQuestion(allFeedback, qNum) {
+  if (!allFeedback) return '';
+  const sanitized = sanitizeStudentFeedback(allFeedback);
+  if (!sanitized) return '';
+  const num = Number(qNum);
+  const pattern = new RegExp(
+    `(?:^|[\\r\\n]+)\\s*\\[?Câu\\s*${num}\\b[^\\]:\\n]*\\]?\\s*[:\\-–]\\s*([\\s\\S]*?)(?=(?:[\\r\\n]+\\s*\\[?Câu\\s*\\d+|[\\r\\n]+\\s*Nhận xét chung|$))`,
+    'i'
+  );
+  const match = sanitized.match(pattern);
+  return match && match[1] ? match[1].trim() : '';
+}
+

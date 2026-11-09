@@ -1,6 +1,17 @@
 // Bản nháp chỉ giữ bài làm học sinh, theo từng tab và đúng lượt máy chủ đã xác nhận.
 const DRAFT_PREFIX = 'ahs_exam_draft_v1:';
+const RECOVERY_PREFIX = 'ahs_exam_recovery_v1:';
 const emptyAnswers = () => ({ mcq: {}, tf: {}, essay: {} });
+
+function recoveryKey(identity) {
+  if (!identity) return null;
+  const grade = Number(identity.grade);
+  const studentClass = String(identity.studentClass || '').trim();
+  const studentId = String(identity.studentId || '').trim();
+  const examCode = String(identity.examCode || '').trim();
+  if (![8, 9, 10].includes(grade) || !studentClass || !/^\d+$/.test(studentId)) return null;
+  return RECOVERY_PREFIX + [grade, studentClass, studentId, examCode].join(':');
+}
 
 export function createExamDraftIdentity({ grade, studentClass, studentId, examCode, startedAtMs, uid = '' }) {
   if (![8, 9, 10].includes(grade) || !studentClass || !/^\d+$/.test(String(studentId || ''))
@@ -52,17 +63,71 @@ export function readExamDraftPosition(identity, storage) {
 export function saveExamDraft(identity, answers, storage, activeQuestionIdx = 0) {
   try {
     const key=draftKey(identity);if(!key)return false;
-    const value=JSON.stringify({version:1,identity:createExamDraftIdentity(identity),answers:answersOnly(answers),activeQuestionIdx});
+    const filteredAnswers = answersOnly(answers);
+    const value=JSON.stringify({version:1,identity:createExamDraftIdentity(identity),answers:filteredAnswers,activeQuestionIdx});
     if(storage){storage.setItem(key,value);return true;}
     let durable=false;
     try{localStorage.setItem(key,value);durable=true;}catch{/* còn bản lưu theo tab nếu trình duyệt chặn lưu bền */}
     try{sessionStorage.setItem(key,value);}catch{/* không làm hỏng phần nhập bài */}
+
+    // Lưu bản sao cứu hộ theo học sinh để giữ nguyên bài làm khi bị tắt máy, lỗi kỹ thuật hoặc đổi uid
+    const rKey = recoveryKey(identity);
+    if (rKey) {
+      try {
+        const hasContent = Object.keys(filteredAnswers.mcq).length > 0 || Object.keys(filteredAnswers.tf).length > 0 || Object.keys(filteredAnswers.essay).length > 0;
+        if (hasContent) {
+          const recVal = JSON.stringify({
+            version: 1,
+            grade: Number(identity.grade),
+            studentClass: String(identity.studentClass),
+            studentId: String(identity.studentId),
+            examCode: String(identity.examCode || ''),
+            answers: filteredAnswers,
+            activeQuestionIdx: Number.isSafeInteger(activeQuestionIdx) && activeQuestionIdx >= 0 ? activeQuestionIdx : 0,
+            savedAt: Date.now()
+          });
+          localStorage.setItem(rKey, recVal);
+        }
+      } catch { /* không cản trở luồng lưu chính */ }
+    }
+
     return durable;
   } catch { return false; }
 }
 export function clearExamDraft(identity, storage) {
   try {
-    const key=draftKey(identity);if(!key)return;
-    for(const source of storage?[storage]:[localStorage,sessionStorage])try{source.removeItem(key);}catch{/* bộ nhớ bị chặn */}
+    const key=draftKey(identity);
+    const rKey=recoveryKey(identity);
+    for(const source of storage?[storage]:[localStorage,sessionStorage]) {
+      try {
+        if (key) source.removeItem(key);
+        if (rKey) source.removeItem(rKey);
+      } catch { /* bộ nhớ bị chặn */ }
+    }
   } catch { /* không cản nộp đã xác nhận */ }
+}
+
+// Tìm bản nháp cứu hộ của học sinh khi bị lỗi kỹ thuật, tắt máy hoặc vào lại bài thi
+export function findRecoverableExamDraft({ grade, studentClass, studentId, examCode }) {
+  if (![8, 9, 10].includes(Number(grade)) || !studentClass || !studentId) return null;
+  const cleanId = String(studentId).trim();
+  const targetCode = String(examCode || '').trim();
+  const rKey = RECOVERY_PREFIX + [Number(grade), String(studentClass).trim(), cleanId, targetCode].join(':');
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(rKey) : null;
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (data && data.answers) {
+      const filtered = answersOnly(data.answers);
+      const hasContent = Object.keys(filtered.mcq).length > 0 || Object.keys(filtered.tf).length > 0 || Object.keys(filtered.essay).length > 0;
+      if (hasContent) {
+        return {
+          answers: filtered,
+          activeQuestionIdx: Number.isSafeInteger(data.activeQuestionIdx) && data.activeQuestionIdx >= 0 ? data.activeQuestionIdx : 0,
+          savedAt: data.savedAt
+        };
+      }
+    }
+  } catch { /* ignore parse error */ }
+  return null;
 }
