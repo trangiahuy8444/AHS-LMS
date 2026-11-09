@@ -1,10 +1,11 @@
 // Một học sinh có thể mở nhiều phiên; chỉ trạng thái mới nhất quyết định đang làm bài.
-export function classAttendance(sessions, studentClass, roster, now = Date.now()) {
+// Nếu thí sinh đã nộp bài (có trong submissions) thì không tính là đang làm bài/đang thi.
+export function classAttendance(sessions, studentClass, roster, now = Date.now(), submissions = []) {
   const latest = new Map();
   const normalize = value => String(value || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
   const aliases = new Map();
   for (const [index, student] of (roster || []).entries()) {
-    for (const field of ['studentId','lmsCode','loginId','sisId','canvasUserId']) {
+    for (const field of ['studentId','lmsCode','loginId','sisId','canvasUserId','legacyId']) {
       const value = normalize(student[field]);
       if (value) {
         aliases.set(value, 'roster-' + index);
@@ -12,16 +13,37 @@ export function classAttendance(sessions, studentClass, roster, now = Date.now()
       }
     }
   }
+
+  // Tập hợp các thí sinh đã nộp bài trong CSDL
+  const submittedKeys = new Set();
+  (submissions || []).forEach(sub => {
+    if (String(sub.studentClass || '').trim() !== studentClass) return;
+    if (sub.sessionId) submittedKeys.add(sub.sessionId);
+    const subLms = normalize(sub.studentId);
+    if (subLms) {
+      submittedKeys.add(subLms);
+      if (aliases.has(subLms)) submittedKeys.add(aliases.get(subLms));
+    }
+  });
+
   for (const session of sessions) {
     if (session.studentClass !== studentClass) continue;
     const id = normalize(session.studentId || session.sessionId);
     const key = aliases.get(id) || (/^\d+$/.test(id) ? aliases.get(id.replace(/^0+/, '')) : null) || id;
     if (!latest.has(key) || Number(session.lastPing) > Number(latest.get(key).lastPing)) latest.set(key, session);
   }
-  const active = [...latest.values()].filter(session =>
-    ['in_progress', 'practicing', 'locked'].includes(session.status) &&
-    Number(session.lastPing) > 0 && now - Number(session.lastPing) <= 180000
-  );
+
+  const active = [...latest.entries()].filter(([key, session]) => {
+    // Nếu phiên đã đánh dấu submitted hoặc đã có trong CSDL nộp bài -> Không tính là đang làm
+    if (session.status === 'submitted') return false;
+    if (submittedKeys.has(key) || (session.sessionId && submittedKeys.has(session.sessionId))) return false;
+    const lms = normalize(session.studentId);
+    if (lms && submittedKeys.has(lms)) return false;
+
+    return ['in_progress', 'practicing', 'locked'].includes(session.status) &&
+      Number(session.lastPing) > 0 && now - Number(session.lastPing) <= 180000;
+  }).map(([, session]) => session);
+
   return {
     total: roster?.length || null,
     active: active.length,
@@ -36,7 +58,7 @@ export function classSubmissionProgress(submissions, studentClass, roster = [], 
   const normalize = value => String(value || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase().replace(/^0+(?=\d)/, '');
   const aliases = new Map();
   roster.forEach((student, index) => {
-    for (const field of ['studentId', 'lmsCode', 'loginId', 'sisId', 'canvasUserId']) {
+    for (const field of ['studentId', 'lmsCode', 'loginId', 'sisId', 'canvasUserId', 'legacyId']) {
       const id = normalize(student[field]);
       if (id) aliases.set(id, index);
     }

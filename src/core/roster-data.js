@@ -1993,10 +1993,11 @@ export const ROSTER_BY_CLASS = {
     {
       "stt": 6,
       "fullName": "Hà Gia Khang",
-      "studentId": "0901",
-      "loginId": "hagiakhang0901@gmail.com",
-      "sisId": "",
-      "canvasUserId": "20993"
+      "studentId": "01190061",
+      "loginId": "01-19-0061",
+      "sisId": "01-19-0061",
+      "canvasUserId": "20993",
+      "legacyId": "0901"
     },
     {
       "stt": 7,
@@ -2057,10 +2058,11 @@ export const ROSTER_BY_CLASS = {
     {
       "stt": 14,
       "fullName": "Phạm Kim Ngân",
-      "studentId": "86",
-      "loginId": "phamkimnganp8q6@gmail.com",
-      "sisId": "",
-      "canvasUserId": "21002"
+      "studentId": "15230032",
+      "loginId": "15-23-0032",
+      "sisId": "15-23-0032",
+      "canvasUserId": "21002",
+      "legacyId": "86"
     },
     {
       "stt": 15,
@@ -2520,12 +2522,14 @@ export function verifyStudentLms(student, inputLms) {
   const stdLogin = cleanLmsCode(student.loginId);
   const stdSis = cleanLmsCode(student.sisId);
   const stdCanvas = student.canvasUserId ? cleanLmsCode(student.canvasUserId) : "";
+  const stdLegacy = student.legacyId ? cleanLmsCode(student.legacyId) : "";
 
   // 1. Khớp chính xác toàn bộ mã (chuỗi đầy đủ không dấu gạch ngang)
   if (stdLms && cleanInput === stdLms) return true;
   if (stdLogin && cleanInput === stdLogin) return true;
   if (stdSis && cleanInput === stdSis) return true;
   if (stdCanvas && cleanInput === stdCanvas) return true;
+  if (stdLegacy && cleanInput === stdLegacy) return true;
 
   // 2. Khớp mã đầy đủ khi bị rớt số 0 ở đầu (độ dài mã đầy đủ >= 6 ký tự)
   const stripZeros = (s) => String(s || "").replace(/^0+/, "");

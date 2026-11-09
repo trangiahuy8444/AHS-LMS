@@ -62,11 +62,14 @@ export default function LiveSessionList({ query = '', classFilter = 'all', statu
           {Object.keys(classGroups).sort((a,b) => Number(classGroups[b].some(isLiveSessionLocked)) - Number(classGroups[a].some(isLiveSessionLocked)) || a.localeCompare(b,'vi',{numeric:true})).map(cls => {
           const visibleSessions = classGroups[cls];
           const sessionsInClass = modeSessions.filter(session => session.studentClass === cls);
-          const attendance = classAttendance(liveSessions, cls, getStudentsByClass(cls), now);
+          const attendance = classAttendance(liveSessions, cls, getStudentsByClass(cls), now, savedRows);
           const { locked: lockedCount, exam: examCount, practice: practiceCount } = attendance;
           const progress = classSubmissionProgress(savedRows, cls, getStudentsByClass(cls), liveFilter === 'practice' ? 'practice' : 'exam');
-          const isClassFinished = (progress.total !== null && progress.submitted >= progress.total && attendance.active === 0)
-            || (progress.submitted > 0 && attendance.active === 0 && sessionsInClass.length > 0 && sessionsInClass.every(s => s.status === 'submitted' || savedRows.some(row => (s.sessionId && row.sessionId === s.sessionId) || (s.studentId && row.studentId === s.studentId))));
+          const totalExamDone = progress.submitted + (progress.unmatched || 0);
+          const isAllRosterSubmitted = progress.total !== null && (progress.submitted >= progress.total || (totalExamDone >= progress.total && (progress.missing === 0 || progress.missing === null)));
+          const isClassFinished = isAllRosterSubmitted
+            || (progress.total !== null && totalExamDone >= progress.total && attendance.active === 0)
+            || (progress.submitted > 0 && attendance.active === 0 && (sessionsInClass.length === 0 || sessionsInClass.every(s => s.status === 'submitted' || savedRows.some(row => (s.sessionId && row.sessionId === s.sessionId) || (s.studentId && row.studentId === s.studentId)))));
 
           return (
             <div key={cls} className="bg-white rounded-3xl border-2 border-slate-200 p-4 shadow-sm space-y-3">

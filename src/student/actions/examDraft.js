@@ -13,10 +13,10 @@ function recoveryKey(identity) {
   return RECOVERY_PREFIX + [grade, studentClass, studentId, examCode].join(':');
 }
 
-export function createExamDraftIdentity({ grade, studentClass, studentId, examCode, startedAtMs, uid = '' }) {
+export function createExamDraftIdentity({ grade, studentClass, studentId, examCode, startedAtMs, uid = '', attemptId = '' }) {
   if (![8, 9, 10].includes(grade) || !studentClass || !/^\d+$/.test(String(studentId || ''))
     || !/^\d{3}$/.test(String(examCode || '')) || !Number.isFinite(startedAtMs) || startedAtMs <= 0) return null;
-  return { grade, studentClass: String(studentClass), studentId: String(studentId), examCode: String(examCode), startedAtMs, uid: String(uid) };
+  return { grade, studentClass: String(studentClass), studentId: String(studentId), examCode: String(examCode), startedAtMs, uid: String(uid), attemptId: String(attemptId || '') };
 }
 function draftKey(identity) {
   if (!identity) return null;
@@ -89,6 +89,19 @@ export function saveExamDraft(identity, answers, storage, activeQuestionIdx = 0)
           localStorage.setItem(rKey, recVal);
         }
       } catch { /* không cản trở luồng lưu chính */ }
+    }
+
+    // ĐỒNG BỘ BẢN NHÁP CỨU HỘ LÊN CLOUD FIRESTORE:
+    // Cứu hộ 100% bài làm khi máy bị shutdown, cúp điện, hoặc máy phòng lab đóng băng Deep Freeze!
+    if (typeof window !== 'undefined' && window.AsianSchoolCloud && typeof window.AsianSchoolCloud.saveExamDraftToCloud === 'function') {
+      window.AsianSchoolCloud.saveExamDraftToCloud({
+        attemptId: identity.attemptId,
+        grade: identity.grade,
+        studentClass: identity.studentClass,
+        studentId: identity.studentId,
+        draftAnswers: filteredAnswers,
+        activeQuestionIdx
+      });
     }
 
     return durable;

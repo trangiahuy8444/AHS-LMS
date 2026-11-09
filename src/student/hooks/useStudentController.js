@@ -61,10 +61,10 @@ export function useStudentController() {
 
   useEffect(() => {
     if (mode !== 'exam' || examState !== 'in_progress' || !examDraftSession) return;
-    // Chỉ bật lưu sau khi render đã nhận đúng object bài vừa phục hồi; không ghi state rỗng/cũ.
-    if (draftRestoredRef.current !== examDraftSession && examAnswers !== examDraftSession.initialAnswers) return;
-    draftRestoredRef.current = examDraftSession;
-    setDraftSaveFailed(!saveExamDraft(examDraftSession.identity, examAnswers,undefined,activeQuestionIdx));
+    if (draftRestoredRef.current !== examDraftSession) {
+      draftRestoredRef.current = examDraftSession;
+    }
+    setDraftSaveFailed(!saveExamDraft(examDraftSession.identity, examAnswers, undefined, activeQuestionIdx));
   }, [mode, examState, examDraftSession, examAnswers, activeQuestionIdx]);
   
   // Timer & Anti-cheat Modal State

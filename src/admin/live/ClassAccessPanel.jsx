@@ -91,7 +91,8 @@ export default function ClassAccessPanel() {
                 const isReviewOpen = Boolean(config.allowStudentReviewOfficialExam || (config.classReviewControl && config.classReviewControl[cls]));
                 const roster = getStudentsByClass(cls);
                 const progress = classSubmissionProgress(submissions || [], cls, roster, 'exam');
-                const isExamFinished = isExam && progress.submitted > 0 && progress.total !== null && progress.submitted >= progress.total;
+                const totalExamDone = progress.submitted + (progress.unmatched || 0);
+                const isExamFinished = isExam && progress.total !== null && (progress.submitted >= progress.total || (totalExamDone >= progress.total && (progress.missing === 0 || progress.missing === null)));
 
                 return (
                   <div

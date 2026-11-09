@@ -693,7 +693,9 @@
       durationMinutes: (baseDurationSeconds + extraTimeSeconds) / 60,
       startedAtMs,
       deadlineMs: startedAtMs + (baseDurationSeconds + extraTimeSeconds) * 1000,
-      violations: attempt.violations || 0
+      violations: attempt.violations || 0,
+      draftAnswers: attempt.draftAnswers || null,
+      activeQuestionIdx: Number.isSafeInteger(attempt.activeQuestionIdx) && attempt.activeQuestionIdx >= 0 ? attempt.activeQuestionIdx : 0
     };
     // Tải lại trang khi đang bị khóa: vẫn khóa, chưa được đọc đề cho tới khi giáo viên mở khóa
     if (attempt.locked) {
@@ -767,6 +769,44 @@
       .then(ref => persistArchived(ref, 'exam_attempts', ref.id, update, { grade, studentClass }))
       .then(() => true)
       .catch((e) => { console.warn('[Firestore] Ghi vi phạm thất bại:', e.message); return false; });
+  }
+
+  // Tự động lưu bản nháp bài thi định kỳ lên Cloud Firestore (Cứu hộ 100% khi shutdown, mất điện hoặc máy đóng băng Deep Freeze)
+  let draftSyncTimer = null;
+  let pendingDraftData = null;
+
+  function saveExamDraftToCloud(opts) {
+    if (!db || !auth || !auth.currentUser) return Promise.resolve(false);
+    pendingDraftData = opts;
+    if (draftSyncTimer) clearTimeout(draftSyncTimer);
+    return new Promise(resolve => {
+      draftSyncTimer = setTimeout(async () => {
+        if (!pendingDraftData) return resolve(false);
+        const { attemptId, grade, studentClass, studentId, draftAnswers, activeQuestionIdx } = pendingDraftData;
+        pendingDraftData = null;
+        try {
+          const FieldValue = firebase.firestore.FieldValue;
+          let ref = null;
+          if (attemptId) {
+            ref = db.collection('exam_attempts').doc(attemptId);
+          } else if (grade && studentId) {
+            ref = await resolveAttemptDocRef(grade, studentClass, studentId);
+          }
+          if (!ref) return resolve(false);
+          const update = {
+            draftAnswers: draftAnswers || {},
+            activeQuestionIdx: Number.isSafeInteger(activeQuestionIdx) && activeQuestionIdx >= 0 ? activeQuestionIdx : 0,
+            draftSavedAt: FieldValue.serverTimestamp()
+          };
+          await persistArchived(ref, 'exam_attempts', ref.id, update, { grade, studentClass });
+          console.log('[Cloud Draft] Đã đồng bộ bản nháp bài thi lên Firestore:', ref.id);
+          resolve(true);
+        } catch (err) {
+          console.warn('[Cloud Draft] Lỗi lưu bản nháp lên Firestore:', err.message);
+          resolve(false);
+        }
+      }, 600);
+    });
   }
 
   // Theo dõi lượt thi của chính mình: trạng thái khóa do máy chủ quyết định
@@ -1431,7 +1471,7 @@
       }
     };
 
-    window.AsianSchoolCloud = { recordTeacherReminder, watchTeacherReminder, startExam, submitExam, loadExam, reportViolation, watchAttempt, setAttemptLock, extendExamTime, watchSubmission, confirmSubmissionScore, lookupSubmissionForReview };
+    window.AsianSchoolCloud = { recordTeacherReminder, watchTeacherReminder, startExam, submitExam, loadExam, reportViolation, watchAttempt, setAttemptLock, extendExamTime, watchSubmission, confirmSubmissionScore, lookupSubmissionForReview, saveExamDraftToCloud };
 
     const pathname = (window.location && window.location.pathname) || '';
     const isStudentPortal = pathname.includes('/test');
