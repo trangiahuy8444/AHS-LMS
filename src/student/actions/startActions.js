@@ -187,7 +187,7 @@ export function createStartActions(s) {
 
       // Cứu hộ bài làm khi học sinh bị lỗi kỹ thuật (tắt máy, máy đóng băng Deep Freeze, mở lại trình duyệt, đổi uid anonymous):
       if (!restoredAnswers || (!Object.keys(restoredAnswers.mcq || {}).length && !Object.keys(restoredAnswers.tf || {}).length && !Object.keys(restoredAnswers.essay || {}).length)) {
-        const recovered = findRecoverableExamDraft({ grade, studentClass, studentId, examCode: serverStart.examCode });
+        const recovered = findRecoverableExamDraft({ grade, studentClass, studentId, examCode: serverStart.examCode, startedAtMs: serverStart.startedAtMs });
         if (recovered && recovered.answers) {
           restoredAnswers = recovered.answers;
           if (recovered.activeQuestionIdx !== undefined) {

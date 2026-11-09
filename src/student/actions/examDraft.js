@@ -82,6 +82,7 @@ export function saveExamDraft(identity, answers, storage, activeQuestionIdx = 0)
             studentClass: String(identity.studentClass),
             studentId: String(identity.studentId),
             examCode: String(identity.examCode || ''),
+            startedAtMs: Number(identity.startedAtMs),
             answers: filteredAnswers,
             activeQuestionIdx: Number.isSafeInteger(activeQuestionIdx) && activeQuestionIdx >= 0 ? activeQuestionIdx : 0,
             savedAt: Date.now()
@@ -121,7 +122,7 @@ export function clearExamDraft(identity, storage) {
 }
 
 // Tìm bản nháp cứu hộ của học sinh khi bị lỗi kỹ thuật, tắt máy hoặc vào lại bài thi
-export function findRecoverableExamDraft({ grade, studentClass, studentId, examCode }) {
+export function findRecoverableExamDraft({ grade, studentClass, studentId, examCode, startedAtMs }) {
   if (![8, 9, 10].includes(Number(grade)) || !studentClass || !studentId) return null;
   const cleanId = String(studentId).trim();
   const targetCode = String(examCode || '').trim();
@@ -131,6 +132,9 @@ export function findRecoverableExamDraft({ grade, studentClass, studentId, examC
     if (!raw) return null;
     const data = JSON.parse(raw);
     if (data && data.answers) {
+      if (Number.isFinite(startedAtMs) && Number.isFinite(data.startedAtMs) && data.startedAtMs !== startedAtMs) {
+        return null;
+      }
       const filtered = answersOnly(data.answers);
       const hasContent = Object.keys(filtered.mcq).length > 0 || Object.keys(filtered.tf).length > 0 || Object.keys(filtered.essay).length > 0;
       if (hasContent) {
