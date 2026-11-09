@@ -18,15 +18,19 @@
       this.onWarningCb = null;
       this.onTimeoutCb = null;
       this.warningTriggered = false;
+      this.timedOut = false;
     }
 
-    start({ durationMinutes = 45, onTick, onWarning, onTimeout } = {}) {
+    start({ durationMinutes = 45, deadlineMs, serverNowMs, startedAtMs, onTick, onWarning, onTimeout } = {}) {
       this.stop();
-      this.durationSeconds = Math.max(1, Math.round(durationMinutes * 60));
-      this.remainingSeconds = this.durationSeconds;
-      this.startTime = Date.now();
-      this.expectedEndTime = this.startTime + this.durationSeconds * 1000;
-      this.lastTickTime = this.startTime;
+      this.clockAnchorMs = Number.isFinite(serverNowMs) ? serverNowMs : Date.now();
+      this.monotonicAnchorMs = typeof performance !== 'undefined' ? performance.now() : null;
+      this.startTime = Number.isFinite(startedAtMs) ? startedAtMs : this.clockAnchorMs;
+      this.expectedEndTime = Number.isFinite(deadlineMs) ? deadlineMs : this.clockAnchorMs + Math.max(1, Math.round(durationMinutes * 60)) * 1000;
+      this.durationSeconds = Math.max(0, Math.round((this.expectedEndTime - this.startTime) / 1000));
+      this.remainingSeconds = Math.max(0, Math.round((this.expectedEndTime - this.clockAnchorMs) / 1000));
+      this.lastTickTime = this.clockAnchorMs;
+      this.timedOut = false;
       this.warningTriggered = false;
       this.isPaused = false;
 
@@ -35,7 +39,14 @@
       this.onTimeoutCb = onTimeout;
 
       this.tick();
-      this.timerId = setInterval(() => this.tick(), 1000);
+      if (!this.timedOut) this.timerId = setInterval(() => this.tick(), 1000);
+    }
+
+    now() {
+      if (Number.isFinite(this.clockAnchorMs) && this.monotonicAnchorMs !== null && typeof performance !== 'undefined') {
+        return this.clockAnchorMs + performance.now() - this.monotonicAnchorMs;
+      }
+      return Date.now();
     }
 
     stop() {
@@ -61,7 +72,7 @@
       if (!this.timerId) return false;
       this.expectedEndTime = deadlineMs;
       this.durationSeconds = Math.max(1, Math.round((deadlineMs - this.startTime) / 1000));
-      if (deadlineMs - Date.now() > 300000) this.warningTriggered = false;
+      if (deadlineMs - this.now() > 300000) this.warningTriggered = false;
       this.tick();
       return true;
     }
@@ -69,7 +80,7 @@
     tick() {
       if (this.isPaused) return;
 
-      const now = Date.now();
+      const now = this.now();
 
       // Kiểm tra tua lùi đồng hồ máy tính
       if (now < this.lastTickTime - 2000) {
@@ -83,7 +94,7 @@
       const formatted = this.formatTime(this.remainingSeconds);
 
       if (typeof this.onTickCb === 'function') {
-        this.onTickCb(this.remainingSeconds, formatted);
+        this.onTickCb(this.remainingSeconds, formatted, { nowMs: now, elapsedSeconds: Math.max(0, Math.floor((now - this.startTime) / 1000)) });
       }
 
       // Cảnh báo 5 phút cuối
@@ -95,7 +106,8 @@
       }
 
       // Hết giờ -> Tự động nộp
-      if (this.remainingSeconds <= 0) {
+      if (this.remainingSeconds <= 0 && !this.timedOut) {
+        this.timedOut = true;
         this.stop();
         if (typeof this.onTimeoutCb === 'function') {
           this.onTimeoutCb();

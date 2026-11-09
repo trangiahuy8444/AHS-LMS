@@ -213,13 +213,17 @@
     shuffleQuestionOptions(q) {
       if (!q || !Array.isArray(q.options) || q.options.length < 2) return q;
       const letters = ['A', 'B', 'C', 'D'];
-      const indexed = q.options.map((opt, idx) => ({ opt, isCorrect: idx === q.correctAnswer }));
+      const indexed = q.options.map((opt, idx) => ({ opt, originalIndex: idx, isCorrect: idx === q.correctAnswer }));
       const shuffled = this.shuffleArray(indexed);
       const newOptions = shuffled.map(item => item.opt);
       const newCorrectAnswer = shuffled.findIndex(item => item.isCorrect);
       return {
         ...q,
         options: newOptions,
+        ...(q.translations ? { translations: Object.fromEntries(Object.entries(q.translations).map(([language, translated]) => [language, {
+          ...translated,
+          ...(Array.isArray(translated.options) && translated.options.length === q.options.length ? { options: shuffled.map(item => translated.options[item.originalIndex]) } : {})
+        }])) } : {}),
         correctAnswer: newCorrectAnswer,
         answerLetter: letters[newCorrectAnswer] || q.answerLetter
       };
@@ -829,6 +833,13 @@
       }
 
       const sub = list[idx];
+      for (const [questionNum,value] of Object.entries(essayScores || {})) {
+        const number = value === '' ? 0 : Number(value);
+        const max = Number(sub.grade || String(sub.studentClass || '').split('/')[0]) === 10 ? 0.75 : 1;
+        if (!Number.isFinite(number) || number < 0 || number > max || Math.abs(number * 4 - Math.round(number * 4)) > 1e-8) {
+          return { success: false, error: `Câu ${questionNum}: điểm phải theo bước 0,25 trong khoảng 0–${max}. Không lưu điểm lẻ như 0,88; thầy kiểm tra lại barem.` };
+        }
+      }
       let essayTotal = 0;
       Object.values(essayScores || {}).forEach(v => {
         const num = parseFloat(v);

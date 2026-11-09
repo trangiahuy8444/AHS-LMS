@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React from 'react';
 import { useAdmin } from '../AdminContext.js';
 import ClassAccessPanel from '../live/ClassAccessPanel.jsx';
 import LiveSessionList from '../live/LiveSessionList.jsx';
@@ -7,15 +7,15 @@ export default function LiveTab() {
   const { liveSessions, liveFilter, setLiveFilter, handleExtendTimeAll, handleCleanStaleSessions } = useAdmin();
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-5 rounded-3xl border-2 border-slate-200/80 shadow-sm">
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm">
         <div>
           <h2 className="text-base font-black text-blue-950 flex items-center space-x-2">
-            <span className="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></span>
-            <span>PHÒNG THI TRỰC TUYẾN THỜI GIAN THỰC</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span>Giám sát học sinh</span>
           </h2>
           <p className="text-xs text-slate-500 mt-1 font-medium">
-            Giám thị toàn diện: Theo dõi đồng hồ, phát hiện gian lận và can thiệp kịp thời (gia hạn, mở khóa, thu bài).
+            Theo dõi bài làm, xử lý khóa và gia hạn.
           </p>
         </div>
 
@@ -27,7 +27,7 @@ export default function LiveTab() {
             title="Xóa thí sinh đã nộp bài hoặc mất kết nối quá 15 phút"
           >
             <span>🧹</span>
-            <span>Dọn Thí Sinh Hết Ca (&gt; 15p)</span>
+            <span>Dọn phiên hết ca</span>
           </button>
           <button
             type="button"
@@ -35,16 +35,19 @@ export default function LiveTab() {
             className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition flex items-center space-x-1.5 shadow"
           >
             <span>⏱️</span>
-            <span>Cộng +5 Phút Toàn Phòng</span>
+            <span>+5 phút toàn phòng</span>
           </button>
           <span className="px-3.5 py-2 bg-emerald-50 text-emerald-800 font-bold text-xs rounded-xl border border-emerald-200">
-            Đang làm bài: {liveSessions.filter(s => s.status === 'in_progress').length} em
+            Đang làm bài: {liveSessions.filter(s => ['in_progress', 'practicing'].includes(s.status)).length} em
           </span>
         </div>
       </div>
 
       {/* BẢNG ĐIỀU PHỐI CA THI THEO LỚP HỌC (CLASS ACCESS CONTROL MATRIX) */}
-      <ClassAccessPanel />
+      <details className="rounded-xl border border-slate-200 bg-white">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-bold text-blue-950">Điều phối lớp · Mở/đóng thi & quyền xem bài</summary>
+        <div className="px-3 pb-3"><ClassAccessPanel /></div>
+      </details>
 
       {/* BỘ LỌC CHẾ ĐỘ GIÁM SÁT TRỰC TIẾP */}
       <div className="flex flex-wrap items-center gap-2 pt-1 pb-1">

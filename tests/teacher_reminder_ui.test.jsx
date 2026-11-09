@@ -14,7 +14,7 @@ beforeEach(() => {
     recordTeacherReminder: vi.fn().mockResolvedValue({ count: 1 })
   };
 });
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.useRealTimers(); });
 it('student sees a separate count and text, restored after reload', () => {
   const setViolations = vi.fn();
   const state = { ...target, examState: 'in_progress', setViolations };
@@ -28,6 +28,20 @@ it('student sees a separate count and text, restored after reload', () => {
   renderBanner();
   act(() => latest({ id: 'fake-reminder', count: 3, message: 'Em tập trung làm bài.' }));
   expect(screen.getByText(/Lần 3/)).toBeTruthy();
+});
+it('reminder fades automatically, repeated snapshots do not replay it, and a new reminder appears', () => {
+  vi.useFakeTimers();
+  render(<StudentContext.Provider value={{ ...target, examState: 'in_progress' }}><TeacherReminderBanner /></StudentContext.Provider>);
+  const message = { id: 'one', count: 1, message: 'Tập trung làm bài.', createdAt: Date.now() };
+  act(() => latest(message));
+  expect(screen.getByText(message.message)).toBeTruthy();
+  expect(screen.queryByRole('alertdialog')).toBeNull();
+  act(() => vi.advanceTimersByTime(11000));
+  expect(screen.queryByText(message.message)).toBeNull();
+  act(() => latest({ ...message }));
+  expect(screen.queryByText(message.message)).toBeNull();
+  act(() => latest({ ...message, id: 'two', count: 2, createdAt: Date.now() }));
+  expect(screen.getByText(message.message)).toBeTruthy();
 });
 it('teacher waits for acknowledgement and a failed retry keeps the same request id', async () => {
   const showToast = vi.fn();

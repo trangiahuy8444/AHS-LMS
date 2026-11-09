@@ -717,7 +717,7 @@ test('Kiểm tra Thích Ứng Đa Thiết Bị & Widget Thời Gian Trực Tiế
   const adminHtml = readPageSource('admin');
   assert.ok(adminHtml.includes('Mẫu Bảng Điểm:'), 'Admin Tab 5 phải có bộ chọn mẫu bảng điểm');
   assert.ok(adminHtml.includes('BẢNG TỔNG HỢP KẾT QUẢ ÔN TẬP ĐỀ CƯƠNG TIN HỌC'), 'Tab 5 phải có tiêu đề bảng điểm ôn tập');
-  assert.ok(adminHtml.includes('Dọn Thí Sinh Hết Ca'), 'Tab 1 phải có nút dọn dẹp thí sinh hết ca');
+  assert.ok(adminHtml.includes('Dọn phiên hết ca'), 'Tab 1 phải có nút dọn dẹp thí sinh hết ca');
   assert.ok(adminHtml.includes('Xóa Lớp Này'), 'Tab 1 phải có nút dọn dẹp thí sinh theo lớp');
   assert.ok(adminHtml.includes('xl:grid-cols-4'), 'Lưới giám sát Tab 1 phải hỗ trợ responsive 4 cột trên laptop');
 });

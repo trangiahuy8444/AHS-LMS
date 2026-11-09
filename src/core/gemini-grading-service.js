@@ -1,3 +1,5 @@
+import { essayRubricParts, validateEssayGrade } from '../shared/essayGradingPolicy.js';
+import { essayIssueFeedback } from '../shared/studentFeedback.js';
 /**
  * DỊCH VỤ TRỢ LÝ CHẤM ĐIỂM TỰ LUẬN BẰNG GEMINI API
  * Tuân thủ 100% barem đề thi chuẩn Asian School.
@@ -296,7 +298,9 @@ ${studentAnswer || '(Học sinh bỏ trống)'}
 3. Đối chiếu từng ý con hoặc từng tiêu chí trong barem. Mỗi ý học sinh nêu đúng hoặc làm đúng thì cho đúng số điểm của ý đó (thường là 0.25đ hoặc theo quy định trong barem).
 4. Phân bổ điểm cho từng ý (breakdown) rõ ràng, tổng điểm các ý bằng đúng tổng điểm 'score'.
 5. Điểm số 'score' phải là số thực trong khoảng từ 0.0 đến tối đa ${maxPoints} điểm (thường có bước điểm 0.25đ).
-6. Viết lời nhận xét 'feedback' ngắn gọn, mang tính sư phạm và khách quan cho giáo viên duyệt.
+6. Câu đạt trọn điểm: feedback phải là chuỗi rỗng. Câu chưa trọn điểm: chỉ nêu ý sai/thiếu và lỗi cụ thể, không khen lại phần đã đúng, không ghi tên mô hình hoặc thông tin kỹ thuật.
+7. Mỗi ý chỉ nhận điểm theo bước 0.25: ý tối đa 0.5 chỉ được 0, 0.25 hoặc 0.5; ý tối đa 0.25 chỉ được 0 hoặc 0.25. KHÔNG có 0.125, 0.38, 0.88 hoặc điểm lẻ ngoài thang. Tổng score bằng tổng points của breakdown. Không tự chia thêm tiêu chí.
+8. breakdown phải theo đúng số lượng/thứ tự và điểm tối đa sau: ${JSON.stringify(essayRubricParts({question:questionText,subItems,maxPoints}))}.
 
 Trả về kết quả duy nhất ở định dạng JSON với cấu trúc:
 {
@@ -311,7 +315,7 @@ Trả về kết quả duy nhất ở định dạng JSON với cấu trúc:
       "reason": "<Giải thích ngắn gọn căn cứ theo barem>"
     }
   ],
-  "feedback": "<Nhận xét ngắn gọn 1-2 câu>"
+  "feedback": "<Chỉ lỗi sai/ý thiếu; để rỗng nếu đạt trọn điểm>"
 }`;
 }
 
@@ -334,7 +338,7 @@ export async function gradeSingleEssayWithGemini({
 
   if (sandboxMode()) {
     const maxScore = Math.max(0, points);
-    const score = rawAnswer ? Math.round(maxScore * 50) / 100 : 0;
+    const score = rawAnswer ? Math.floor(maxScore * 2) / 4 : 0;
     const feedback = `${simulationLabel()}: điểm minh họa để thử thao tác chấm, không đánh giá chất lượng bài làm và không gọi Gemini thật.`;
     return {
       success: true, simulated: true, score, maxScore, feedback,
@@ -444,17 +448,18 @@ export async function gradeSingleEssayWithGemini({
         throw new Error('Định dạng phản hồi của Gemini không phải JSON hợp lệ: ' + rawText.slice(0, 80));
       }
 
-      // Chuẩn hóa và giới hạn điểm số trong khoảng an toàn [0, maxPoints]
-      let finalScore = typeof parsed.score === 'number' ? parsed.score : parseFloat(parsed.score);
-      if (isNaN(finalScore)) finalScore = 0;
-      finalScore = Math.max(0, Math.min(points, Math.round(finalScore * 100) / 100));
+      const parts = essayRubricParts({ question, subItems, maxPoints: points });
+      const validation = validateEssayGrade(parsed, parts, points);
+      if (!validation.valid) return { success: false, error: validation.error };
+      const finalScore = Number(parsed.score);
+      const feedback = essayIssueFeedback({ ...parsed, score: finalScore }, points);
 
       return {
         success: true,
         score: finalScore,
         maxScore: points,
         breakdown: Array.isArray(parsed.breakdown) ? parsed.breakdown : [],
-        feedback: parsed.feedback || `Học sinh đạt ${finalScore}/${points} điểm theo barem.`,
+        feedback,
         usedModel: activeModel,
         fallbackCount: mIdx
       };
@@ -546,6 +551,7 @@ export async function gradeSubmissionWithGemini({
   let totalPoints = 0;
   let maxPossiblePoints = 0;
   const usedModels = new Set();
+  const gradingErrors = [];
 
   for (let i = 0; i < essayQuestions.length; i++) {
     const q = essayQuestions[i];
@@ -574,17 +580,18 @@ export async function gradeSubmissionWithGemini({
       if (res.usedModel) usedModels.add(res.usedModel);
       essayScores[qNum] = res.score;
       totalPoints += res.score;
-      const modelNote = res.fallbackCount > 0 ? ` [Dự phòng: ${res.usedModel}]` : '';
-      feedbackParts.push(`[Câu ${qNum} (${res.score}/${maxPoints}đ)${modelNote}]: ${res.feedback}`);
+      const issue = essayIssueFeedback(res, maxPoints);
+      if (issue) feedbackParts.push(`Câu ${qNum}: ${issue}`);
     } else {
-      essayScores[qNum] = 0;
-      feedbackParts.push(`[Câu ${qNum}]: Lỗi chấm AI (${res.error})`);
+      gradingErrors.push({ questionNum: qNum, error: res.error });
     }
   }
 
   const teacherFeedback = feedbackParts.join('\n\n');
   return {
-    success: true,
+    success: gradingErrors.length === 0,
+    gradingErrors,
+    error: gradingErrors.map(item=>`Câu ${item.questionNum}: ${item.error}`).join('\n'),
     essayScores,
     essayTotal: Math.round(totalPoints * 100) / 100,
     maxPossiblePoints: Math.round(maxPossiblePoints * 100) / 100,

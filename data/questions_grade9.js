@@ -25,7 +25,18 @@
       ],
       "correctAnswer": 2,
       "answerLetter": "C",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which device is a typical example of a device with an embedded information processor used in commerce and services?",
+          "options": [
+            "A projector displaying images in a classroom.",
+            "An X-ray machine used for diagnosis in a hospital.",
+            "An automated POS payment system at a checkout counter.",
+            "A mechanical fountain system in a park."
+          ]
+        }
+      }
     },
     {
       "id": 2,
@@ -38,7 +49,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which household appliance has an information processor that enables automatic sensing and programmed operation?",
+          "options": [
+            "A traditional cast-iron pot heated on a wood-fired stove.",
+            "An induction-heating rice cooker with an automatic timer.",
+            "A glass vacuum flask from which water is poured manually.",
+            "A conventional ceiling fan operated by a mechanical switch."
+          ]
+        }
+      }
     },
     {
       "id": 3,
@@ -51,7 +73,18 @@
       ],
       "correctAnswer": 2,
       "answerLetter": "C",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What is the main computer component responsible for receiving data, controlling operations and executing instructions called?",
+          "options": [
+            "Secondary storage (a hard drive).",
+            "A high-resolution monitor.",
+            "The CPU (Central Processing Unit).",
+            "The computer mouse and keyboard."
+          ]
+        }
+      }
     },
     {
       "id": 4,
@@ -64,7 +97,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which statement correctly describes the basic function of an information processor?",
+          "options": [
+            "Representing data as analogue sound.",
+            "Receiving input data, processing it and producing results.",
+            "Providing backup electrical power during an outage.",
+            "Printing data directly on paper without a print command."
+          ]
+        }
+      }
     },
     {
       "id": 5,
@@ -77,7 +121,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "A computer's information processor can receive and directly process data only after the data has been:",
+          "options": [
+            "Digitised into a sequence of binary bits consisting of 0s and 1s.",
+            "Translated into English according to international standards.",
+            "Printed on a paper document bearing an approval stamp.",
+            "Compressed into high-resolution video files."
+          ]
+        }
+      }
     },
     {
       "id": 6,
@@ -90,7 +145,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which characteristic demonstrates computers' major advantage in data storage over traditional methods?",
+          "options": [
+            "Storing enormous amounts of data on compact devices or in the cloud.",
+            "Preserving handwritten papers for hundreds of years without mould.",
+            "Limiting data storage to one week before automatically deleting everything.",
+            "Allowing only printed text to be stored and requiring it to be scanned again before viewing."
+          ]
+        }
+      }
     },
     {
       "id": 7,
@@ -103,7 +169,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Of the four criteria for information quality, which is most important because it directly determines whether a problem-solving decision is correct?",
+          "options": [
+            "The aesthetic quality of the document's font.",
+            "The accuracy of the data source.",
+            "The large size of the stored file.",
+            "The attractiveness of the headline."
+          ]
+        }
+      }
     },
     {
       "id": 8,
@@ -116,7 +193,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What is another name for the 'newness' criterion, referring to when information was created or updated?",
+          "options": [
+            "The timeliness of information.",
+            "The usability of data.",
+            "The completeness of the text.",
+            "The artistic quality of illustrations."
+          ]
+        }
+      }
     },
     {
       "id": 9,
@@ -129,7 +217,18 @@
       ],
       "correctAnswer": 3,
       "answerLetter": "D",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which statement about information quality in problem-solving is FALSE?",
+          "options": [
+            "Good-quality information helps people make correct and effective decisions.",
+            "Misleading information can have serious consequences and cause tasks to fail.",
+            "The four basic quality criteria are accuracy, newness, completeness and use…",
+            "The longer the information and the more decorative images it contains, the quality of problem-solving…"
+          ]
+        }
+      }
     },
     {
       "id": 10,
@@ -142,7 +241,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which characteristic most clearly demonstrates the usability of information?",
+          "options": [
+            "The information is clearly presented, easy to understand and useful for the intended purpose.",
+            "The information is very long and contains hundreds of pages of complex digital documents.",
+            "The information is kept completely secret and all source citation is prohibited.",
+            "The information is encoded with unfamiliar symbols that others cannot read."
+          ]
+        }
+      }
     },
     {
       "id": 11,
@@ -155,7 +265,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Why do users need to check and assess information quality when searching the Internet?",
+          "options": [
+            "All information online has undergone strict checks and is 100% accurate.",
+            "The Internet contains useful information alongside fake and misleading information that has not been checked…",
+            "Search engines automatically remove every article without copyright.",
+            "Information on social media is always more accurate than standard textbooks."
+          ]
+        }
+      }
     },
     {
       "id": 12,
@@ -168,7 +289,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "A meteorological website updates rainfall and storm movement information every 15 minutes to help people prepare for natural disasters. Which criterion does this most clearly demonstrate?",
+          "options": [
+            "Timeliness (newness).",
+            "Data complexity.",
+            "The artistic quality of the map.",
+            "Information security."
+          ]
+        }
+      }
     },
     {
       "id": 13,
@@ -181,7 +313,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "You read an anonymous social media post claiming, 'Drinking warm lemon water at midnight completely cures every incurable disease,' with no reference to the Ministry of Health. Which information quality criterion is most questionable?",
+          "options": [
+            "Usability.",
+            "The accuracy of information.",
+            "The timeliness of the news.",
+            "The artistic quality of the post."
+          ]
+        }
+      }
     },
     {
       "id": 14,
@@ -194,7 +337,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What is a typical negative effect of excessive use of digital devices and social media on students?",
+          "options": [
+            "Improving online teamwork skills and widening friendships.",
+            "Potentially worsening eyesight, encouraging inactivity and reducing face-to-face interaction.",
+            "Developing independent thinking and improving study-time management.",
+            "Increasing physical endurance and developing outdoor movement skills."
+          ]
+        }
+      }
     },
     {
       "id": 15,
@@ -207,7 +361,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What negative effect can electronic waste, such as used batteries, broken computers and untreated discarded circuits, have on people's lives?",
+          "options": [
+            "Exhausting fibre-optic network bandwidth.",
+            "Polluting soil and water and seriously threatening human health through contamination…",
+            "Reducing the operating speed of application software.",
+            "Increasing the computer room temperature when cooling fans are used."
+          ]
+        }
+      }
     },
     {
       "id": 16,
@@ -220,7 +385,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Secretly photographing a classmate's school records, results or private photos and posting them on public online forums without permission is:",
+          "options": [
+            "Commendable because it helps the whole class understand their academic progress.",
+            "An invasion of privacy and a violation of online conduct rules.",
+            "Completely legal because social media permits unrestricted speech.",
+            "A harmless joke that needs no attention."
+          ]
+        }
+      }
     },
     {
       "id": 17,
@@ -233,7 +409,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "According to the Code of Conduct on Social Networks issued by the Ministry of Information and Communications, social media users should:",
+          "options": [
+            "Post a classmate's personal data to encourage online judgement.",
+            "Share information from official sources, spread positive messages and behave respectfully.",
+            "Actively argue and insult others under sensitive posts.",
+            "Immediately like and share sensational posts without checking their accuracy."
+          ]
+        }
+      }
     },
     {
       "id": 18,
@@ -246,7 +433,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "When using an image or text created by another author online in your presentation, which action follows digital ethical and cultural standards?",
+          "options": [
+            "Remove the original author's name and replace it with your own to earn a higher mark.",
+            "Clearly state the author's name and provide the original source link.",
+            "Make a small change to the image's colours and claim to have designed it yourself.",
+            "Say nothing, because teachers and classmates will never discover it."
+          ]
+        }
+      }
     },
     {
       "id": 19,
@@ -259,7 +457,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "How may deliberately creating and spreading false information about natural disasters or epidemics on social media be dealt with?",
+          "options": [
+            "Only through a forum moderator's warning, with no other penalties.",
+            "Through administrative penalties or criminal prosecution, depending on the consequences.",
+            "Through legal protection under freedom to create entertainment content.",
+            "Only through a temporary 24-hour suspension of the social media account."
+          ]
+        }
+      }
     },
     {
       "id": 20,
@@ -272,7 +481,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which is a typical example of simulation software used for learning and scientific research?",
+          "options": [
+            "The PhET virtual laboratory for learning natural sciences.",
+            "The Google Chrome browser for everyday information searches.",
+            "The UniKey Vietnamese input utility for typing on a computer.",
+            "An antivirus application that protects computers from malware."
+          ]
+        }
+      }
     },
     {
       "id": 21,
@@ -285,7 +505,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which statement best describes the PhET educational simulation system?",
+          "options": [
+            "A paid online gaming website for teenagers.",
+            "An open educational resource offering visual, interactive experimental simulations across multiple subjects…",
+            "An application specifically for managing school gradebooks and academic classifications.",
+            "Software that automatically converts presentation lessons into online teaching videos."
+          ]
+        }
+      }
     },
     {
       "id": 22,
@@ -298,7 +529,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "On the PhET website, the 'Balancing Chemical Equations' simulation belongs to which subject category?",
+          "options": [
+            "Physics.",
+            "Chemistry.",
+            "Math & Statistics.",
+            "Earth & Space."
+          ]
+        }
+      }
     },
     {
       "id": 23,
@@ -311,7 +553,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "On PhET, 'Circuit Construction Kit: DC' belongs to which scientific field?",
+          "options": [
+            "Physics.",
+            "Biology.",
+            "Earth & Space.",
+            "Mathematics."
+          ]
+        }
+      }
     },
     {
       "id": 24,
@@ -324,7 +577,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What is the main benefit of using simulation software to learn natural sciences?",
+          "options": [
+            "Helping students memorise textbook definitions more quickly.",
+            "Visually simulating experiments that are dangerous, expensive or difficult to observe in real life.",
+            "Automatically completing all homework without students having to think.",
+            "Completely replacing the subject teacher's guidance and teaching."
+          ]
+        }
+      }
     },
     {
       "id": 25,
@@ -337,7 +601,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which device does NOT have an embedded information processor?",
+          "options": [
+            "A traditional wood-fired stove.",
+            "A smartphone.",
+            "An IoT automatic watering system.",
+            "An electronic blood pressure monitor."
+          ]
+        }
+      }
     },
     {
       "id": 26,
@@ -350,7 +625,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which characteristic demonstrates the completeness of information?",
+          "options": [
+            "Covering all the necessary aspects of solving a problem.",
+            "An article being more than 100 book pages long.",
+            "Using artistic fonts and vivid images.",
+            "An article receiving many social media shares."
+          ]
+        }
+      }
     },
     {
       "id": 27,
@@ -363,7 +649,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Where should you look for official learning materials about graduation examination regulations?",
+          "options": [
+            "The Ministry of Education and Training's official portal (moet.gov.vn).",
+            "A personal study-tips blog with no identifiable author.",
+            "A social media forum with many argumentative comments.",
+            "A general entertainment website."
+          ]
+        }
+      }
     },
     {
       "id": 28,
@@ -376,7 +673,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What is violated by publicly sharing a friend's phone number and home address on social media without permission?",
+          "options": [
+            "Personal privacy and the confidentiality of private life.",
+            "Trademark copyright.",
+            "Unicode character-encoding standards.",
+            "The school's Internet-use time limits."
+          ]
+        }
+      }
     },
     {
       "id": 29,
@@ -389,7 +697,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What is the most systematic way to verify a sensational social media news story?",
+          "options": [
+            "Check it against official news organisations and national television.",
+            "Immediately share it on your personal page to warn everyone.",
+            "Comment to encourage others to attack the person mentioned in the post.",
+            "Save the image to your device and delete your browsing history."
+          ]
+        }
+      }
     },
     {
       "id": 30,
@@ -402,7 +721,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which organisation developed the PhET online experimental simulation software?",
+          "options": [
+            "The University of Colorado Boulder, United States.",
+            "Microsoft Corporation.",
+            "The World Health Organization (WHO).",
+            "The International Mathematical Union."
+          ]
+        }
+      }
     },
     {
       "id": 31,
@@ -415,7 +745,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What is the main advantage of simulating a volcanic eruption on a computer?",
+          "options": [
+            "It allows visual observation of a dangerous phenomenon without risking lives.",
+            "It automatically stops real lava from flowing in nature.",
+            "It completely replaces geologists' research work.",
+            "It immediately reduces the temperature of the Earth's core."
+          ]
+        }
+      }
     },
     {
       "id": 32,
@@ -428,7 +769,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What should students do when false information is spreading in a study group?",
+          "options": [
+            "Explain the verified evidence and encourage others to stop sharing it.",
+            "Join the comments to make the post more active.",
+            "Take a screenshot and send it to strangers online.",
+            "Immediately lock their own accounts and stop caring about it."
+          ]
+        }
+      }
     },
     {
       "id": 33,
@@ -441,7 +793,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "In a PhET simulation, how can a user change a battery's voltage?",
+          "options": [
+            "Select the battery and move the voltage slider.",
+            "Shake the computer mouse vigorously.",
+            "Retype the computer's entire operating system.",
+            "Unplug the computer's power cable and plug it in again."
+          ]
+        }
+      }
     },
     {
       "id": 34,
@@ -454,7 +817,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which violation may be subject to a fine of VND 10–20 million under Decree 15/2020/ND-CP?",
+          "options": [
+            "Providing or sharing fabricated or false information on social media.",
+            "Posting birthday wishes for friends on a personal page.",
+            "Emailing homework to a teacher through school email.",
+            "Using your own photo as the profile picture of a learning account."
+          ]
+        }
+      }
     },
     {
       "id": 35,
@@ -467,7 +841,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which computer component acts as the 'brain' controlling all data-processing activities?",
+          "options": [
+            "Secondary storage (an SSD).",
+            "The CPU (Central Processing Unit).",
+            "The image display monitor.",
+            "The computer's power supply unit (PSU)."
+          ]
+        }
+      }
     }
   ],
   "practiceEssayQuestions": [
@@ -486,7 +871,22 @@
           "text": "Để thu thập thông tin phục vụ mục đích lập kế hoạch cho chuyến đi dã ngoại học tập đạt chất lượng và an toàn, em hãy nêu ít nhất 02 thông tin quan trọng mà Nam cần thu thập và chỉ ra nguồn tin cậy để Nam tìm kiếm các thông tin đó. (0,5 điểm)"
         }
       ],
-      "modelAnswer": "a) Hai tiêu chí chưa đạt yêu cầu (0,5 đ): Tính mới (tính thời sự - bài viết từ 2019 đã cũ); Tính chính xác; Tính đầy đủ (thiếu giá vé, nội quy); Tính sử dụng được.\nb) Thu thập thông tin kế hoạch (0,5 đ): Lịch mở cửa, giá vé cập nhật, nội quy an toàn, hotline liên hệ... Nguồn tin cậy: Website/Fanpage tích xanh chính thức của Ban quản lý địa điểm trải nghiệm."
+      "modelAnswer": "a) Hai tiêu chí chưa đạt yêu cầu (0,5 đ): Tính mới (tính thời sự - bài viết từ 2019 đã cũ); Tính chính xác; Tính đầy đủ (thiếu giá vé, nội quy); Tính sử dụng được.\nb) Thu thập thông tin kế hoạch (0,5 đ): Lịch mở cửa, giá vé cập nhật, nội quy an toàn, hotline liên hệ... Nguồn tin cậy: Website/Fanpage tích xanh chính thức của Ban quản lý địa điểm trải nghiệm.",
+      "translations": {
+        "en": {
+          "context": "To prepare for an upcoming Grade 9 field trip, Nam is asked to find information online and create a detailed plan. He finds a post about the intended destination on a social media travel forum. However, it was posted in 2019, does not identify the site's management as its source, and only describes the scenery in general terms. It gives no updated ticket prices, opening hours, safety rules or emergency contact numbers.",
+          "subItems": [
+            {
+              "letter": "a",
+              "text": "Using the information quality criteria, identify at least two criteria that Nam's information does not satisfy. (0.5 points)"
+            },
+            {
+              "letter": "b",
+              "text": "To plan a safe, high-quality educational field trip, state at least two important pieces of information Nam needs to collect and identify reliable sources for finding them. (0.5 points)"
+            }
+          ]
+        }
+      }
     },
     {
       "id": 2,
@@ -503,7 +903,22 @@
           "text": "Nếu ai đó cố tình chiếm đoạt tài khoản, phát tán hình ảnh hoặc tin nhắn riêng tư của người khác lên mạng nhằm mục đích bêu riếu, xúc phạm thì hành vi đó đã vi phạm quy định gì và có thể dẫn đến những hậu quả tâm lí, xã hội tiêu cực nào cho người bị hại? (0,5 điểm)"
         }
       ],
-      "modelAnswer": "a) Hành động chuẩn mực của Hùng (0,5 đ): Từ chối ngay lời xúi giục của bạn bè; tuyệt đối không xem trộm tin nhắn hay đổi thông tin của An; chủ động đăng xuất tài khoản giúp bạn hoặc báo cho bạn biết.\nb) Hậu quả và quy định vi phạm (0,5 đ): Vi phạm Luật An ninh mạng, Nghị định 15/2020/NĐ-CP và Bộ quy tắc ứng xử trên mạng xã hội. Khiến nạn nhân bị tổn thương tâm lý sâu sắc (lo âu, trầm cảm, xấu hổ), làm rạn nứt tình bạn."
+      "modelAnswer": "a) Hành động chuẩn mực của Hùng (0,5 đ): Từ chối ngay lời xúi giục của bạn bè; tuyệt đối không xem trộm tin nhắn hay đổi thông tin của An; chủ động đăng xuất tài khoản giúp bạn hoặc báo cho bạn biết.\nb) Hậu quả và quy định vi phạm (0,5 đ): Vi phạm Luật An ninh mạng, Nghị định 15/2020/NĐ-CP và Bộ quy tắc ứng xử trên mạng xã hội. Khiến nạn nhân bị tổn thương tâm lý sâu sắc (lo âu, trầm cảm, xấu hổ), làm rạn nứt tình bạn.",
+      "translations": {
+        "en": {
+          "context": "During a practical lesson in the computer room, Hung notices that An's social media account is still open because An forgot to log out after the lesson. Some classmates encourage Hung to change An's profile picture to something funny and secretly read An's private group messages to tell the class about them.",
+          "subItems": [
+            {
+              "letter": "a",
+              "text": "If you were Hung, what would you do to demonstrate ethical and respectful digital behaviour and respect An's privacy? (0.5 points)"
+            },
+            {
+              "letter": "b",
+              "text": "If someone deliberately takes over another person's account and publishes their private pictures or messages online to ridicule or insult them, what rules does this violate, and what negative psychological and social consequences could the victim experience? (0.5 points)"
+            }
+          ]
+        }
+      }
     },
     {
       "id": 3,
@@ -520,7 +935,22 @@
           "text": "Để lắp ráp một mạch điện kín thắp sáng bóng đèn và đo cường độ dòng điện trong mạch trên giao diện mô phỏng PhET, em hãy nêu các thao tác cơ bản cần thực hiện. (0,5 điểm)"
         }
       ],
-      "modelAnswer": "a) Lợi ích phần mềm mô phỏng (0,5 đ): An toàn tuyệt đối: Không lo nguy cơ đoản mạch làm cháy hỏng bóng đèn hay thiết bị đo; Thuận tiện và không giới hạn linh kiện, dễ dàng thay đổi thông số đo.\nb) Thao tác trên giao diện PhET (0,5 đ): Thao tác 1 (Lắp mạch): Kéo thả pin, bóng đèn, công tắc, dây dẫn từ thanh công cụ ra màn hình và nối lại thành mạch kín. Thao tác 2 (Đo dòng điện): Bấm đóng công tắc làm sáng đèn, kéo Ampe kế mắc nối tiếp vào mạch để đọc chỉ số."
+      "modelAnswer": "a) Lợi ích phần mềm mô phỏng (0,5 đ): An toàn tuyệt đối: Không lo nguy cơ đoản mạch làm cháy hỏng bóng đèn hay thiết bị đo; Thuận tiện và không giới hạn linh kiện, dễ dàng thay đổi thông số đo.\nb) Thao tác trên giao diện PhET (0,5 đ): Thao tác 1 (Lắp mạch): Kéo thả pin, bóng đèn, công tắc, dây dẫn từ thanh công cụ ra màn hình và nối lại thành mạch kín. Thao tác 2 (Đo dòng điện): Bấm đóng công tắc làm sáng đèn, kéo Ampe kế mắc nối tiếp vào mạch để đọc chỉ số.",
+      "translations": {
+        "en": {
+          "context": "In Grade 9 natural sciences, your class studies a DC circuit consisting of a battery, bulb, switch and wires, using a meter to measure the current. With real laboratory equipment, incorrectly connecting the terminals could cause a short circuit, damage the bulb or meter, and the number of available components is limited.",
+          "subItems": [
+            {
+              "letter": "a",
+              "text": "Explain why simulation software, such as a circuit simulation on PhET, is a safer and more convenient solution than a real experiment in this situation. (0.5 points)"
+            },
+            {
+              "letter": "b",
+              "text": "Describe the basic steps for building a closed circuit that lights a bulb and measuring the current in that circuit in PhET. (0.5 points)"
+            }
+          ]
+        }
+      }
     }
   ]
 };

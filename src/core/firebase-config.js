@@ -454,7 +454,9 @@
   function toMillis(t) {
     if (!t) return null;
     if (typeof t.toMillis === 'function') return t.toMillis();
-    return typeof t.seconds === 'number' ? t.seconds * 1000 : null;
+    if (typeof t.seconds === 'number') return t.seconds * 1000 + (Number(t.nanoseconds) || 0) / 1e6;
+    const date = typeof t === 'string' || t instanceof Date ? new Date(t).getTime() : NaN;
+    return Number.isFinite(date) ? date : null;
   }
 
   function formatDuration(totalSec) {
@@ -491,6 +493,42 @@
     return batch.commit();
   }
 
+  // Thẻ kết quả chỉ cần thông tin xác nhận và điểm; không đưa câu trả lời/khóa chấm vào luồng này.
+  function submissionReceiptFields(source) {
+    const fields = ['fullName', 'studentClass', 'studentId', 'grade', 'examCode', 'submittedAt',
+      'durationFormatted', 'violations', 'mcqPoints', 'correctMcq', 'finalScore', 'essayTotal',
+      'teacherFeedback', 'isGraded', 'scoreConfirmed', 'scoreConfirmedAt', 'sessionId'];
+    const result = {};
+    fields.forEach(key => { if (source && source[key] !== undefined) result[key] = source[key]; });
+    return result;
+  }
+
+  async function completedExamResult(attempt, attemptId) {
+    const subId = `${attemptId}_${attempt.attemptsUsed || 1}`;
+    let submission = null;
+    try {
+      const snap = await db.collection('submissions').doc(subId).get({ source: 'server' });
+      if (snap.exists && !snap.metadata?.fromCache && !snap.metadata?.hasPendingWrites) {
+        const candidate = snap.data();
+        if (Number(candidate.grade) === Number(attempt.grade) && candidate.studentClass === attempt.studentClass
+          && lmsKey(candidate.studentId) === lmsKey(attempt.studentId)
+          && (!candidate.attemptId || candidate.attemptId === attemptId)) submission = candidate;
+      }
+    } catch (e) { /* Lượt đã nộp được máy chủ xác nhận; không bịa điểm khi chưa đọc được bài chi tiết. */ }
+    const submittedAt = toMillis(attempt.submittedAt);
+    return {
+      completed: true, examCode: attempt.examCode,
+      result: {
+        mode: 'exam', receiptOnly: true, receiptDetailsUnavailable: !submission,
+        grade: attempt.grade, studentClass: attempt.studentClass, studentId: attempt.studentId,
+        fullName: attempt.fullName, examCode: attempt.examCode, violations: attempt.violations || 0,
+        submittedAt: submittedAt ? new Date(submittedAt).toISOString() : null, isGraded: false,
+        ...submissionReceiptFields(submission),
+        ...(submission ? { submissionId: subId, id: subId } : {})
+      }
+    };
+  }
+
   async function startExam(data) {
     const user = await waitForUser();
     const uid = user.uid;
@@ -510,15 +548,30 @@
     const legacyAttemptId = legacyAttemptIdFor(grade, key);
     let attemptId = scopedAttemptId;
     let attemptRef = db.collection('exam_attempts').doc(attemptId);
+    const monotonicNow = () => typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const clockRequestAt = monotonicNow();
     // Mật khẩu em nhập chỉ để rules đối chiếu với mật khẩu phòng thi; không ai đọc lại được
     await db.collection('exam_keys').doc(uid).set({
       password: String(data.password || '').trim().toLowerCase(),
       at: FieldValue.serverTimestamp()
     });
 
-    const readAttempt = (ref) => ref.get({ source: 'server' })
-      .then((snap) => (snap.exists ? snap.data() : null))
-      .catch(() => null);
+    const clockSnap = await db.collection('exam_keys').doc(uid).get({ source: 'server' });
+    const clockReceivedAt = monotonicNow();
+    const serverClockAt = clockSnap.exists ? toMillis(clockSnap.data().at) : null;
+    if (!Number.isFinite(serverClockAt) || clockSnap.metadata?.fromCache || clockSnap.metadata?.hasPendingWrites) {
+      throw new Error('Chưa đồng bộ được giờ máy chủ. Em kiểm tra kết nối rồi vào lại, chưa bắt đầu tính giờ thi.');
+    }
+    const serverNow = () => serverClockAt + monotonicNow() - (clockRequestAt + clockReceivedAt) / 2;
+
+    const readAttempt = async (ref) => {
+      let snap;
+      try { snap = await ref.get({ source: 'server' }); } catch (e) { return null; }
+      if (snap.metadata?.fromCache || snap.metadata?.hasPendingWrites) {
+        throw new Error('Máy chủ chưa xác nhận trạng thái lượt thi. Em kiểm tra kết nối và thử lại.');
+      }
+      return snap.exists ? snap.data() : null;
+    };
     const denied = new Error('Không vào được phòng thi: mật khẩu chưa đúng, lớp chưa mở ca thi hoặc mã đề chưa được bật. Em báo Thầy/Cô giám thị.');
 
     let attempt = await readAttempt(attemptRef);
@@ -591,15 +644,16 @@
       if (!attempt) throw denied;
     }
 
+    const allowed = Number.isInteger(attempt.allowedAttempts) ? attempt.allowedAttempts : (cfg.maxExamAttempts || 1);
+    if (attempt.submitted && attempt.attemptsUsed >= allowed) {
+      return completedExamResult(attempt, attemptId);
+    }
+
     if (attempt.submitted && attempt.locked) {
       throw new Error('Lượt thi đang bị khóa. Em chờ Thầy/Cô giám thị mở khóa trước khi làm lại.');
     }
 
     if (attempt.submitted) {
-      const allowed = Number.isInteger(attempt.allowedAttempts) ? attempt.allowedAttempts : (cfg.maxExamAttempts || 1);
-      if (attempt.attemptsUsed >= allowed) {
-        throw new Error(`Mã LMS ${key} đã dùng hết ${allowed} lượt làm bài thi chính thức. Nếu cần thi lại, em báo Thầy/Cô.`);
-      }
       const code = pickExamCode(cfg, grade, attempt.studentClass, data.examCode);
       if (!code) throw new Error(cfg.codeAllocationMode === 'student_choice'
         ? 'Em hãy chọn một mã đề đang được bật của đúng khối trước khi bắt đầu lượt thi mới.'
@@ -629,7 +683,8 @@
     await db.collection('exam_sessions').doc(uid).set({ attemptId, examDocId });
     const baseDurationSeconds = (attempt.durationMinutes || cfg.examDurationMinutes || 45) * 60;
     const extraTimeSeconds = Number.isSafeInteger(attempt.extraTimeSeconds) && attempt.extraTimeSeconds >= 0 ? attempt.extraTimeSeconds : 0;
-    const startedAtMs = toMillis(attempt.startedAt) || Date.now();
+    const startedAtMs = toMillis(attempt.startedAt);
+    if (!Number.isFinite(startedAtMs)) throw new Error('Lượt thi thiếu giờ bắt đầu trên máy chủ. Em báo giám thị kiểm tra, không tự tính lại 45 phút.');
     const base = {
       attemptId,
       examCode: attempt.examCode,
@@ -642,10 +697,10 @@
     };
     // Tải lại trang khi đang bị khóa: vẫn khóa, chưa được đọc đề cho tới khi giáo viên mở khóa
     if (attempt.locked) {
-      return { ...base, exam: null, locked: true, lockReason: attempt.lockReason || 'violation_3_times' };
+      return { ...base, serverNowMs: serverNow(), exam: null, locked: true, lockReason: attempt.lockReason || 'violation_3_times' };
     }
     const exam = await loadExam({ grade, examCode: attempt.examCode });
-    return { ...base, exam, locked: false };
+    return { ...base, serverNowMs: serverNow(), exam, locked: false };
   }
 
   async function loadExam({ grade, examCode }) {
@@ -719,7 +774,7 @@
     if (!db) return () => {};
     if (opts?.attemptId) {
       return db.collection('exam_attempts').doc(opts.attemptId).onSnapshot({ includeMetadataChanges: true },
-        (snap) => { if (snap.exists) cb(snap.data(), { fromServer: !snap.metadata.hasPendingWrites && !snap.metadata.fromCache }); },
+        (snap) => { if (snap.exists) cb(opts?.receiptOnly ? submissionReceiptFields(snap.data()) : snap.data(), { fromServer: !snap.metadata.hasPendingWrites && !snap.metadata.fromCache }); },
         (e) => console.warn('[Firestore] Theo dõi lượt thi thất bại:', e.message)
       );
     }
@@ -728,7 +783,7 @@
     const ck = classKey(opts?.studentClass);
     if (ck) {
       return db.collection('exam_attempts').doc(`g${g}_${ck}_${key}`).onSnapshot({ includeMetadataChanges: true },
-        (snap) => { if (snap.exists) cb(snap.data(), { fromServer: !snap.metadata.hasPendingWrites && !snap.metadata.fromCache }); },
+        (snap) => { if (snap.exists) cb(opts?.receiptOnly ? submissionReceiptFields(snap.data()) : snap.data(), { fromServer: !snap.metadata.hasPendingWrites && !snap.metadata.fromCache }); },
         (e) => console.warn('[Firestore] Theo dõi lượt thi thất bại:', e.message)
       );
     }
@@ -741,13 +796,13 @@
         const targetId = sSnap?.exists ? sSnap.data().attemptId : `g${g}_${key}`;
         if (unsubAttempt) unsubAttempt();
         unsubAttempt = db.collection('exam_attempts').doc(targetId).onSnapshot({ includeMetadataChanges: true },
-          (snap) => { if (snap.exists) cb(snap.data(), { fromServer: !snap.metadata.hasPendingWrites && !snap.metadata.fromCache }); },
+          (snap) => { if (snap.exists) cb(opts?.receiptOnly ? submissionReceiptFields(snap.data()) : snap.data(), { fromServer: !snap.metadata.hasPendingWrites && !snap.metadata.fromCache }); },
           (e) => console.warn('[Firestore] Theo dõi lượt thi thất bại:', e.message)
         );
       }, () => {
         if (!unsubAttempt && !isUnsub) {
           unsubAttempt = db.collection('exam_attempts').doc(`g${g}_${key}`).onSnapshot({ includeMetadataChanges: true },
-            (snap) => { if (snap.exists) cb(snap.data(), { fromServer: !snap.metadata.hasPendingWrites && !snap.metadata.fromCache }); }
+            (snap) => { if (snap.exists) cb(opts?.receiptOnly ? submissionReceiptFields(snap.data()) : snap.data(), { fromServer: !snap.metadata.hasPendingWrites && !snap.metadata.fromCache }); }
           );
         }
       });
@@ -758,7 +813,7 @@
       };
     }
     return db.collection('exam_attempts').doc(`g${g}_${key}`).onSnapshot({ includeMetadataChanges: true },
-      (snap) => { if (snap.exists) cb(snap.data(), { fromServer: !snap.metadata.hasPendingWrites && !snap.metadata.fromCache }); },
+      (snap) => { if (snap.exists) cb(opts?.receiptOnly ? submissionReceiptFields(snap.data()) : snap.data(), { fromServer: !snap.metadata.hasPendingWrites && !snap.metadata.fromCache }); },
       (e) => console.warn('[Firestore] Theo dõi lượt thi thất bại:', e.message)
     );
   }
@@ -1023,7 +1078,8 @@
     if (!db || !subId || typeof db.collection !== 'function') return () => {};
     return db.collection('submissions').doc(subId).onSnapshot({ includeMetadataChanges: true },
       (snap) => {
-        if (snap.exists) cb(snap.data(), { fromServer: !snap.metadata.hasPendingWrites && !snap.metadata.fromCache });
+        const fromServer = !snap.metadata?.hasPendingWrites && !snap.metadata?.fromCache;
+        if (snap.exists && (!opts?.receiptOnly || fromServer)) cb(opts?.receiptOnly ? submissionReceiptFields(snap.data()) : snap.data(), { fromServer });
       },
       (e) => console.warn('[Firestore] Theo dõi bài nộp thất bại:', e.message)
     );

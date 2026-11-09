@@ -12,7 +12,7 @@ function draftKey(identity) {
   const valid = createExamDraftIdentity(identity);
   return valid ? DRAFT_PREFIX + JSON.stringify([valid.grade, valid.studentClass, valid.studentId, valid.examCode, valid.startedAtMs, valid.uid]) : null;
 }
-function answersOnly(answers) {
+export function answersOnly(answers) {
   const out = emptyAnswers();
   const entries = value => value && typeof value === 'object' && !Array.isArray(value) ? Object.entries(value) : [];
   for (const [num, answer] of entries(answers?.mcq)) {
@@ -31,26 +31,38 @@ function answersOnly(answers) {
   }
   return out;
 }
-export function readExamDraft(identity, storage) {
-  try {
-    const key = draftKey(identity);
-    if (!key) return null;
-    const draft = JSON.parse((storage || sessionStorage).getItem(key) || 'null');
-    if (!draft || draft.version !== 1 || draftKey(draft.identity) !== key) return null;
-    return answersOnly(draft.answers);
-  } catch { return null; }
+function readDraftRecord(identity, storage) {
+  const key = draftKey(identity);
+  if (!key) return null;
+  const stores = storage ? [storage] : [localStorage, sessionStorage];
+  for (const source of stores) {
+    try {
+      const draft=JSON.parse(source.getItem(key)||'null');
+      if(draft?.version===1 && draftKey(draft.identity)===key) return draft;
+    } catch { /* thử bản lưu tương thích tiếp theo */ }
+  }
+  return null;
 }
-export function saveExamDraft(identity, answers, storage) {
+export function readExamDraft(identity, storage) {
+  try { const draft=readDraftRecord(identity,storage);return draft ? answersOnly(draft.answers) : null; } catch { return null; }
+}
+export function readExamDraftPosition(identity, storage) {
+  try { const position=readDraftRecord(identity,storage)?.activeQuestionIdx;return Number.isSafeInteger(position)&&position>=0?position:0; } catch { return 0; }
+}
+export function saveExamDraft(identity, answers, storage, activeQuestionIdx = 0) {
   try {
-    const key = draftKey(identity);
-    if (!key) return false;
-    (storage || sessionStorage).setItem(key, JSON.stringify({ version: 1, identity: createExamDraftIdentity(identity), answers: answersOnly(answers) }));
-    return true;
+    const key=draftKey(identity);if(!key)return false;
+    const value=JSON.stringify({version:1,identity:createExamDraftIdentity(identity),answers:answersOnly(answers),activeQuestionIdx});
+    if(storage){storage.setItem(key,value);return true;}
+    let durable=false;
+    try{localStorage.setItem(key,value);durable=true;}catch{/* còn bản lưu theo tab nếu trình duyệt chặn lưu bền */}
+    try{sessionStorage.setItem(key,value);}catch{/* không làm hỏng phần nhập bài */}
+    return durable;
   } catch { return false; }
 }
 export function clearExamDraft(identity, storage) {
   try {
-    const key = draftKey(identity);
-    if (key) (storage || sessionStorage).removeItem(key);
-  } catch { /* bộ nhớ bị chặn: không cản trạng thái nộp đã xác nhận */ }
+    const key=draftKey(identity);if(!key)return;
+    for(const source of storage?[storage]:[localStorage,sessionStorage])try{source.removeItem(key);}catch{/* bộ nhớ bị chặn */}
+  } catch { /* không cản nộp đã xác nhận */ }
 }

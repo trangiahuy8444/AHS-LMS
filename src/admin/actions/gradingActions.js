@@ -1,3 +1,4 @@
+import { sanitizeStudentFeedback } from '../../shared/studentFeedback.js';
 import {
   getGeminiApiKey,
   getEssayQuestionsForSubmission,
@@ -32,14 +33,14 @@ export function createGradingActions(s) {
   const openGradingModal = (sub) => {
     setGradingSubmission(sub);
     setTempEssayScores(sub.essayScores || {});
-    setTempFeedback(sub.teacherFeedback || '');
+    setTempFeedback(sanitizeStudentFeedback(sub.teacherFeedback));
     if (setAiSuggestions) setAiSuggestions({});
     setGradingSuccessAlert(false);
   };
 
   const handleSaveGrading = () => {
     if (!gradingSubmission) return;
-    const res = window.AsianSchoolStorage.gradeEssaySubmission(gradingSubmission.id, tempEssayScores, tempFeedback);
+    const res = window.AsianSchoolStorage.gradeEssaySubmission(gradingSubmission.id, tempEssayScores, sanitizeStudentFeedback(tempFeedback));
     if (res.success) {
       setGradingSubmission(res.submission);
       setSubmissions(window.AsianSchoolStorage.getSubmissions());
@@ -179,10 +180,11 @@ export function createGradingActions(s) {
           }
         });
 
+        if (!gradeRes.success) throw new Error(gradeRes.error || 'AI chưa chấm hợp lệ đủ các câu; chưa lưu điểm bài này.');
         const saveRes = window.AsianSchoolStorage.gradeEssaySubmission(
           sub.id,
           gradeRes.essayScores,
-          gradeRes.teacherFeedback
+          sanitizeStudentFeedback(gradeRes.teacherFeedback)
         );
 
         if (saveRes.success) {

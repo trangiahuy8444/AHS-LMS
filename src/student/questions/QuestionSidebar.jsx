@@ -1,12 +1,15 @@
-import React from 'react';
+import { useStudentLanguage } from '../StudentLanguage.jsx';
+import React, { useState } from 'react';
 import { useStudent } from '../StudentContext.js';
 
 // CỘT PHẢI (1 CỘT): SIDEBAR DANH SÁCH CÂU HỎI & NỘP BÀI (TRẮNG SÁNG, NỔI BẬT)
 export default function QuestionSidebar() {
+  const { t, language } = useStudentLanguage();
   const { mode, assignedCode, activeQuestionIdx, setActiveQuestionIdx, setShowSubmitModal,
     timeLeftStr, examStartTime, elapsedSeconds, formatElapsed, config, practiceItems, examItems,
     showDialog } = useStudent();
 
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const minExamMinutes = (config?.minExamMinutes !== undefined && config?.minExamMinutes !== null) ? Number(config.minExamMinutes) : 15;
   const remainingEarlyLockSeconds = (mode === 'exam' && config?.preventEarlySubmission !== false)
     ? Math.max(0, (minExamMinutes * 60) - (elapsedSeconds || 0))
@@ -14,37 +17,40 @@ export default function QuestionSidebar() {
   const isEarlyLockActive = remainingEarlyLockSeconds > 0;
 
   return (
-    <div className="lg:col-span-1" id="question-palette-sidebar">
-      <div className="bg-white border-2 border-slate-200 p-5 rounded-3xl sticky top-20 space-y-4 shadow-lg">
+    <div className={`exam-sidebar ${paletteOpen ? 'palette-open' : ''}`} id="question-palette-sidebar">
+      <div className="exam-sidebar-panel">
       
         {/* WIDGET ĐỒNG HỒ THỜI GIAN TRỰC TIẾP TRÊN BẢNG BÀI LÀM */}
-        <div className="bg-gradient-to-br from-slate-50 to-blue-50/60 border-2 border-blue-200 rounded-2xl p-3.5 space-y-1.5 shadow-sm">
+        <div className="exam-timer bg-gradient-to-br from-slate-50 to-blue-50/60 border-2 border-blue-200 rounded-2xl p-3.5 space-y-1.5 shadow-sm">
           <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-            <span>{mode === 'exam' ? 'Thời gian còn lại' : (config.practiceDurationMinutes > 0 ? 'Thời gian còn lại' : 'Thời gian làm bài')}</span>
-            <span className="text-blue-900 font-extrabold">{mode === 'exam' ? 'Phòng thi' : 'Ôn tập'}</span>
+            <span>{t(mode === 'exam' ? 'Thời gian còn lại' : (config.practiceDurationMinutes > 0 ? 'Thời gian còn lại' : 'Thời gian làm bài'))}</span>
+            <span className="text-blue-900 font-extrabold">{t(mode === 'exam' ? 'Phòng thi' : 'Ôn tập')}</span>
           </div>
           <div className="text-2xl font-black font-mono-code text-red-600 flex items-center space-x-2">
             <span>⏱️</span>
             <span>{mode === 'exam' ? timeLeftStr : (config.practiceDurationMinutes > 0 ? timeLeftStr : formatElapsed(elapsedSeconds))}</span>
           </div>
           <div className="flex items-center justify-between text-[11px] text-slate-600 font-semibold pt-1 border-t border-blue-100">
-            <span>Bắt đầu: {(() => {
-              if (!examStartTime) return 'Vừa xong';
+            <span>{t('Bắt đầu:')} {(() => {
+              if (!examStartTime) return t('Vừa xong');
               const d = examStartTime instanceof Date ? examStartTime : new Date(examStartTime);
-              return !isNaN(d.getTime()) ? d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Vừa xong';
+              return !isNaN(d.getTime()) ? d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' }) : t('Vừa xong');
             })()}</span>
-            <span className="text-emerald-700 font-bold">Đã làm: {formatElapsed(elapsedSeconds)}</span>
+            <span className="text-emerald-700 font-bold">{t('Đã làm:')} {formatElapsed(elapsedSeconds)}</span>
           </div>
         </div>
 
+        <button type="button" aria-expanded={paletteOpen} aria-controls="exam-palette" className="exam-palette-toggle" onClick={() => setPaletteOpen(value => !value)}>
+          {paletteOpen ? t('Đóng bảng câu hỏi') : `${t('Bảng câu hỏi')} · ${activeQuestionIdx + 1}/${(mode === 'practice' ? practiceItems : examItems).length}`}
+        </button>
         {/* Header Sidebar */}
-        <div className="flex items-center justify-between border-b-2 border-slate-100 pb-3">
+        <div className="exam-palette-heading flex items-center justify-between border-b border-slate-100 pb-2">
           <div>
             <h3 className="font-black text-xs text-blue-950 uppercase tracking-wider">
-              BẢNG CÂU HỎI
+              {t('BẢNG CÂU HỎI')}
             </h3>
             <p className="text-[11px] text-slate-500 font-semibold">
-              {mode === 'practice' ? 'Đề cương ôn tập' : `Mã đề ${assignedCode}`}
+              {mode === 'practice' ? t('Đề cương ôn tập') : `${t('Mã đề')} ${assignedCode}`}
             </p>
           </div>
           <div className="text-right">
@@ -74,11 +80,11 @@ export default function QuestionSidebar() {
           });
 
           return (
-            <div className="space-y-4 max-h-[460px] overflow-y-auto pr-1">
+            <div id="exam-palette" className="exam-palette">
               {sections.map((sec, secIdx) => (
                 <div key={secIdx} className="space-y-2">
                   <span className="text-[11px] font-black text-slate-600 uppercase tracking-wide block">
-                    {sec.name.split('(')[0]}
+                    {language === 'en' ? t(sec.items[0].item.type.includes('essay') ? 'Tự luận' : sec.items[0].item.type.includes('tf') ? 'Đúng / Sai' : 'Trắc nghiệm') : sec.name.split('(')[0]}
                   </span>
                   <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
                     {sec.items.map(({ item, globalIdx }) => {
@@ -99,7 +105,7 @@ export default function QuestionSidebar() {
                         <button
                           key={globalIdx}
                           type="button"
-                          onClick={() => setActiveQuestionIdx(globalIdx)}
+                          onClick={() => { setActiveQuestionIdx(globalIdx); setPaletteOpen(false); }}
                           className={`h-9 rounded-xl text-xs transition flex items-center justify-center ${btnStyle}`}
                           title={`${item.label}: ${item.section}`}
                         >
@@ -115,18 +121,18 @@ export default function QuestionSidebar() {
         })()}
 
         {/* Chú thích màu sắc */}
-        <div className="pt-3 border-t-2 border-slate-100 flex items-center justify-around text-[11px] text-slate-600 font-bold">
+        <div className="exam-palette-legend pt-3 border-t-2 border-slate-100 flex items-center justify-around text-[11px] text-slate-600 font-bold">
           <div className="flex items-center space-x-1.5">
             <span className="w-3 h-3 rounded-full bg-blue-600 inline-block"></span>
-            <span>Đang xem</span>
+            <span>{t('Đang xem')}</span>
           </div>
           <div className="flex items-center space-x-1.5">
             <span className="w-3 h-3 rounded-full bg-emerald-600 inline-block"></span>
-            <span>Đã làm</span>
+            <span>{t('Đã làm')}</span>
           </div>
           <div className="flex items-center space-x-1.5">
             <span className="w-3 h-3 rounded-full bg-slate-300 border border-slate-400 inline-block"></span>
-            <span>Chưa làm</span>
+            <span>{t('Chưa làm')}</span>
           </div>
         </div>
 
@@ -156,10 +162,10 @@ export default function QuestionSidebar() {
             }`}
           >
             {mode === 'practice'
-              ? 'NỘP BÀI & XEM ĐÁNH GIÁ'
+              ? t('NỘP BÀI & XEM ĐÁNH GIÁ')
               : (isEarlyLockActive
-                  ? `CHƯA THỂ NỘP (CÒN ${formatElapsed(remainingEarlyLockSeconds)})`
-                  : 'NỘP BÀI THI CHÍNH THỨC')}
+                  ? `${t('CHƯA THỂ NỘP (CÒN')} ${formatElapsed(remainingEarlyLockSeconds)})`
+                  : t('NỘP BÀI THI CHÍNH THỨC'))}
           </button>
         </div>
 

@@ -131,3 +131,61 @@ it('hết giờ ôn tập dùng bài làm, phiên và tổng vi phạm mới nh�
   expect(hook.result.current.examState).toBe('submitted');
   expect(window.AsianSchoolCloud.submitExam).not.toHaveBeenCalled();
 });
+
+it('completed entry opens the result directly without starting a timer, anti-cheat or a new draft',async()=>{
+ window.AsianSchoolCloud.startExam.mockResolvedValue({completed:true,examCode:'101',result:{receiptOnly:true,examCode:'101',mcqPoints:0,submissionId:'fake-submission'}});
+ const hook=renderHook(()=>useStudentController());
+ act(()=>hook.result.current.setMode('exam'));
+ await open(hook);
+ expect(hook.result.current.examState).toBe('submitted');
+ expect(hook.result.current.scoreResult).toMatchObject({receiptOnly:true,mcqPoints:0});
+ expect(hook.result.current.currentOfficialExam).toBeNull();
+ expect(window.AsianSchoolTimer.start).not.toHaveBeenCalled();
+ expect(window.AsianSchoolAntiCheat.start).not.toHaveBeenCalled();
+ expect(window.AsianSchoolStorage.updateLiveSession).not.toHaveBeenCalled();
+ expect(hook.result.current.examDraftSession).toBeNull();
+});
+it('exam draft survives loss of tab storage and restores the active question',async()=>{
+ const {readExamDraftPosition}=await import('../src/student/actions/examDraft.js');
+ saveExamDraft(identity(),answers,undefined,9);
+ sessionStorage.clear();
+ expect(readExamDraft(identity())).toEqual(answers);
+ expect(readExamDraftPosition(identity())).toBe(9);
+});
+
+it('practice restart restores the same set, answers, position and original deadline', async () => {
+  window.AsianSchoolStorage.getClassAccessMode = () => 'practice_only';
+  window.AsianSchoolStorage.getConfig = () => ({ practiceDurationMinutes: 30 });
+  const exactSet = { mcqQuestions: [{ id: 1, correctAnswer: 2 }, { id: 2, correctAnswer: 1 }], tfQuestions: [], essayQuestions: [] };
+  window.AsianSchoolStorage.generatePracticeSet = vi.fn(() => exactSet);
+  window.AsianSchoolStorage.determineExamCode = () => 'DE_CUONG';
+  const first = renderHook(() => useStudentController());
+  await act(async () => first.result.current.handleStart());
+  const firstStart = first.result.current.examStartTime.getTime();
+  const savedAnswers = { mcq: { 1: 2 }, tf: {}, essay: { 1: 'Nội dung đang viết' } };
+  act(() => { first.result.current.setPracticeAnswers(savedAnswers); first.result.current.setActiveQuestionIdx(1); });
+  first.unmount();
+  sessionStorage.clear();
+  window.AsianSchoolStorage.getConfig = () => ({ practiceDurationMinutes: 45 });
+  window.AsianSchoolStorage.generatePracticeSet.mockReturnValue({mcqQuestions:[{id:99}],tfQuestions:[],essayQuestions:[]});
+  const resumed = renderHook(() => useStudentController());
+  window.AsianSchoolStorage.generatePracticeSet.mockClear();
+  await act(async () => resumed.result.current.handleStart());
+  expect(resumed.result.current.practiceAnswers).toEqual(savedAnswers);
+  expect(resumed.result.current.practiceSet).toEqual(exactSet);
+  expect(resumed.result.current.activeQuestionIdx).toBe(1);
+  expect(resumed.result.current.examStartTime.getTime()).toBe(firstStart);
+  expect(window.AsianSchoolStorage.generatePracticeSet).not.toHaveBeenCalled();
+  const options = window.AsianSchoolTimer.start.mock.calls.at(-1)[0];
+  expect(options.deadlineMs).toBe(firstStart + 30 * 60000);
+});
+it('already-expired restored exam submits recovered answers once after state is restored', async () => {
+  saveExamDraft(identity(), answers);
+  window.AsianSchoolCloud.startExam.mockResolvedValue(serverStart({deadlineMs: startedAtMs + 2700000, serverNowMs: startedAtMs + 2800000}));
+  window.AsianSchoolTimer.start.mockImplementation(options => options.onTimeout());
+  const hook = renderHook(() => useStudentController());
+  await open(hook);
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); });
+  expect(window.AsianSchoolCloud.submitExam).toHaveBeenCalledTimes(1);
+  expect(window.AsianSchoolCloud.submitExam).toHaveBeenCalledWith(expect.objectContaining({answers}));
+});

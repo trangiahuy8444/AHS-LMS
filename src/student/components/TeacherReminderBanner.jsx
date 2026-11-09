@@ -1,15 +1,26 @@
-import React from 'react';
+import { useStudentLanguage } from '../StudentLanguage.jsx';
+import React, { useEffect, useState } from 'react';
 import { useStudent } from '../StudentContext.js';
 import { useTeacherReminder } from '../../shared/useTeacherReminder.js';
 
 export default function TeacherReminderBanner() {
+  const { t } = useStudentLanguage();
   const student = useStudent();
   const reminder = useTeacherReminder(student, student.examState === 'in_progress');
-  if (!reminder) return null;
+  const [visible, setVisible] = useState(false);
+  const { id, count, message, createdAt } = reminder || {};
+  useEffect(() => {
+    if (!message) { setVisible(false); return; }
+    const remaining = createdAt ? Math.min(10000, Math.max(0, Number(createdAt) + 10000 - Date.now())) : 10000;
+    setVisible(remaining > 0);
+    const timer = setTimeout(() => setVisible(false), remaining);
+    return () => clearTimeout(timer);
+  }, [id, count, message, createdAt]);
+  if (!visible) return null;
   return (
-    <section aria-live="polite" className="w-full rounded-2xl border-2 border-amber-400 bg-amber-50 p-4 sm:p-5">
-      <h3 className="text-base font-extrabold text-amber-950">Nhắc nhở của giáo viên · Lần {reminder.count}</h3>
-      <p className="mt-2 whitespace-pre-line break-words text-base leading-relaxed text-amber-950">{reminder.message}</p>
+    <section aria-live="polite" role="status" className="student-reminder" key={id || count}>
+      <p className="font-bold">{t('Nhắc nhở của giáo viên')} · {t('Lần')} {count}</p>
+      <p className="whitespace-pre-line break-words">{message}</p>
     </section>
   );
 }

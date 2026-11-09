@@ -25,7 +25,18 @@
       ],
       "correctAnswer": 2,
       "answerLetter": "C",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which core technology does Google Translate use to analyse language data and translate languages?",
+          "options": [
+            "The hardware's mechanical memorisation of binary character-code tables.",
+            "Manual lookup by online translators working around the clock.",
+            "Artificial intelligence and machine-learning models for natural language processing.",
+            "Pure keyword-search algorithms using a fixed dictionary."
+          ]
+        }
+      }
     },
     {
       "id": 2,
@@ -38,7 +49,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What is the default file extension for graphics created with the open-source software Inkscape?",
+          "options": [
+            ".svg",
+            ".docx",
+            ".mp4",
+            ".xlsx"
+          ]
+        }
+      }
     },
     {
       "id": 3,
@@ -51,7 +73,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which action violates copyright in the digital environment?",
+          "options": [
+            "Downloading commercial software from an illegal source and cracking it to avoid paying.",
+            "Quoting a short passage in an assignment and clearly identifying the author and source.",
+            "Using an image with an open Creative Commons licence and crediting the original author.",
+            "Buying a software licence and installing it on the permitted number of computers."
+          ]
+        }
+      }
     },
     {
       "id": 4,
@@ -64,7 +97,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "How is information usually organised and classified in online digital repositories?",
+          "options": [
+            "In a clear hierarchy of folders by topic and searchable keywords.",
+            "By automatically deleting older learning materials every 48 hours.",
+            "By mixing all text documents and videos into a single file.",
+            "In a random order based on when users visit the page."
+          ]
+        }
+      }
     },
     {
       "id": 5,
@@ -77,7 +121,18 @@
       ],
       "correctAnswer": 2,
       "answerLetter": "C",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "A major advantage of digital devices over traditional storage media is:",
+          "options": [
+            "Always operating reliably without an electrical supply.",
+            "Never experiencing physical hardware failure.",
+            "Storing very large amounts of data in a compact form.",
+            "Automatically converting all information into cryptocurrency."
+          ]
+        }
+      }
     },
     {
       "id": 6,
@@ -90,7 +145,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "In which order does a computer's basic information-processing cycle take place?",
+          "options": [
+            "Receive data -> Process data -> Output or store information.",
+            "Store data -> Output information -> Receive input signals.",
+            "Output information -> Receive data -> Process and transmit data.",
+            "Process information -> Receive data -> Delete data from the computer."
+          ]
+        }
+      }
     },
     {
       "id": 7,
@@ -103,7 +169,18 @@
       ],
       "correctAnswer": 2,
       "answerLetter": "C",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "The most fundamental characteristic of an IoT (Internet of Things) system is:",
+          "options": [
+            "Every device must use the same LAN cable.",
+            "Users must directly control every small operation.",
+            "Devices connect to a network to exchange data automatically.",
+            "All digital devices must share one display screen."
+          ]
+        }
+      }
     },
     {
       "id": 8,
@@ -116,7 +193,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What core role do smart devices play in the Fourth Industrial Revolution?",
+          "options": [
+            "Completely eliminating the global need for the Internet.",
+            "Acting as components that collect and process data automatically.",
+            "Forcing people to stop participating in all production processes.",
+            "Completely replacing every form of creative artistic thinking."
+          ]
+        }
+      }
     },
     {
       "id": 9,
@@ -129,7 +217,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What is the fundamental difference between vector graphics and bitmap (raster) graphics?",
+          "options": [
+            "Vector graphics are defined by mathematical formulas; bitmap graphics consist of pixels.",
+            "Bitmap images do not become pixelated when enlarged, whereas vector images do.",
+            "Vector files are larger than bitmap files in every case.",
+            "Bitmap graphics are used only for printing, while vector graphics are used only on the web."
+          ]
+        }
+      }
     },
     {
       "id": 10,
@@ -142,7 +241,18 @@
       ],
       "correctAnswer": 3,
       "answerLetter": "D",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which of the following is classified as a smart device?",
+          "options": [
+            "A basic calculator that performs only four arithmetic operations.",
+            "A conventional ceiling fan with a mechanical speed control.",
+            "An electric iron operated by a mechanical switch.",
+            "A smartphone on which applications can be installed."
+          ]
+        }
+      }
     },
     {
       "id": 11,
@@ -155,7 +265,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which cloud service model allows users to use software directly through a web browser?",
+          "options": [
+            "SaaS (Software as a Service).",
+            "IaaS (Infrastructure as a Service).",
+            "DaaS (Device as a Service).",
+            "PaaS (Platform as a Service)."
+          ]
+        }
+      }
     },
     {
       "id": 12,
@@ -168,7 +289,18 @@
       ],
       "correctAnswer": 3,
       "answerLetter": "D",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What is the greatest information-security risk of downloading and using cracked software?",
+          "options": [
+            "A portable device's battery immediately swells and explodes.",
+            "Users are forced to upgrade to newer hardware.",
+            "The monitor's display resolution is permanently reduced.",
+            "Malware is often bundled with the software to steal personal data."
+          ]
+        }
+      }
     },
     {
       "id": 13,
@@ -181,7 +313,18 @@
       ],
       "correctAnswer": 3,
       "answerLetter": "D",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "In computing, digital data is accurately defined as:",
+          "options": [
+            "Human memory of the natural world.",
+            "Knowledge accumulated through school lessons.",
+            "Practical meaning derived from events in everyday life.",
+            "Information that has been encoded for computer processing."
+          ]
+        }
+      }
     },
     {
       "id": 14,
@@ -194,7 +337,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What is the basic way a computer virus spreads in a digital environment?",
+          "options": [
+            "Attaching malicious code to other files and spreading when those files are activated.",
+            "Automatically spreading to household electronic devices that have no digital circuits.",
+            "Spreading between computers only through electrical power lines.",
+            "Generating itself even when the computer is completely disconnected from every power source."
+          ]
+        }
+      }
     },
     {
       "id": 15,
@@ -207,7 +361,18 @@
       ],
       "correctAnswer": 2,
       "answerLetter": "C",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What major benefit do cloud storage services such as Google Drive and OneDrive provide?",
+          "options": [
+            "Making personal computers immune to every form of ransomware.",
+            "Automatically doubling the processing speed of personal hardware.",
+            "Allowing data access and synchronisation whenever an Internet connection is available.",
+            "Preventing smartphones from ever consuming battery power during use."
+          ]
+        }
+      }
     },
     {
       "id": 16,
@@ -220,7 +385,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which of the following are computer input devices?",
+          "options": [
+            "A keyboard and an optical mouse.",
+            "A monitor and speakers.",
+            "A colour printer and a projector.",
+            "A hard drive and a memory card."
+          ]
+        }
+      }
     },
     {
       "id": 17,
@@ -233,7 +409,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Within which area is a LAN (Local Area Network) usually installed?",
+          "options": [
+            "Within a building, organisation or school.",
+            "Across continents worldwide.",
+            "Between countries around the world.",
+            "Across an entire province or city."
+          ]
+        }
+      }
     },
     {
       "id": 18,
@@ -246,7 +433,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which characteristic describes a bitmap graphics file?",
+          "options": [
+            "It consists of a grid of pixels and can become pixelated when enlarged.",
+            "It is defined by mathematical equations and never becomes pixelated.",
+            "It always has a smaller file size than vector graphics.",
+            "It cannot display photographs of real landscapes."
+          ]
+        }
+      }
     },
     {
       "id": 19,
@@ -259,7 +457,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which Inkscape keyboard shortcut is used to export a file as a PNG image?",
+          "options": [
+            "Shift + Ctrl + E.",
+            "Ctrl + S.",
+            "Ctrl + Z.",
+            "Ctrl + P."
+          ]
+        }
+      }
     },
     {
       "id": 20,
@@ -272,7 +481,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What does the PaaS (Platform as a Service) cloud computing model provide?",
+          "options": [
+            "A platform and application development environment for programmers.",
+            "All the raw physical server hardware.",
+            "Only email sending and receiving services.",
+            "Long-distance telecommunications cable networks."
+          ]
+        }
+      }
     },
     {
       "id": 21,
@@ -285,7 +505,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which key should you hold while clicking to select multiple geometric objects in Inkscape?",
+          "options": [
+            "Shift.",
+            "Alt.",
+            "Tab.",
+            "Esc."
+          ]
+        }
+      }
     },
     {
       "id": 22,
@@ -298,7 +529,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which is the most effective measure for preventing computer viruses?",
+          "options": [
+            "Regularly scanning for viruses and updating the operating system and security software.",
+            "Never starting a computer while its battery charger is connected.",
+            "Using the computer only during daylight hours.",
+            "Unplugging the display cable when it is not in use."
+          ]
+        }
+      }
     },
     {
       "id": 23,
@@ -311,7 +553,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What is the main function of Inkscape's 'Edit paths by nodes' tool (shortcut N)?",
+          "options": [
+            "Editing the nodes and curves of vector objects.",
+            "Drawing basic rectangles and squares.",
+            "Changing the background colour of the entire design page.",
+            "Deleting design layers."
+          ]
+        }
+      }
     },
     {
       "id": 24,
@@ -324,7 +577,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "How many megabytes (MB) are equivalent to 2 GB of memory?",
+          "options": [
+            "1,024 MB.",
+            "2,048 MB.",
+            "512 MB.",
+            "4,096 MB."
+          ]
+        }
+      }
     },
     {
       "id": 25,
@@ -337,7 +601,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What is the usual purpose of Creative Commons (CC) licences in the digital environment?",
+          "options": [
+            "Completely prohibiting every form of copying.",
+            "Allowing authors to share their work with the community under specific conditions.",
+            "Protecting a business's exclusive trade secrets.",
+            "Registering hardware technology patents."
+          ]
+        }
+      }
     }
   ],
   "practiceTfQuestions": [
@@ -367,7 +642,30 @@
           "text": "Tệp tin có phần mở rộng .exe là tệp tin thực thi chương trình trong hệ điều hành Windows.",
           "correctAnswer": true
         }
-      ]
+      ],
+      "translations": {
+        "en": {
+          "context": "During an IT practical lesson, An receives an email from an unfamiliar address announcing that An has won a phone. It includes a file called Phanthuong.exe. An's computer has licensed antivirus software installed.",
+          "subQuestions": [
+            {
+              "letter": "a",
+              "text": "To check it safely, An should temporarily turn off the antivirus software and run the file to see its contents first."
+            },
+            {
+              "letter": "b",
+              "text": "Antivirus software can automatically warn about or quarantine files containing suspected malware."
+            },
+            {
+              "letter": "c",
+              "text": "Immediately opening an .exe file from a stranger risks infecting the computer with spyware (a Trojan)."
+            },
+            {
+              "letter": "d",
+              "text": "A file with the .exe extension is a program executable in Windows."
+            }
+          ]
+        }
+      }
     },
     {
       "id": 2,
@@ -395,7 +693,30 @@
           "text": "Lan có thể tải một bài hát độc quyền có thu phí trên mạng rồi lồng vào video, chỉ cần ghi chú 'Tôi không giữ bản quyền bài hát này' là hoàn toàn hợp pháp.",
           "correctAnswer": false
         }
-      ]
+      ],
+      "translations": {
+        "en": {
+          "context": "Lan is making a presentation video about local scenic attractions to post on social media. She wants to use songs and images found on the Internet in the video.",
+          "subQuestions": [
+            {
+              "letter": "a",
+              "text": "The CC BY symbol allows Lan to use the work freely but requires crediting the original author."
+            },
+            {
+              "letter": "b",
+              "text": "Creative Commons (CC) is a system of open licences that lets authors share works under specified conditions of use."
+            },
+            {
+              "letter": "c",
+              "text": "Music and digital images are protected by copyright law."
+            },
+            {
+              "letter": "d",
+              "text": "Lan may download a paid, exclusive song and add it to the video legally simply by writing, 'I do not own the copyright to this song.'"
+            }
+          ]
+        }
+      }
     },
     {
       "id": 3,
@@ -423,7 +744,30 @@
           "text": "Google Drive là dịch vụ điện toán đám mây cho phép người dùng lưu trữ và chia sẻ tệp tin trực tuyến.",
           "correctAnswer": true
         }
-      ]
+      ],
+      "translations": {
+        "en": {
+          "context": "A group of Grade 10 students are working on a learning project. They use smartphones to photograph real activities and Google Drive cloud storage to share data with group members.",
+          "subQuestions": [
+            {
+              "letter": "a",
+              "text": "To prevent outsiders from modifying project data, the group should set public sharing to 'Anyone with the link can edit (Editor)'."
+            },
+            {
+              "letter": "b",
+              "text": "A smartphone is a digital system capable of capturing and processing image data."
+            },
+            {
+              "letter": "c",
+              "text": "After photos are uploaded to the cloud, other members can view the data only if they have valid access permission."
+            },
+            {
+              "letter": "d",
+              "text": "Google Drive is a cloud computing service that allows users to store and share files online."
+            }
+          ]
+        }
+      }
     },
     {
       "id": 4,
@@ -451,7 +795,30 @@
           "text": "Dữ liệu lưu trên đám mây không thể bị ảnh hưởng bởi lỗi người dùng như xóa nhầm hoặc đặt mật khẩu yếu.",
           "correctAnswer": false
         }
-      ]
+      ],
+      "translations": {
+        "en": {
+          "context": "A technology company implements an online working system and uses cloud services for its employees.",
+          "subQuestions": [
+            {
+              "letter": "a",
+              "text": "Cloud computing helps employees work and access documents remotely."
+            },
+            {
+              "letter": "b",
+              "text": "The company needs no account-security measures because the cloud provider automatically takes full responsibility."
+            },
+            {
+              "letter": "c",
+              "text": "IaaS services allow businesses to rent flexible virtualised server and storage infrastructure."
+            },
+            {
+              "letter": "d",
+              "text": "Data stored in the cloud cannot be affected by user mistakes such as accidental deletion or weak passwords."
+            }
+          ]
+        }
+      }
     },
     {
       "id": 5,
@@ -479,7 +846,30 @@
           "text": "Để đưa một tệp ảnh chụp bitmap từ ngoài vào phần mềm Inkscape, Tuấn sử dụng lệnh Import (Ctrl + I).",
           "correctAnswer": true
         }
-      ]
+      ],
+      "translations": {
+        "en": {
+          "context": "During a graphics practical lesson using Inkscape, Tuan creates a logo for the school's football club.",
+          "subQuestions": [
+            {
+              "letter": "a",
+              "text": "Tuan can enlarge the vector logo to billboard size while keeping it sharp."
+            },
+            {
+              "letter": "b",
+              "text": "When preparing printed work, Tuan should save the source file as .svg for future editing."
+            },
+            {
+              "letter": "c",
+              "text": "Inkscape vector graphics support only solid colours and cannot use gradients."
+            },
+            {
+              "letter": "d",
+              "text": "To bring an external bitmap photograph into Inkscape, Tuan uses Import (Ctrl + I)."
+            }
+          ]
+        }
+      }
     },
     {
       "id": 6,
@@ -507,7 +897,30 @@
           "text": "Tất cả các tài liệu tìm kiếm được trên Google đều được phép tự do kinh doanh thương mại mà không cần xin phép tác giả.",
           "correctAnswer": false
         }
-      ]
+      ],
+      "translations": {
+        "en": {
+          "context": "Minh searches the Internet for materials for an assignment in Economic and Legal Education.",
+          "subQuestions": [
+            {
+              "letter": "a",
+              "text": "All information on social media has been checked and is guaranteed completely accurate."
+            },
+            {
+              "letter": "b",
+              "text": "Minh should prioritise legal documents from official government and ministry portals."
+            },
+            {
+              "letter": "c",
+              "text": "Copying another author's article word for word into an assignment without citation is plagiarism."
+            },
+            {
+              "letter": "d",
+              "text": "Every document found through Google may be commercially exploited freely without the author's permission."
+            }
+          ]
+        }
+      }
     }
   ],
   "practiceEssayQuestions": [
@@ -530,7 +943,26 @@
           "text": "Nếu người dùng chụp thêm các đoạn video ngắn có dung lượng 4 GB, hãy tính dung lượng trống còn lại của thẻ nhớ theo đơn vị GB. (0,25 đ)"
         }
       ],
-      "modelAnswer": "a) Đổi GB sang MB (0,25 đ): 16 GB * 1024 = 16.384 MB.\nb) Số bức ảnh tối đa (0,25 đ): 16.384 / 8 = 2.048 bức ảnh.\nc) Dung lượng trống còn lại (0,25 đ): 16 - 4 = 12 GB."
+      "modelAnswer": "a) Đổi GB sang MB (0,25 đ): 16 GB * 1024 = 16.384 MB.\nb) Số bức ảnh tối đa (0,25 đ): 16.384 / 8 = 2.048 bức ảnh.\nc) Dung lượng trống còn lại (0,25 đ): 16 - 4 = 12 GB.",
+      "translations": {
+        "en": {
+          "context": "A camera memory card displays a storage capacity of 16 GB. A high-quality digital photograph taken with this camera has an average size of 8 MB.",
+          "subItems": [
+            {
+              "letter": "a",
+              "text": "Convert 16 GB to megabytes (MB), given that 1 GB = 1024 MB. (0.25 points)"
+            },
+            {
+              "letter": "b",
+              "text": "What is the maximum number of digital photographs of the stated size that this card can store? (0.25 points)"
+            },
+            {
+              "letter": "c",
+              "text": "If the user records additional short videos totalling 4 GB, calculate the card's remaining free space in GB. (0.25 points)"
+            }
+          ]
+        }
+      }
     },
     {
       "id": 2,
@@ -551,7 +983,26 @@
           "text": "Nêu một biện pháp quan trọng để bảo vệ tài khoản lưu trữ đám mây của em không bị kẻ xấu xâm nhập đánh cắp tài liệu. (0,25 đ)"
         }
       ],
-      "modelAnswer": "a) Hai lợi ích lưu trữ đám mây (0,25 đ): Truy cập mọi lúc mọi nơi trên nhiều thiết bị; không sợ mất dữ liệu khi hỏng ổ cứng cá nhân.\nb) Lựa chọn phân quyền (0,25 đ): Chọn Editor (Người chỉnh sửa) để các thành viên trong nhóm cùng trực tiếp đóng góp nội dung vào bài làm.\nc) Biện pháp bảo mật (0,25 đ): Đặt mật khẩu mạnh kết hợp bật tính năng xác thực hai yếu tố (2FA)."
+      "modelAnswer": "a) Hai lợi ích lưu trữ đám mây (0,25 đ): Truy cập mọi lúc mọi nơi trên nhiều thiết bị; không sợ mất dữ liệu khi hỏng ổ cứng cá nhân.\nb) Lựa chọn phân quyền (0,25 đ): Chọn Editor (Người chỉnh sửa) để các thành viên trong nhóm cùng trực tiếp đóng góp nội dung vào bài làm.\nc) Biện pháp bảo mật (0,25 đ): Đặt mật khẩu mạnh kết hợp bật tính năng xác thực hai yếu tố (2FA).",
+      "translations": {
+        "en": {
+          "context": "Your school is introducing online learning combined with cloud storage for Grade 10 students.",
+          "subItems": [
+            {
+              "letter": "a",
+              "text": "State two practical benefits of storing learning materials in the cloud rather than on a personal computer's hard drive. (0.25 points)"
+            },
+            {
+              "letter": "b",
+              "text": "When sharing a group learning document on Google Drive, which permission should you give your groupmates so that you can work on it together: Viewer or Editor? Explain your answer. (0.25 points)"
+            },
+            {
+              "letter": "c",
+              "text": "State one important measure to protect your cloud storage account against unauthorised access and document theft. (0.25 points)"
+            }
+          ]
+        }
+      }
     },
     {
       "id": 3,
@@ -572,7 +1023,26 @@
           "text": "Sau khi vẽ xong một logo của lớp, em nên xuất sản phẩm sang định dạng ảnh nào (PNG hay JPG) nếu muốn giữ nền trong suốt để chèn vào các ấn phẩm kỷ yếu? (0,25 đ)"
         }
       ],
-      "modelAnswer": "a) Phím thao tác hình chuẩn (0,25 đ): Giữ phím Ctrl khi kéo thả chuột.\nb) Phân biệt Fill và Stroke (0,25 đ): Fill là màu tô bên trong diện tích hình khối; Stroke là màu của đường viền bao quanh hình khối.\nc) Định dạng ảnh xuất (0,25 đ): Xuất sang tệp ảnh PNG vì PNG hỗ trợ kênh màu Alpha trong suốt, JPG không hỗ trợ."
+      "modelAnswer": "a) Phím thao tác hình chuẩn (0,25 đ): Giữ phím Ctrl khi kéo thả chuột.\nb) Phân biệt Fill và Stroke (0,25 đ): Fill là màu tô bên trong diện tích hình khối; Stroke là màu của đường viền bao quanh hình khối.\nc) Định dạng ảnh xuất (0,25 đ): Xuất sang tệp ảnh PNG vì PNG hỗ trợ kênh màu Alpha trong suốt, JPG không hỗ trợ.",
+      "translations": {
+        "en": {
+          "context": "In the Inkscape graphics design software:",
+          "subItems": [
+            {
+              "letter": "a",
+              "text": "Which keyboard key should you hold while dragging to draw a perfect circle or square, rather than an ellipse or rectangle? (0.25 points)"
+            },
+            {
+              "letter": "b",
+              "text": "Explain the difference between an object's Fill and Stroke colour properties in Inkscape. (0.25 points)"
+            },
+            {
+              "letter": "c",
+              "text": "After creating a class logo, which image format should you export to, PNG or JPG, to preserve a transparent background for use in yearbook publications? (0.25 points)"
+            }
+          ]
+        }
+      }
     }
   ]
 };

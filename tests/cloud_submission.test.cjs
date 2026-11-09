@@ -18,7 +18,8 @@ function cloudHarness({ submitted = false, metadata = {}, readError, commitError
   const db = {
     enablePersistence: () => Promise.resolve(),
     collection(name) { return { doc(id) {
-      if (name === 'exam_attempts') return ref;
+      if (name === 'exam_keys') return {set:async()=>{},get:async()=>({exists:true,metadata:{},data:()=>({at:{toMillis:()=>Date.now()}})})};
+    if (name === 'exam_attempts') return ref;
       if (name === 'exam_config') return { get: async () => ({ exists: true, data: () => ({ defaultClassMode: 'both_open', activeCodes: { 8: ['101'] }, classMapping: { '8/1': '101' }, examDurationMinutes: configDurationMinutes }) }) };
       return { path: `${name}/${id}`, set: async () => {}, get: async () => ({ exists: true, data: () => ({ exam: {} }) }) };
     } }; },

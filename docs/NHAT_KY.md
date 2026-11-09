@@ -1,7 +1,52 @@
+## 09/11/2026 — Giáo viên cho phép commit/push; sửa nhận xét lớp 9/21
+
+- Giáo viên yêu cầu phát hành các thay đổi đang chờ trước khi chấm lớp 9/25.
+- Đã sao lưu riêng tư và sửa nhận xét của đúng 21 bài lớp 9/21 bằng cập nhật chỉ trường teacherFeedback, kèm điều kiện phiên bản chống ghi đè thay đổi mới. 13 bài trọn điểm không còn nhận xét; 8 bài chỉ giữ lỗi/ý thiếu có trong nhận xét gốc. Không chấm lại, không thêm lỗi mới.
+- Đọc lại 21 bài xác nhận mọi trường khác, gồm điểm và câu trả lời, giữ nguyên. Tạo 21 yêu cầu lưu Drive theo cơ chế hàng đợi hiện có; chưa xác nhận đã xuất Drive. Có một điểm 0,88 từ lần chấm cũ, giữ nguyên để giáo viên rà/chấm lại, không tự làm tròn.
+- Bổ sung xử lý nhận xét cũ không có ngoặc hoặc thiếu ngoặc; kiểm thử chứng minh lỗi trước khi sửa và đạt sau khi sửa.
+- Kiểm tra trước phát hành: lint/build/kiểm tra không lọt đề đạt; 206 Node + 172 Vitest đạt, 3 kiểm tra gói đề riêng tư bỏ qua; 30 kiểm tra quyền trên máy chủ giả lập đạt. Không đổi rules hoặc kho đề thật.
+
+## 09/11/2026 — Khôi phục bài, đồng hồ máy chủ và chuẩn hóa chấm tự luận (chưa phát hành)
+
+- Giữ yêu cầu không commit, push hoặc triển khai. Chỉ sửa mã và kiểm thử với dữ liệu giả; không sửa điểm/bài nộp/Firebase thật.
+- Bản nháp thi chính thức lưu bền trên cùng trình duyệt, tách theo khối/lớp/mã LMS/mã đề/lượt bắt đầu/tài khoản. Chỉ chứa câu trả lời, không lưu đáp án chuẩn. Khôi phục câu đang xem; giữ nháp khi nộp lỗi, xóa khi máy chủ xác nhận nhận bài.
+- Theo lựa chọn giáo viên, ôn tập cũng khôi phục bộ câu hỏi đã chọn, câu trả lời, vị trí, số vi phạm và mốc bắt đầu/thời lượng (kể cả gia hạn). Đóng trình duyệt thông thường rồi vào lại không đổi đề hay cấp lại thời gian; hết hạn thì nộp bài đã khôi phục một lần. Không bảo đảm khi dùng ẩn danh, xóa bộ nhớ hoặc đổi máy/trình duyệt.
+- Đồng hồ thi đồng bộ từ dấu thời gian máy chủ, dùng đồng hồ đơn điệu khi đang làm, giữ hạn nộp và gia hạn của lượt cũ; giờ bắt đầu hiển thị múi giờ Việt Nam. Không âm thầm tạo lại 45 phút khi thiếu mốc bắt đầu. Kiểm thử máy lệch ±5 phút và thay giờ máy giữa lượt.
+- Trang kết quả dùng toàn bộ chiều cao màn hình; thông tin/nút thao tác gọn, phần xem bài cuộn riêng. Màn hình hẹp có tab Kết quả/Bài làm. Kiểm tra 1366×768, 1024×600, 390×844, 375×667 không cuộn toàn trang hoặc tràn thẻ kết quả; nhận xét dài có vùng cuộn riêng.
+- AI phải tách điểm đúng từng ý: ý 0,5 chỉ nhận 0/0,25/0,5. Tổng câu theo bước 0,25; từ chối 0,88 và tổng không khớp, không tự làm tròn hay ghi điểm 0 khi chấm lỗi. Chặn điểm lẻ cả khi lưu tay. Không đổi các điểm cũ trên hệ thống thật.
+- Câu đúng trọn điểm không sinh nhận xét; câu chưa đạt chỉ ghi lỗi/ý thiếu. Loại nhãn dự phòng/model khỏi nhận xét học sinh; chấm lại đúng sẽ gỡ nhận xét cũ của riêng câu đó. Thông tin model chỉ dùng cho giáo viên.
+- Kiểm tra cuối: lint đạt; 206 Node đạt, 3 bài riêng tư bỏ qua; 171 Vitest đạt; build và kiểm tra không lọt đề chính thức đạt. Có kiểm thử mở lại ôn tập sau mất sessionStorage, hạn cũ dù cấu hình đổi, hết giờ lúc khôi phục và từ chối lưu 0,88 không thay điểm cũ.
+
 # Nhật ký phiên làm việc
 
 > Tệp trạng thái sống. Mỗi phiên có thay đổi đáng kể thêm một mục **ở đầu** tệp: ngày, đã làm gì (kèm commit), kết quả `npm run check`, việc còn dở, câu hỏi chờ thầy. Repo công khai: không ghi bí mật hay dữ liệu học sinh.
 
+
+## 09/11/2026 — Vào lại sau khi hết lượt mở màn hình kết quả (cục bộ)
+
+- Theo yêu cầu giáo viên, lượt đã được máy chủ xác nhận nộp và đã hết lượt sẽ trả kết quả thay vì báo hết lượt. Dùng đúng bài của lượt cuối, không tạo thêm lượt, không tải đề hoặc chạy đồng hồ/chống gian lận. Lượt thi lại được giáo viên cấp vẫn giữ luồng hiện có; không tự mở khóa lượt còn bị khóa.
+- Kết quả có thể chụp lại ảnh. Việc mở câu hỏi/đáp án vẫn kiểm quyền xem bài; không gán isOfficialReview cho luồng xác nhận. Cập nhật điểm thời gian thực của thẻ chỉ nhận các trường kết quả, bỏ câu trả lời và khóa chấm.
+- Khi không đọc được chi tiết bài nộp nhưng lượt đã nộp được xác nhận, chỉ hiện xác nhận và báo chưa tải được điểm; không bịa điểm 0 hoặc giờ nộp/thời lượng. Không coi cache hoặc ghi đang chờ đồng bộ là bằng chứng đã nộp.
+- Giữ điều kiện vào cổng thi hiện có (mật khẩu, lớp đang mở); không mở rộng rules hay quyền đọc bài của người khác. Chưa commit, push hoặc phát hành theo yêu cầu đang áp dụng.
+
+## 09/11/2026 — Song ngữ, sĩ số và tránh vi phạm trùng khi vào bài (chưa phát hành)
+
+- Giữ yêu cầu không commit/push/phát hành. Bản GitHub đang chạy không thay đổi.
+- Thêm VI/EN cho giao diện làm bài và nội dung câu hỏi; lưu lựa chọn ngôn ngữ trên máy, không đặt lại câu đang làm hoặc câu trả lời. Không gọi dịch vụ dịch từ trình duyệt học sinh.
+- Chuẩn bị bản tiếng Anh cho 110 câu ôn tập công khai và 348 câu của 12 mã đề trong gói riêng tư. Gói song ngữ riêng tư lấy từ bản nguồn ngày 30/10; chưa ghi đè kho đề thật. Bản dịch cần giáo viên rà soát trước khi phát hành. Nội dung nguồn, đáp án, barem, điểm, thứ tự và ID giữ nguyên; xáo trộn phương án đồng thời cho VI/EN.
+- Nguồn ôn tập có một số phương án đã bị cắt câu; bản tiếng Anh giữ dạng thiếu với dấu ba chấm, không tự đoán thêm kiến thức. Ghi chú đối chiếu lưu riêng cùng gói đề để giáo viên rà soát.
+- Admin hiển thị sĩ số từ roster và số đang làm; gộp nhiều phiên/mã LMS/Canvas cùng học sinh, loại phiên đã nộp hoặc không có nhịp tim hơn 3 phút. Không thay dữ liệu sĩ số hoặc điểm.
+- Ô mã phòng thi là mã dùng cho ca, không còn kiểu đăng nhập mật khẩu tài khoản; hiển thị che ký tự theo lựa chọn. Gộp chuỗi blur/visibility/fullscreen trong 1,2 giây thành một lần rời bài; không thêm khoảng miễn giám sát đầu ca, giữ khóa sau 3 lần.
+- Bố cục VI/EN kiểm bằng dữ liệu giả:42 trường hợp (7 kích thước × 3 loại câu × 2 ngôn ngữ), mở bảng câu hỏi, giữ bài khi chuyển câu, mở điều phối lớp và nhóm cấu hình đạt. Không thử thao tác trên dữ liệu học sinh thật.
+- Kiểm chốt bản cục bộ:192 Node đạt/3 private bỏ qua,160 Vitest đạt; lint/build/chặn lọt đề đạt. HEAD vẫn 4dd8ff3, không stage/commit/push. Hộp lưu mật khẩu của trình duyệt chưa được nghiệm thu trên Chrome phòng máy; mã mới hạn chế nhận diện sai loại trường, không hứa chặn mọi hộp trình duyệt.
+
+## 09/11/2026 — Bản chỉnh giao diện cục bộ, chờ giáo viên duyệt phát hành
+
+- Yêu cầu mới: không commit/push/phát hành đến khi giáo viên yêu cầu. Các thay đổi trong mục này chỉ nằm ở thư mục làm việc.
+- Nhắc nhở riêng giáo viên gửi hiện chữ có hiệu ứng, tự ẩn sau 10 giây; snapshot lặp không phát lại. Theo đính chính cuối, giữ nguyên cảnh báo chuyển tab/toàn màn hình, khóa bài và thông báo cộng giờ.
+- Phòng làm bài dùng chiều cao cửa sổ, giữ thông tin học sinh, nút chuyển câu/nộp bài trong khung nhìn. Nội quy thu gọn; nội dung dài cuộn riêng; tự luận chia vùng đọc/nhập; bảng câu hỏi trên màn hình nhỏ mở/đóng được. Chuyển nút máy tính vào thanh câu hỏi để không đè nút nộp.
+- Admin: rút ngắn thanh điều hướng, ưu tiên giám sát; điều phối lớp và cấu hình chia nhóm đóng/mở. Giữ các chức năng điều khiển và cơ chế lưu hiện tại.
+- Kiểm thử bố cục bằng dữ liệu giả tại 7 kích thước, 3 loại câu hỏi (21 trường hợp); kiểm tra nút trong màn hình, không tràn trang, chuyển câu vẫn giữ bài và mở bảng câu hỏi/điều phối lớp. Không sử dụng dữ liệu học sinh thật.
 
 ## 09/11/2026 — Thông tin học sinh gọn và thống nhất
 

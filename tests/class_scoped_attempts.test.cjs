@@ -21,7 +21,7 @@ function createFirebaseHarness(existingDocs = {}) {
               const data = store.get(docPath);
               return {
                 exists: !!data,
-                data: () => data,
+                data: () => name === 'exam_keys' ? {...data,at:{toMillis:()=>Date.now()}} : name === 'exam_attempts' && data?.startedAt === 'SERVER_TIME' ? {...data,startedAt:{toMillis:()=>Date.now()}} : data,
                 metadata: { fromCache: false, hasPendingWrites: false }
               };
             },
@@ -37,7 +37,7 @@ function createFirebaseHarness(existingDocs = {}) {
             onSnapshot(options, cb) {
               const handler = typeof options === 'function' ? options : cb;
               const data = store.get(docPath);
-              handler({ exists: !!data, data: () => data, metadata: { hasPendingWrites: false, fromCache: false } });
+              handler({ exists: !!data, data: () => name === 'exam_keys' ? {...data,at:{toMillis:()=>Date.now()}} : name === 'exam_attempts' && data?.startedAt === 'SERVER_TIME' ? {...data,startedAt:{toMillis:()=>Date.now()}} : data, metadata: { hasPendingWrites: false, fromCache: false } });
               return () => {};
             }
           };

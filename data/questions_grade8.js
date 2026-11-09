@@ -25,7 +25,18 @@
       ],
       "correctAnswer": 2,
       "answerLetter": "C",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Most modern electronic computers are designed according to whose architectural principles?",
+          "options": [
+            "Mathematician Blaise Pascal.",
+            "Engineer Charles Xavier Thomas.",
+            "Scientist John von Neumann.",
+            "Inventor Charles Babbage."
+          ]
+        }
+      }
     },
     {
       "id": 2,
@@ -38,7 +49,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Computer generations from the same technological period are mainly classified by which factor?",
+          "options": [
+            "The reputation of the manufacturer.",
+            "The core electronic component technology.",
+            "The colour and size of the devices.",
+            "Their market selling price."
+          ]
+        }
+      }
     },
     {
       "id": 3,
@@ -51,7 +73,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which arithmetic operations could the Pascaline mechanical calculator, invented in the seventeenth century, perform?",
+          "options": [
+            "Multiplication and division.",
+            "Addition and subtraction.",
+            "Finding roots and calculating powers.",
+            "Complex trigonometric functions."
+          ]
+        }
+      }
     },
     {
       "id": 4,
@@ -64,7 +97,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which electronic component technology was used in second-generation computers (1955–1965)?",
+          "options": [
+            "Vacuum tubes.",
+            "Transistors.",
+            "Integrated circuits (ICs).",
+            "Microprocessors (VLSI)."
+          ]
+        }
+      }
     },
     {
       "id": 5,
@@ -77,7 +121,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What has been the main reason for inventing and continually improving calculating tools from ancient times to the present?",
+          "options": [
+            "People's increasingly diverse entertainment and artistic needs.",
+            "The growing need for calculation and data processing in everyday life.",
+            "The desire to eliminate all mental work completely.",
+            "The need to replace writing and traditional documents entirely."
+          ]
+        }
+      }
     },
     {
       "id": 6,
@@ -90,7 +145,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What important contribution did the ancient abacus make to human civilisation?",
+          "options": [
+            "It completely automated business decision-making.",
+            "It helped people perform addition and subtraction more quickly.",
+            "It stored text and sound data as electronic pulses.",
+            "It connected ancient communities and allowed them to exchange data remotely."
+          ]
+        }
+      }
     },
     {
       "id": 7,
@@ -103,7 +169,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What important feature do Charles Babbage's Analytical Engine and modern computers have in common?",
+          "options": [
+            "The ability to connect to telecommunications networks to share data remotely.",
+            "A structure consisting of input devices, memory, a processor and output devices.",
+            "The use of a high-power alternating-current supply.",
+            "A very compact, portable external design."
+          ]
+        }
+      }
     },
     {
       "id": 8,
@@ -116,7 +193,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "A presentation saved as a .pptx file on a computer is:",
+          "options": [
+            "Digital data.",
+            "Paper-based data.",
+            "Manually recorded data.",
+            "Raw physical data."
+          ]
+        }
+      }
     },
     {
       "id": 9,
@@ -129,7 +217,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which activity involving digital information is most effectively supported by the Internet and digital devices?",
+          "options": [
+            "Limiting the number of people who can access information sources.",
+            "Easily collecting, storing, processing and sharing information widely.",
+            "Requiring all data to be converted into printed text.",
+            "Completely preventing any modification or updating of data."
+          ]
+        }
+      }
     },
     {
       "id": 10,
@@ -142,7 +241,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which of the following devices serves as a medium for storing digital data?",
+          "options": [
+            "A mechanical keyboard.",
+            "A USB flash drive.",
+            "A wireless optical mouse.",
+            "A multimedia projector."
+          ]
+        }
+      }
     },
     {
       "id": 11,
@@ -155,7 +265,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "A photo stored on a phone can be sent to hundreds of people within seconds through a messaging app. Which characteristic of digital information does this demonstrate?",
+          "options": [
+            "Digital information is extremely difficult to copy or transfer to another device.",
+            "Digital information can be copied and spread very quickly.",
+            "Digital information automatically provides absolute protection against every intrusion.",
+            "Digital information exists only temporarily and destroys itself a few minutes after being sent."
+          ]
+        }
+      }
     },
     {
       "id": 12,
@@ -168,7 +289,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "When you edit text in a digital document stored on a cloud storage service:",
+          "options": [
+            "Data is deleted from every computer connected to the network.",
+            "The data can be conveniently updated without damaging the storage medium.",
+            "The original file permanently disappears from online storage.",
+            "Every nearby printer automatically prints the updated content."
+          ]
+        }
+      }
     },
     {
       "id": 13,
@@ -181,7 +313,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What problem can result from giving files arbitrary names and storing them in a disorganised way?",
+          "options": [
+            "The computer consumes more electricity than usual.",
+            "Users spend more time searching and can easily confuse files.",
+            "The operating system automatically deletes the data files.",
+            "The device prevents new applications from being installed."
+          ]
+        }
+      }
     },
     {
       "id": 14,
@@ -194,7 +337,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What major advantage do electronic computers have over earlier mechanical calculating tools?",
+          "options": [
+            "Extremely fast processing and automatic operation according to a program.",
+            "External designs that always use expensive, luxurious materials.",
+            "Completely independent operation without any electrical supply.",
+            "No need for users to provide any input data."
+          ]
+        }
+      }
     },
     {
       "id": 15,
@@ -207,7 +361,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which statement about digital data is correct?",
+          "options": [
+            "Digital data is created only by word-processing software.",
+            "Digital data is easy to store, copy and process using digital devices.",
+            "Once digital data has been created, it cannot be deleted or modified.",
+            "Digital data disappears as soon as the device disconnects from the Internet."
+          ]
+        }
+      }
     },
     {
       "id": 16,
@@ -220,7 +385,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What is the most important criterion for assessing the reliability of information on the Internet?",
+          "options": [
+            "The number of likes and positive comments on social media.",
+            "An official source, an identifiable author and verification against multiple sources.",
+            "A sensational, urgent headline that arouses curiosity.",
+            "Content that completely agrees with your own subjective assumptions."
+          ]
+        }
+      }
     },
     {
       "id": 17,
@@ -233,7 +409,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What should a student do after seeing information about a new examination policy on a social media page of unknown origin?",
+          "options": [
+            "Immediately share it on their personal page so classmates hear about it early.",
+            "Check it against the education sector's official information portal.",
+            "Write an angry comment criticising the policy on a forum.",
+            "Download the image immediately and tell the class group to follow it."
+          ]
+        }
+      }
     },
     {
       "id": 18,
@@ -246,7 +433,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which action demonstrates appropriate behaviour online?",
+          "options": [
+            "Communicating politely and respecting others.",
+            "Creating an anonymous account to criticise people with different views.",
+            "Widely spreading posts whose sources have not been verified.",
+            "Leaving rude comments on friends' personal pages."
+          ]
+        }
+      }
     },
     {
       "id": 19,
@@ -259,7 +457,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which action seriously violates intellectual property law in the digital environment?",
+          "options": [
+            "Downloading a model essay and claiming to have written it yourself.",
+            "Quoting a saying and clearly identifying its source and author.",
+            "Buying licensed learning software from its official publisher.",
+            "Creating your own illustration with graphics software and sharing it with a friend."
+          ]
+        }
+      }
     },
     {
       "id": 20,
@@ -272,7 +481,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What is the appropriate way to use another person's images or materials in a presentation?",
+          "options": [
+            "Removing the author's signature to make the slide layout look better.",
+            "Clearly acknowledging the source, author or link to the material.",
+            "Claiming to have created all the materials yourself.",
+            "Sharing only in a private group so nobody will discover it."
+          ]
+        }
+      }
     },
     {
       "id": 21,
@@ -285,7 +505,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What basic rule should be followed when communicating online?",
+          "options": [
+            "Expressing any opinion without considering the consequences.",
+            "Respecting others and taking responsibility for your words.",
+            "Publishing all your personal information to demonstrate sincerity.",
+            "Requiring everyone in the group to agree with your opinion."
+          ]
+        }
+      }
     },
     {
       "id": 22,
@@ -298,7 +529,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What is the most appropriate response to insulting or threatening messages on social media?",
+          "options": [
+            "Responding aggressively with harsh words to defend yourself.",
+            "Saving evidence, blocking the messages and asking an adult for help.",
+            "Gathering friends to find the sender and take revenge.",
+            "Permanently closing your account and keeping the incident secret from everyone."
+          ]
+        }
+      }
     },
     {
       "id": 23,
@@ -311,7 +553,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What is an algorithm?",
+          "options": [
+            "A hardware component used for calculations inside a computer.",
+            "A finite sequence of clear instructions for solving a problem.",
+            "A high-level programming language such as Python or Scratch.",
+            "An application that helps create digital text documents."
+          ]
+        }
+      }
     },
     {
       "id": 24,
@@ -324,7 +577,18 @@
       ],
       "correctAnswer": 1,
       "answerLetter": "B",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What does an oval represent in an algorithm flowchart?",
+          "options": [
+            "Storing program code in memory.",
+            "The start or end of the algorithm.",
+            "Performing arithmetic operations and processing data.",
+            "Making a decision by testing a branching condition."
+          ]
+        }
+      }
     },
     {
       "id": 25,
@@ -337,7 +601,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which mechanism does the Pascaline mechanical calculator use to perform calculations?",
+          "options": [
+            "Interlocking metal gears.",
+            "Vacuum tubes.",
+            "Silicon transistors.",
+            "Integrated microprocessor circuits."
+          ]
+        }
+      }
     },
     {
       "id": 26,
@@ -350,7 +625,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "In computing, what English expression does 'bit' abbreviate?",
+          "options": [
+            "Binary Digit.",
+            "Byte Information.",
+            "Basic Input.",
+            "Built-in Text."
+          ]
+        }
+      }
     },
     {
       "id": 27,
@@ -363,7 +649,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Why should you avoid sharing your personal email password with other people?",
+          "options": [
+            "To reduce the risk of personal information theft and impersonation.",
+            "To avoid damaging the school's network server system.",
+            "To avoid reducing the computer's hard drive capacity.",
+            "To avoid disconnecting the Internet connection."
+          ]
+        }
+      }
     },
     {
       "id": 28,
@@ -376,7 +673,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What does a diamond represent in an algorithm flowchart?",
+          "options": [
+            "Testing a branching condition.",
+            "Starting or ending the algorithm.",
+            "An ordinary arithmetic calculation.",
+            "Inputting or outputting data through the keyboard."
+          ]
+        }
+      }
     },
     {
       "id": 29,
@@ -389,7 +697,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "How many binary bits are equivalent to one byte?",
+          "options": [
+            "8 bits.",
+            "4 bits.",
+            "16 bits.",
+            "32 bits."
+          ]
+        }
+      }
     },
     {
       "id": 30,
@@ -402,7 +721,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which action helps reduce the risk of social media scams?",
+          "options": [
+            "Avoiding unfamiliar links and not disclosing OTP codes.",
+            "Publishing your full identity card number and date of birth on your personal page.",
+            "Befriending and transferring money to every stranger who asks.",
+            "Turning off antivirus software while browsing the web."
+          ]
+        }
+      }
     },
     {
       "id": 31,
@@ -415,7 +745,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which part of the Von Neumann computer architecture performs arithmetic and logical operations?",
+          "options": [
+            "The ALU (Arithmetic Logic Unit).",
+            "Secondary storage.",
+            "The monitor.",
+            "The mechanical keyboard."
+          ]
+        }
+      }
     },
     {
       "id": 32,
@@ -428,7 +769,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What does a rectangle represent in an algorithm flowchart?",
+          "options": [
+            "Calculations and data processing.",
+            "Starting or ending the algorithm.",
+            "Testing a logical condition.",
+            "Connecting pages of a document."
+          ]
+        }
+      }
     },
     {
       "id": 33,
@@ -441,7 +793,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "What should you do to protect your personal data when using a public computer?",
+          "options": [
+            "Log out of your accounts and clear browsing history before leaving.",
+            "Save all your passwords in the browser for easier future sign-in.",
+            "Insert your personal memory card and leave it behind in the computer room.",
+            "Turn off the monitor while leaving your accounts signed in."
+          ]
+        }
+      }
     },
     {
       "id": 34,
@@ -454,7 +817,18 @@
       ],
       "correctAnswer": 0,
       "answerLetter": "A",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which statement correctly describes the relationship between an algorithm and a program?",
+          "options": [
+            "An algorithm is the method of solving a problem; a program expresses that algorithm in a programming language.",
+            "An algorithm and a program are exactly the same concept.",
+            "A program is always written before its algorithm is developed.",
+            "A computer can execute an algorithm without needing a program."
+          ]
+        }
+      }
     },
     {
       "id": 35,
@@ -467,7 +841,18 @@
       ],
       "correctAnswer": 2,
       "answerLetter": "C",
-      "points": 0.25
+      "points": 0.25,
+      "translations": {
+        "en": {
+          "question": "Which electronic component is associated with fourth-generation computers (from around 1971 to the present)?",
+          "options": [
+            "Vacuum tubes.",
+            "Transistors.",
+            "Very-large-scale integrated circuits (VLSI — microprocessors).",
+            "Electromagnetic relays."
+          ]
+        }
+      }
     }
   ],
   "practiceEssayQuestions": [
@@ -486,7 +871,22 @@
           "text": "Cho ví dụ minh họa cụ thể trong thực tế học tập của em. (0,5 điểm)"
         }
       ],
-      "modelAnswer": "a) Hai ưu điểm nổi bật (0,5 đ): Khả năng sao lưu an toàn và truy cập mọi lúc, mọi nơi trên nhiều thiết bị; dễ dàng chia sẻ và làm việc nhóm đồng thời.\nb) Ví dụ thực tế (0,5 đ): Khi đi học nhóm mở điện thoại xem lại bài thuyết trình lưu trên Google Drive; cùng bạn soạn chung báo cáo học tập."
+      "modelAnswer": "a) Hai ưu điểm nổi bật (0,5 đ): Khả năng sao lưu an toàn và truy cập mọi lúc, mọi nơi trên nhiều thiết bị; dễ dàng chia sẻ và làm việc nhóm đồng thời.\nb) Ví dụ thực tế (0,5 đ): Khi đi học nhóm mở điện thoại xem lại bài thuyết trình lưu trên Google Drive; cùng bạn soạn chung báo cáo học tập.",
+      "translations": {
+        "en": {
+          "context": "State two major advantages of storing learning materials on online drives, such as Google Drive or OneDrive, rather than only in traditional paper notebooks. Give a specific example from your learning experience.",
+          "subItems": [
+            {
+              "letter": "a",
+              "text": "State two major advantages of online storage. (0.5 points)"
+            },
+            {
+              "letter": "b",
+              "text": "Give a specific example from your learning experience. (0.5 points)"
+            }
+          ]
+        }
+      }
     },
     {
       "id": 2,
@@ -503,7 +903,22 @@
           "text": "Giải thích lợi ích của việc sử dụng giấy tờ điện tử đó. (0,5 điểm)"
         }
       ],
-      "modelAnswer": "a) Kể tên 2 giấy tờ (0,5 đ): Thẻ Căn cước công dân gắn chip / VNeID mức độ 2; Thẻ BHYT điện tử / Giấy khai sinh điện tử có mã QR / Hóa đơn điện tử.\nb) Lợi ích thiết thực (0,5 đ): Thuận tiện khi làm thủ tục hành chính, không phải mang nhiều giấy tờ bản cứng tránh thất lạc; tra cứu nhanh chóng, chính xác."
+      "modelAnswer": "a) Kể tên 2 giấy tờ (0,5 đ): Thẻ Căn cước công dân gắn chip / VNeID mức độ 2; Thẻ BHYT điện tử / Giấy khai sinh điện tử có mã QR / Hóa đơn điện tử.\nb) Lợi ích thiết thực (0,5 đ): Thuận tiện khi làm thủ tục hành chính, không phải mang nhiều giấy tờ bản cứng tránh thất lạc; tra cứu nhanh chóng, chính xác.",
+      "translations": {
+        "en": {
+          "context": "Name two types of legally valid electronic documents commonly used in Vietnam and explain how using them benefits citizens.",
+          "subItems": [
+            {
+              "letter": "a",
+              "text": "Name two types of legally valid electronic documents. (0.5 points)"
+            },
+            {
+              "letter": "b",
+              "text": "Explain the benefits of using these electronic documents. (0.5 points)"
+            }
+          ]
+        }
+      }
     },
     {
       "id": 3,
@@ -520,7 +935,22 @@
           "text": "Đề xuất cách ứng xử và xử lý tình huống đúng đắn. (0,5 điểm)"
         }
       ],
-      "modelAnswer": "a) Hành vi vi phạm (0,5 đ): Xâm phạm quyền riêng tư khi tự ý dùng tài khoản người khác; vi phạm văn hóa ứng xử trên mạng xã hội (xúc phạm danh dự bạn bè).\nb) Cách xử lý (0,5 đ): Nhắc Nam xóa ngay bài viết và đăng xuất tài khoản; khuyên bạn bị hại đổi mật khẩu; giải thích hành vi sai trái và báo thầy cô nếu cần."
+      "modelAnswer": "a) Hành vi vi phạm (0,5 đ): Xâm phạm quyền riêng tư khi tự ý dùng tài khoản người khác; vi phạm văn hóa ứng xử trên mạng xã hội (xúc phạm danh dự bạn bè).\nb) Cách xử lý (0,5 đ): Nhắc Nam xóa ngay bài viết và đăng xuất tài khoản; khuyên bạn bị hại đổi mật khẩu; giải thích hành vi sai trái và báo thầy cô nếu cần.",
+      "translations": {
+        "en": {
+          "context": "During a practical lesson, Nam notices that a classmate has not logged out of their social media account. Nam uses that account to post a joke that insults another classmate. In your opinion, which ethical principles and rules of online behaviour has Nam violated? What would you do if you witnessed this?",
+          "subItems": [
+            {
+              "letter": "a",
+              "text": "Identify the ethical principles and rules of online behaviour that were violated. (0.5 points)"
+            },
+            {
+              "letter": "b",
+              "text": "Suggest an appropriate response and way to handle the situation. (0.5 points)"
+            }
+          ]
+        }
+      }
     }
   ]
 };

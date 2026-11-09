@@ -128,3 +128,14 @@ test('enabling the worker alone does not activate destructive API protection dur
   const expectSuccess=storage.deleteSubmission('fake-sub');
   assert.equal(expectSuccess.success,true);
 });
+
+test('invalid fractional essay score is rejected without changing or archiving the grade',()=>{
+  const {storage,writes}=storageSetup();
+  const submission={id:'fake-sub',grade:9,studentClass:'9/19',mcqPoints:6,essayScores:{1:0.5},teacherFeedback:'Nhận xét cũ'};
+  storage.getSubmissions=()=>[submission];
+  const before=JSON.stringify(submission);
+  const result=storage.gradeEssaySubmission('fake-sub',{1:0.88},'Không được lưu');
+  assert.equal(result.success,false);
+  assert.equal(JSON.stringify(submission),before);
+  assert.equal(writes.length,0);
+});

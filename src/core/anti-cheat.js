@@ -9,6 +9,7 @@
     constructor() {
       this.enabled = false;
       this.violationCount = 0;
+      this.lastAttentionLossAt = -Infinity;
       this.listeners = [];
       this.onViolationCallback = null;
       this.isSubmitting = false;
@@ -26,6 +27,7 @@
       this.enabled = true;
       this.isLocked = false;
       this.violationCount = 0;
+      this.lastAttentionLossAt = -Infinity;
       this.isSubmitting = false;
       this.onViolationCallback = onViolation;
       this.allowCopyPaste = allowCopyPaste;
@@ -64,6 +66,7 @@
 
     resetViolations() {
       this.violationCount = 0;
+      this.lastAttentionLossAt = -Infinity;
     }
 
     triggerViolation(reason, details = {}) {
@@ -80,23 +83,33 @@
       }
     }
 
+    // Một thao tác rời bài có thể đồng thời phát blur, visibilitychange và fullscreenchange.
+    // Gộp cùng đợt sự kiện; không tạo khoảng miễn giám sát đầu ca.
+    reportAttentionLoss(reason) {
+      if (!this.enabled || this.isSubmitting || this.isLocked) return;
+      const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      if (now - this.lastAttentionLossAt < 1200) return;
+      this.lastAttentionLossAt = now;
+      this.triggerViolation(reason);
+    }
+
     handleVisibilityChange() {
       if (document.hidden) {
-        this.triggerViolation('Chuyển sang tab khác hoặc thu nhỏ trình duyệt');
+        this.reportAttentionLoss('Chuyển sang tab khác hoặc thu nhỏ trình duyệt');
       }
     }
 
     handleBlur() {
       // Khi mất tiêu điểm cửa sổ (Alt-Tab hoặc click ngoài)
       if (!this.isSubmitting) {
-        this.triggerViolation('Mất tiêu điểm cửa sổ thi (chuyển ứng dụng khác)');
+        this.reportAttentionLoss('Mất tiêu điểm cửa sổ thi (chuyển ứng dụng khác)');
       }
     }
 
     handleFullscreenChange() {
       const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement);
       if (!isFull && !this.isSubmitting) {
-        this.triggerViolation('Thoát chế độ toàn màn hình khi đang làm bài');
+        this.reportAttentionLoss('Thoát chế độ toàn màn hình khi đang làm bài');
       }
     }
 

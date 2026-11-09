@@ -429,7 +429,13 @@ export default function EntryScreen() {
               </label>
               <div className="relative">
                 <input
-                  type={showExamPassword ? 'text' : 'password'}
+                  type="text"
+                  autoComplete="one-time-code"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  data-lpignore="true"
+                  data-1p-ignore="true"
+                  style={{ WebkitTextSecurity: showExamPassword ? 'none' : 'disc' }}
                   value={examPasswordInput}
                   onChange={e => setExamPasswordInput(e.target.value)}
                   placeholder="Nhập mật khẩu phòng thi..."

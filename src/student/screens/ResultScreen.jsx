@@ -6,23 +6,31 @@ import AnswerReview from '../result/AnswerReview.jsx';
 // 4. MÀN HÌNH KẾT QUẢ BÀI LÀM (CHUẨN TƯƠNG PHẢN, CHỤP ẢNH TÊN CHUẨN, MỞ ĐÁP ÁN TỰ LUẬN)
 export default function ResultScreen() {
   const { mode, examState, scoreResult, isCapturing, handleCaptureScreenshot, handleRestartPractice,
-    config, studentClass } = useStudent();
+    config, studentClass, handleReviewLookup } = useStudent();
   const [showExamReview, setShowExamReview] = useState(false);
+  const [activePane,setActivePane] = useState('summary');
 
-  const isReviewAllowed = Boolean(
+  const canReview = Boolean(
     config?.allowStudentReviewOfficialExam ||
     (studentClass && config?.classReviewControl && config.classReviewControl[studentClass] === true) ||
     scoreResult?.isOfficialReview
   );
 
+  const isReviewAllowed = canReview && !scoreResult?.receiptOnly;
+
   if (!(examState === 'submitted' && scoreResult)) return null;
 
   return (
     // Màn hình rộng: thẻ kết quả + nút ở cột trái (cố định trượt theo khi cuộn), xem lại bài làm ở cột phải
-    <div className="grid grid-cols-1 xl:grid-cols-[620px_minmax(0,1fr)] gap-6 items-start">
-      <div className="space-y-4 xl:sticky xl:top-24">
+    <div className="result-workspace">
+      <nav aria-label="Kết quả và bài làm" className="result-mobile-tabs">
+        <button type="button" aria-pressed={activePane==='summary'} onClick={()=>setActivePane('summary')}>Kết quả</button>
+        <button type="button" aria-pressed={activePane==='review'} onClick={()=>setActivePane('review')}>Bài làm</button>
+      </nav>
+      <div className="result-layout">
+      <div className={`result-summary-pane ${activePane==='summary'?'active-pane':''}`}>
         {/* NÚT THAO TÁC ĐẶT TRÊN ĐẦU THẺ KẾT QUẢ — LUÔN NẰM TRONG TẦM MẮT VÀ KHÔNG BỊ CHE */}
-        <div className="flex flex-wrap items-center justify-center gap-3 bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 p-3.5 sm:p-4 rounded-3xl border-2 border-blue-200 shadow-sm">
+        <div className="result-actions flex flex-wrap items-center justify-center gap-3 bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 p-3.5 sm:p-4 rounded-3xl border-2 border-blue-200 shadow-sm">
           <button
             type="button"
             onClick={handleCaptureScreenshot}
@@ -70,9 +78,15 @@ export default function ResultScreen() {
       </div>
 
       {/* PHẦN ĐÁNH GIÁ ĐÚNG/SAI & MỞ ĐÁP ÁN TỰ LUẬN CHO HỌC SINH */}
-      <div className="min-w-0">
+      <div className={`result-review-pane ${activePane==='review'?'active-pane':''}`}>
         {mode === 'practice' ? (
           <AnswerReview />
+        ) : scoreResult.receiptOnly && canReview ? (
+          <div className="bg-white border border-blue-200 rounded-2xl p-6 space-y-3 text-center">
+            <h3 className="font-bold text-blue-950">Bài làm đã được lưu</h3>
+            <p className="text-sm text-slate-600">Em có thể chụp lại kết quả hoặc mở bài làm để đối soát khi giáo viên đã cho phép.</p>
+            <button type="button" onClick={handleReviewLookup} className="rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white">Xem bài & chốt điểm</button>
+          </div>
         ) : isReviewAllowed ? (
           (showExamReview || scoreResult?.isOfficialReview) ? (
             <div className="space-y-4">
@@ -135,6 +149,7 @@ export default function ResultScreen() {
             </div>
           </div>
         )}
+      </div>
       </div>
     </div>
   );

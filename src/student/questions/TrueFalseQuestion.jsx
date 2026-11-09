@@ -1,8 +1,12 @@
+import { questionForLanguage } from '../../shared/questionLanguage.js';
+import { useStudentLanguage } from '../StudentLanguage.jsx';
 import React from 'react';
 import { useStudent } from '../StudentContext.js';
 
 // 2. Trắc nghiệm Đúng / Sai (Khối 10)
 export default function TrueFalseQuestion({ currentItem }) {
+  const { t, language } = useStudentLanguage();
+  const display = questionForLanguage(currentItem.data, language);
   const { mode, practiceAnswers, setPracticeAnswers, examAnswers, setExamAnswers } = useStudent();
 
   if (!((currentItem.type === 'tf' || currentItem.type === 'exam_tf'))) return null;
@@ -10,15 +14,15 @@ export default function TrueFalseQuestion({ currentItem }) {
   return (
     <div className="space-y-5">
       <div className="bg-purple-50 border-2 border-purple-200 p-4 rounded-2xl text-purple-950 text-sm font-bold">
-        💡 <strong>Yêu cầu:</strong> Đọc kĩ đoạn ngữ cảnh/tình huống dưới đây. Trong mỗi ý a), b), c), d), hãy chọn <strong>ĐÚNG</strong> hoặc <strong>SAI</strong>.
+        💡 <strong>{t('Yêu cầu:')}</strong> {t('Đọc kĩ đoạn ngữ cảnh/tình huống dưới đây. Trong mỗi ý a), b), c), d), hãy chọn')} <strong>{t('ĐÚNG')}</strong> {t('hoặc')} <strong>{t('SAI')}</strong>.
       </div>
 
       <p className="text-base sm:text-lg font-bold text-slate-900 leading-relaxed whitespace-pre-line bg-slate-50 p-5 rounded-2xl border-2 border-slate-200">
-        {currentItem.data.context}
+        {display.context}
       </p>
 
       <div className="space-y-3 pt-2">
-        {currentItem.data.subQuestions.map((sub) => {
+        {display.subQuestions.map((sub) => {
           const currVal = mode === 'practice'
             ? practiceAnswers.tf[currentItem.data.num]?.[sub.letter]
             : examAnswers.tf[currentItem.data.num]?.[sub.letter];
@@ -75,7 +79,7 @@ export default function TrueFalseQuestion({ currentItem }) {
                       : 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'
                   }`}
                 >
-                  ✓ ĐÚNG
+                  ✓ {t('ĐÚNG')}
                 </button>
                 <button
                   type="button"
@@ -110,7 +114,7 @@ export default function TrueFalseQuestion({ currentItem }) {
                       : 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'
                   }`}
                 >
-                  ✕ SAI
+                  ✕ {t('SAI')}
                 </button>
               </div>
             </div>

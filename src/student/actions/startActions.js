@@ -1,4 +1,5 @@
-import { createExamDraftIdentity, readExamDraft } from './examDraft.js';
+import { readPracticeDraft } from './practiceDraft.js';
+import { createExamDraftIdentity, readExamDraft, readExamDraftPosition } from './examDraft.js';
 import { getStudentsByClass, verifyStudentLms } from '../../core/roster-data.js';
 
 const PRACTICE_LOCK_KEY = 'asian_school_practice_lock_v1';
@@ -120,6 +121,9 @@ export function createStartActions(s) {
     // Bài thi chính thức: firestore.rules kiểm tra mật khẩu phòng thi, lớp đang mở ca thi, lượt thi theo mã LMS;
     // học sinh chỉ nhận đề không kèm đáp án
     let serverStart = null;
+    let restoredQuestionIdx = 0;
+    let practiceResume = null;
+    let practiceStartedAtMs = null;
     if (mode === 'exam') {
       if (!examPasswordInput.trim()) {
         showDialog('Yêu Cầu Mật Khẩu', '⚠️ VUI LÒNG NHẬP MẬT KHẨU PHÒNG THI!\n\nMật khẩu do Thầy/Cô giám thị cung cấp trước giờ làm bài.', 'warning');
@@ -145,6 +149,21 @@ export function createStartActions(s) {
         return;
       }
       setIsContactingServer(false);
+      if (serverStart.completed && serverStart.result) {
+        window.AsianSchoolAntiCheat?.stop?.();
+        window.AsianSchoolTimer?.stop?.();
+        window.AsianSchoolAntiCheat?.exitFullscreen?.();
+        setOfficialExam(null);
+        if (setExamAnswers) setExamAnswers({ mcq: {}, tf: {}, essay: {} });
+        if (setIsSessionLocked) setIsSessionLocked(false);
+        if (setIsProctorUnlocked) setIsProctorUnlocked(false);
+        if (setShowWarningModal) setShowWarningModal(false);
+        setAssignedCode(serverStart.examCode);
+        if (s.setFullName && serverStart.result.fullName) s.setFullName(serverStart.result.fullName);
+        setScoreResult(serverStart.result);
+        setExamState('submitted');
+        return;
+      }
       // Lượt đang bị khóa (tải lại trang khi bị khóa): chưa có đề, chờ giáo viên mở khóa trên máy chủ
       setOfficialExam(serverStart.exam || null);
       if (serverStart.exam && typeof window !== 'undefined' && window.localStorage) {
@@ -162,23 +181,26 @@ export function createStartActions(s) {
         grade, studentClass, studentId, examCode: serverStart.examCode, startedAtMs: serverStart.startedAtMs,
         uid: window.AsianSchoolAuth?.uid?.() || ''
       });
+      restoredQuestionIdx = readExamDraftPosition(identity);
       const restoredAnswers = readExamDraft(identity) || serverStart.draftAnswers || { mcq: {}, tf: {}, essay: {} };
       if (setExamAnswers) setExamAnswers(restoredAnswers);
       if (setExamDraftSession) setExamDraftSession(identity ? { identity, initialAnswers: restoredAnswers } : null);
       submittingExamRef.current = false;
     }
 
-    // Nếu là ôn tập: Luôn bốc ngẫu nhiên một bộ đề mới (28 câu THCS hoặc 19 câu + 3 câu Đ/S THPT)
     if (mode === 'practice') {
-      const currentData = grade === 8 ? window.EXAM_DATA_G8 : (grade === 9 ? window.EXAM_DATA_G9 : window.EXAM_DATA_G10);
-      if (typeof window !== 'undefined' && window.AsianSchoolStorage && window.AsianSchoolStorage.generatePracticeSet) {
-        setPracticeSet(window.AsianSchoolStorage.generatePracticeSet(grade, currentData, config));
-      }
-      setPracticeAnswers({ mcq: {}, tf: {}, essay: {} });
+      practiceResume = readPracticeDraft({grade,studentClass,studentId});
+      practiceStartedAtMs = practiceResume?.startedAtMs || Date.now();
+      const currentData=grade===8?window.EXAM_DATA_G8:grade===9?window.EXAM_DATA_G9:window.EXAM_DATA_G10;
+      const selected=practiceResume?.practiceSet || window.AsianSchoolStorage.generatePracticeSet(grade,currentData,config);
+      setPracticeSet(selected);
+      setPracticeAnswers(practiceResume?.answers || {mcq:{},tf:{},essay:{}});
+      restoredQuestionIdx=practiceResume?.activeQuestionIdx || 0;
+      if(s.setPracticeDraftSession)s.setPracticeDraftSession({startedAtMs:practiceStartedAtMs || Date.now(),durationMinutes:practiceResume?.durationMinutes ?? config.practiceDurationMinutes ?? 0});
     }
 
     setSessionId(sid);
-    setActiveQuestionIdx(0);
+    setActiveQuestionIdx(restoredQuestionIdx);
 
     // Xác định cấu hình khóa màn hình vi phạm
     const shouldLock = mode === 'practice'
@@ -199,10 +221,10 @@ export function createStartActions(s) {
     setLockReason(resumeLocked ? ((serverStart && serverStart.lockReason) || 'violation_3_times') : null);
     setViolations(0);
     // Tổng vi phạm của lượt (không đặt lại khi mở khóa); bài thi chính thức lấy số chuẩn trên exam_attempts
-    let totalViolations = serverStart ? (serverStart.violations || 0) : (practiceLock ? practiceLock.totalViolations : 0);
+    let totalViolations = serverStart ? (serverStart.violations || 0) : (practiceLock ? practiceLock.totalViolations : (practiceResume?.violations || 0));
     setTotalViolations(totalViolations);
-    setExamStartTime(serverStart ? new Date(serverStart.startedAtMs) : new Date());
-    setElapsedSeconds(0);
+    setExamStartTime(new Date(serverStart?.startedAtMs || practiceStartedAtMs || Date.now()));
+    setElapsedSeconds(Math.max(0, Math.floor(((serverStart?.serverNowMs || Date.now()) - (serverStart?.startedAtMs || practiceStartedAtMs || Date.now())) / 1000)));
 
     // Xác định mã đề
     const code = serverStart ? serverStart.examCode : window.AsianSchoolStorage.determineExamCode(grade, studentClass);
@@ -281,15 +303,20 @@ export function createStartActions(s) {
     const examDur = serverStart ? serverStart.durationMinutes : (config.examDurationMinutes || 45);
     // Tải lại trang giữa giờ: đồng hồ tính tiếp từ giờ bắt đầu máy chủ ghi nhận
     const examRemainingMin = serverStart
-      ? Math.max(1 / 60, ((serverStart.deadlineMs || (serverStart.startedAtMs + examDur * 60000)) - Date.now()) / 60000)
+      ? Math.max(1 / 60, ((serverStart.deadlineMs || (serverStart.startedAtMs + examDur * 60000)) - (serverStart.serverNowMs || Date.now())) / 60000)
       : examDur;
-    const practiceDur = config.practiceDurationMinutes || 0;
+    const practiceDur = practiceResume?.durationMinutes ?? (config.practiceDurationMinutes || 0);
 
+    let armingTimer = true;
     // Nếu là chế độ Thi: Kích hoạt đồng hồ đếm ngược theo thời gian do Admin thiết lập
     if (mode === 'exam') {
       window.AsianSchoolTimer.start({
         durationMinutes: examRemainingMin,
-        onTick: (sec, fmt) => {
+        deadlineMs: serverStart.deadlineMs || serverStart.startedAtMs + examDur * 60000,
+        serverNowMs: serverStart.serverNowMs,
+        startedAtMs: serverStart.startedAtMs,
+        onTick: (sec, fmt, timing) => {
+          if (timing) setElapsedSeconds(timing.elapsedSeconds);
           setSecondsLeft(sec);
           setTimeLeftStr(fmt);
           // Nhịp tim định kỳ 60 giây (tối ưu hóa hạn mức Firebase cho 26 học sinh)
@@ -312,10 +339,9 @@ export function createStartActions(s) {
           showDialog('Cảnh Báo Thời Gian', '⚠️ Chú ý: Thời gian làm bài thi chỉ còn dưới 5 phút! Các em hãy kiểm tra lại toàn bộ bài làm.', 'warning');
         },
         onTimeout: () => {
-          showDialog('Hết Giờ Làm Bài', `⏰ Đã hết thời gian làm bài ${examDur} phút! Hệ thống đang tự động thu bài của bạn.`, 'info', () => {
-            handleSubmitExam(true);
-          });
-          handleSubmitExam(true);
+          showDialog('Hết Giờ Làm Bài', `⏰ Đã hết thời gian làm bài ${examDur} phút! Hệ thống đang tự động thu bài của bạn.`, 'info');
+          if (armingTimer) setTimeout(() => handleSubmitExam(true), 0);
+          else handleSubmitExam(true);
         }
       });
 
@@ -331,13 +357,15 @@ export function createStartActions(s) {
         violations: totalViolations,
         status: resumeLocked ? 'locked' : 'in_progress',
         isLocked: resumeLocked,
-        timeLeft: `${examDur}:00`
+        timeLeft: window.AsianSchoolTimer.formatTime ? window.AsianSchoolTimer.formatTime(window.AsianSchoolTimer.remainingSeconds) : `${examDur}:00`
       });
     } else {
       // Chế độ Ôn tập đề cương: Vẫn cho phép giáo viên giám sát từ xa theo thời gian thực
       if (practiceDur > 0) {
         window.AsianSchoolTimer.start({
           durationMinutes: practiceDur,
+          startedAtMs: practiceStartedAtMs || Date.now(),
+          deadlineMs: (practiceStartedAtMs || Date.now()) + practiceDur * 60000,
           onTick: (sec, fmt) => {
             setSecondsLeft(sec);
             setTimeLeftStr(fmt);
@@ -361,7 +389,8 @@ export function createStartActions(s) {
           onTimeout: () => {
             // Chỉ nộp một lần (trước đây hộp thoại xác nhận còn nộp thêm lần nữa)
             showDialog('Hết Giờ Ôn Tập', `⏰ Đã hết thời gian ôn tập ${practiceDur} phút! Hệ thống đã tự động nộp bài ôn tập của em.`, 'info');
-            handleSubmitPractice(true);
+            if (armingTimer) setTimeout(() => handleSubmitPractice(true), 0);
+            else handleSubmitPractice(true);
           }
         });
       }
@@ -382,6 +411,7 @@ export function createStartActions(s) {
       });
     }
 
+    armingTimer = false;
     setExamState('in_progress');
   };
 

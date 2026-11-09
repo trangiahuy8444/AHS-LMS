@@ -4,13 +4,14 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 
-function harness({ submitted = false, extraTimeSeconds = 300, locked = false, transactionError, durationMinutes = 45, configDurationMinutes = 45 } = {}) {
+function harness({ submitted = false, extraTimeSeconds = 300, locked = false, transactionError, durationMinutes = 45, configDurationMinutes = 45, deviceClockSkewMs = 0 } = {}) {
   const updates = [], reads = [];
   const attempt = { uid: 'fake-owner', grade: 8, studentId: '999999', studentClass: '8/19', fullName: 'Học Sinh Giả', examCode: '101', attemptsUsed: 1,
     deviceChanges: 0, submitted, locked, extraTimeSeconds, durationMinutes, startedAt: { seconds: 1700000000 }, violations: 0 };
-  const ref = { async get(options) { reads.push(options); return { exists: true, data: () => attempt, metadata: { fromCache: false, hasPendingWrites: false } }; },
+  const ref = { async get(options) { reads.push(options); return { exists: true, data: () => ({ ...attempt, startedAt: attempt.startedAt === 'SERVER_TIME' ? { toMillis: () => Date.now() } : attempt.startedAt }), metadata: { fromCache: false, hasPendingWrites: false } }; },
     async update(data) { updates.push(data); Object.assign(attempt, data); }, async set() {} };
   const db = { enablePersistence: () => Promise.resolve(), collection(name) { return { doc(id) {
+    if (name === 'exam_keys') return {set:async()=>{},get:async()=>({exists:true,metadata:{},data:()=>({at:{toMillis:()=>Date.now()}})})};
     if (name === 'exam_attempts') return ref;
     if (name === 'exam_config') return { get: async () => ({ exists: true, data: () => ({ defaultClassMode: 'both_open', activeCodes: { 8: ['101'] }, classMapping: { '8/19': '101' }, examDurationMinutes: configDurationMinutes }) }) };
     return { path: `${name}/${id}`, set: async () => {}, get: async () => ({ exists: true, data: () => ({ exam: {} }) }) };
@@ -22,6 +23,7 @@ function harness({ submitted = false, extraTimeSeconds = 300, locked = false, tr
   const window = { location: { pathname: '/test/' }, dispatchEvent() {} };
   const auth = { currentUser: { uid: 'fake-owner' }, onAuthStateChanged() {} };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/core/firebase-config.js'), 'utf8'), {
+    Date: class extends Date { static now() { return Date.now() + deviceClockSkewMs; } }, performance: { now: () => 5000 },
     window, document: { readyState: 'loading', addEventListener() {} }, CustomEvent: class {}, console: { log() {}, warn() {} },
     firebase: { apps: [{}], app: () => ({}), firestore, auth: () => auth }, setTimeout, clearTimeout
   });
@@ -70,4 +72,14 @@ test('gia hạn lỗi máy chủ không trả kết quả thành công', async (
   assert.equal(h.attempt.durationMinutes, 60);
   assert.equal(h.attempt.extraTimeSeconds, 0);
   assert.equal(start.durationMinutes, 60);
+});
+
+test('server clock calibration ignores a student device clock five minutes ahead or behind',async()=>{
+  for(const deviceClockSkewMs of [-300000,300000]){
+    const h=harness({deviceClockSkewMs});
+    const before=Date.now();
+    const started=await h.cloud.startExam({grade:8,studentId:'999999',studentClass:'8/19',password:'fake-password'});
+    assert.ok(started.serverNowMs>=before && started.serverNowMs<=Date.now());
+    assert.equal(started.startedAtMs,1700000000000);
+  }
 });

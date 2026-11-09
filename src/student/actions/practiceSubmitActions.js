@@ -1,3 +1,4 @@
+import { clearPracticeDraft } from './practiceDraft.js';
 import { clearPracticeLock } from './startActions.js';
 
 // Nộp bài ôn tập đề cương: tự chấm và lưu bảng điểm ôn tập
@@ -85,7 +86,7 @@ export function createPracticeSubmitActions(s) {
     const maxScore = grade === 10 ? 7.75 : 7.0;
     const finalScore = grade === 10 ? Math.round((mcqPoints + tfPoints) * 100) / 100 : mcqPoints;
 
-    const durationSec = examStartTime ? Math.round((Date.now() - examStartTime) / 1000) : 0;
+    const durationSec = Number.isFinite(s.elapsedSeconds) ? Math.max(0, Math.floor(s.elapsedSeconds)) : (examStartTime ? Math.max(0, Math.round((Date.now() - examStartTime) / 1000)) : 0);
     const mins = Math.floor(durationSec / 60);
     const secs = durationSec % 60;
     const durationFormatted = `${mins} phút ${secs < 10 ? '0' : ''}${secs} giây`;
@@ -130,6 +131,8 @@ export function createPracticeSubmitActions(s) {
 
     result.attemptNumber = savedPracticeDoc?.attemptNumber || 1;
     setScoreResult(result);
+    clearPracticeDraft({grade,studentClass,studentId});
+    if(s.setPracticeDraftSession)s.setPracticeDraftSession(null);
     setExamState('submitted');
 
     // Báo trạng thái hoàn thành phiên ôn tập lên bảng giám sát giáo viên

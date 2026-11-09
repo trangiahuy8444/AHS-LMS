@@ -1,8 +1,10 @@
+import { useStudentLanguage } from '../StudentLanguage.jsx';
 import React from 'react';
 import { useStudent } from '../StudentContext.js';
 
 // MODAL XÁC NHẬN NỘP BÀI THI
 export default function SubmitConfirmModal() {
+  const { t, language } = useStudentLanguage();
   const { mode, showSubmitModal, setShowSubmitModal, practiceItems, examItems, handleSubmitPractice,
     handleSubmitExam, config, elapsedSeconds, formatElapsed } = useStudent();
 
@@ -21,7 +23,7 @@ export default function SubmitConfirmModal() {
           📝
         </div>
         <h3 className="text-xl font-black text-center text-slate-900">
-          XÁC NHẬN NỘP BÀI LÀM
+          {t('XÁC NHẬN NỘP BÀI LÀM')}
         </h3>
         {(() => {
           const activeList = mode === 'practice' ? practiceItems : examItems;
@@ -32,17 +34,17 @@ export default function SubmitConfirmModal() {
           return (
             <div className="space-y-3 text-sm text-slate-700 bg-slate-50 p-4 rounded-2xl border border-slate-200">
               <div className="flex justify-between font-medium">
-                <span>Tổng số câu hỏi:</span>
-                <strong className="text-slate-900">{total} câu</strong>
+                <span>{t('Tổng số câu hỏi:')}</span>
+                <strong className="text-slate-900">{total} {t('câu')}</strong>
               </div>
               <div className="flex justify-between font-medium">
-                <span>Số câu đã hoàn thành:</span>
-                <strong className="text-emerald-700 font-bold">{answeredCount} câu</strong>
+                <span>{t('Số câu đã hoàn thành:')}</span>
+                <strong className="text-emerald-700 font-bold">{answeredCount} {t('câu')}</strong>
               </div>
               {unans > 0 && (
                 <div className="flex justify-between font-medium text-amber-700">
-                  <span>Số câu chưa hoàn thành:</span>
-                  <strong className="text-amber-800 font-bold">{unans} câu</strong>
+                  <span>{t('Số câu chưa hoàn thành:')}</span>
+                  <strong className="text-amber-800 font-bold">{unans} {t('câu')}</strong>
                 </div>
               )}
             </div>
@@ -51,14 +53,14 @@ export default function SubmitConfirmModal() {
 
         {isEarlyLockActive ? (
           <div className="p-3 bg-amber-50 border-2 border-amber-300 rounded-2xl text-xs text-amber-900 font-bold text-center space-y-1">
-            <p>⏱️ Chưa đủ thời gian làm bài tối thiểu {minExamMinutes} phút!</p>
+            <p>{language === 'en' ? `Minimum working time: ${minExamMinutes} minutes.` : `⏱️ Chưa đủ thời gian làm bài tối thiểu ${minExamMinutes} phút!`}</p>
             <p className="text-[11px] text-amber-800 font-normal">
-              Thời gian cần làm thêm: <strong>{formatElapsed(remainingEarlyLockSeconds)}</strong>. Em hãy kiểm tra kỹ lại bài làm trước khi nộp.
+              {language === 'en' ? 'Time remaining before submission: ' : 'Thời gian cần làm thêm: '}<strong>{formatElapsed(remainingEarlyLockSeconds)}</strong>. {language === 'en' ? 'Please review your answers before submitting.' : 'Em hãy kiểm tra kỹ lại bài làm trước khi nộp.'}
             </p>
           </div>
         ) : (
           <p className="text-xs text-slate-500 text-center font-medium">
-            Em có chắc chắn muốn nộp bài ngay bây giờ để hệ thống chấm điểm và xuất kết quả không?
+            {t('Em có chắc chắn muốn nộp bài ngay bây giờ để hệ thống chấm điểm và xuất kết quả không?')}
           </p>
         )}
 
@@ -68,7 +70,7 @@ export default function SubmitConfirmModal() {
             onClick={() => setShowSubmitModal(false)}
             className="py-3 rounded-xl border-2 border-slate-300 font-bold text-sm text-slate-700 hover:bg-slate-100 transition"
           >
-            Quay Lại Làm Tiếp
+            {t('Quay Lại Làm Tiếp')}
           </button>
           <button
             type="button"
@@ -86,7 +88,7 @@ export default function SubmitConfirmModal() {
                 : (mode === 'practice' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700')
             }`}
           >
-            {isEarlyLockActive ? `Chờ ${formatElapsed(remainingEarlyLockSeconds)}` : 'Đồng Ý Nộp Bài'}
+            {isEarlyLockActive ? `${t('Chờ')} ${formatElapsed(remainingEarlyLockSeconds)}` : t('Đồng Ý Nộp Bài')}
           </button>
         </div>
       </div>

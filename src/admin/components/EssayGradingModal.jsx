@@ -1,3 +1,5 @@
+import { sanitizeStudentFeedback, essayIssueFeedback, setEssayQuestionFeedback } from '../../shared/studentFeedback.js';
+import { isValidEssayScore } from '../../shared/essayGradingPolicy.js';
 import React, { useState } from 'react';
 import { useAdmin } from '../AdminContext.js';
 import { essayPresentation } from '../../shared/essayPresentation.js';
@@ -157,7 +159,8 @@ export default function EssayGradingModal() {
 
     setIsGeminiGrading(true);
     setSingleProgress({ current: 0, total: essayQuestions.length });
-    const newSuggestions = { ...aiSuggestions };
+    const newSuggestions = {};
+    const failures = [];
 
     for (let i = 0; i < essayQuestions.length; i++) {
       const q = essayQuestions[i];
@@ -182,11 +185,12 @@ export default function EssayGradingModal() {
 
       if (res.success) {
         newSuggestions[qNum] = res;
-      }
+      } else failures.push(`Câu ${qNum}: ${res.error}`);
     }
 
     setAiSuggestions(newSuggestions);
     setIsGeminiGrading(false);
+    if (failures.length) showDialog('Chưa chấm hợp lệ đủ các câu',failures.join('\n'),'warning');
   };
 
   // Duyệt & Áp dụng điểm của AI cho 1 câu
@@ -196,37 +200,26 @@ export default function EssayGradingModal() {
 
     setTempEssayScores(prev => ({ ...prev, [qNum]: sug.score }));
 
-    if (sug.feedback) {
-      setTempFeedback(prev => {
-        const line = `Câu ${qNum}: ${sug.feedback}`;
-        if (!prev) return line;
-        if (prev.includes(`Câu ${qNum}:`)) {
-          return prev.replace(new RegExp(`Câu ${qNum}:[^\\n]*`), line);
-        }
-        return `${prev}\n${line}`;
-      });
-    }
+    const q = essayQuestions.find(question=>String(question.num)===String(qNum));
+    const max = Number(sug.maxScore ?? q?.points ?? (subGrade === 10 ? 0.75 : 1));
+    setTempFeedback(prev => setEssayQuestionFeedback(prev,qNum,sug,max));
   };
 
   // Duyệt & Áp dụng điểm của AI cho TOÀN BỘ các câu đã có đề xuất
   const handleApplyAllAIScores = () => {
     const newScores = { ...tempEssayScores };
-    const feedbackLines = [];
+    let feedback = tempFeedback;
 
     essayQuestions.forEach(q => {
       const sug = aiSuggestions[q.num];
       if (sug) {
         newScores[q.num] = sug.score;
-        if (sug.feedback) {
-          feedbackLines.push(`Câu ${q.num}: ${sug.feedback}`);
-        }
+        feedback = setEssayQuestionFeedback(feedback,q.num,sug,Number(sug.maxScore ?? q.points ?? (subGrade === 10 ? 0.75 : 1)));
       }
     });
 
     setTempEssayScores(newScores);
-    if (feedbackLines.length > 0) {
-      setTempFeedback(feedbackLines.join('\n'));
-    }
+    setTempFeedback(feedback);
   };
 
   const totalAiSuggested = Object.keys(aiSuggestions).length;
@@ -741,9 +734,9 @@ export default function EssayGradingModal() {
                               )}
 
                               {/* Lời nhận xét sư phạm gợi ý */}
-                              {aiSug.feedback && (
+                              {essayIssueFeedback(aiSug,qPoints) && (
                                 <p className="text-[11px] text-slate-600 italic">
-                                  💡 <strong>Gợi ý nhận xét:</strong> "{aiSug.feedback}"
+                                  💡 <strong>Gợi ý nhận xét:</strong> "{essayIssueFeedback(aiSug,qPoints)}"
                                 </p>
                               )}
 
@@ -803,15 +796,17 @@ export default function EssayGradingModal() {
                                 min="0"
                                 max={qPoints}
                                 value={currentScore}
+                                aria-invalid={!isValidEssayScore(currentScore,qPoints)}
                                 onChange={e => setTempEssayScores(prev => ({ ...prev, [qNum]: e.target.value }))}
                                 placeholder={`0 - ${qPoints}`}
                                 className="w-24 bg-white border-2 border-slate-300 rounded-lg px-2.5 py-1 text-center font-mono-code font-bold text-emerald-700 focus:outline-none focus:border-blue-600"
                               />
                             </div>
 
+                            {!isValidEssayScore(currentScore,qPoints) && <p role="alert" className="text-xs text-red-700">Điểm phải theo bước 0,25 và không vượt {qPoints} điểm. Thầy chọn lại mức hợp lệ; hệ thống không tự làm tròn.</p>}
                             <div className="flex items-center space-x-1.5 pt-1">
                               <span className="text-[10px] text-slate-500">Chấm nhanh:</span>
-                              {(qPoints === 0.75 ? [0, 0.25, 0.5, 0.75] : [0, 0.25, 0.5, 0.75, 1.0]).map(pt => (
+                              {Array.from({length:Math.floor(qPoints*4)+1},(_,index)=>index/4).map(pt => (
                                 <button
                                   key={pt}
                                   type="button"
@@ -844,7 +839,7 @@ export default function EssayGradingModal() {
           </label>
           <textarea
             rows={3}
-            value={tempFeedback}
+            value={sanitizeStudentFeedback(tempFeedback)}
             onChange={e => setTempFeedback(e.target.value)}
             placeholder="Gõ nhận xét cho học sinh hoặc áp dụng từ gợi ý của Gemini..."
             className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-3 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600"

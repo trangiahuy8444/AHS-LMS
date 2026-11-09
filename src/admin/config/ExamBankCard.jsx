@@ -62,7 +62,8 @@ export default function ExamBankCard() {
         {examBankStatus && (
           <pre className="text-xs whitespace-pre-wrap bg-slate-50 border border-slate-200 rounded-xl p-3">{examBankStatus}</pre>
         )}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <p className="text-xs text-slate-600">Gói đề song ngữ dùng trường translations.en cho từng câu và phương án. Học sinh đổi VI/EN trong bài làm; số câu, đáp án và thang điểm được giữ nguyên.</p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           {[8, 9, 10].map(g => {
             const exams = (window['EXAM_DATA_G' + g] && window['EXAM_DATA_G' + g].officialExams) || {};
             return (

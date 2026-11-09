@@ -1,9 +1,13 @@
 import TeacherReminderButton from './TeacherReminderButton.jsx';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { getStudentsByClass } from '../../core/roster-data.js';
+import { classAttendance } from './classAttendance.js';
 import { useAdmin } from '../AdminContext.js';
 
 // DANH SÁCH THÍ SINH ĐANG TRỰC TUYẾN THEO LỚP
 export default function LiveSessionList() {
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(timer); }, []);
   const { liveSessions, liveFilter, submissions, practiceSubs, setShowBroadcastModal, setBroadcastTarget, setBroadcastMsgInput,
     setIndividualMsgTarget, showToast, handleExtendTime, handleForceSubmit, handleLockSession,
     handleUnlockSession, handleResetStudentAttempt, handleRemoveCandidate, handleClearClassSessions } = useAdmin();
@@ -48,12 +52,11 @@ export default function LiveSessionList() {
 
         return Object.keys(classGroups).sort().map(cls => {
           const sessionsInClass = classGroups[cls];
-          const lockedCount = sessionsInClass.filter(s => s.isLocked === true || s.status === 'locked').length;
-          const examCount = sessionsInClass.filter(s => s.mode === 'exam').length;
-          const practiceCount = sessionsInClass.filter(s => s.mode === 'practice').length;
+          const attendance = classAttendance(liveSessions, cls, getStudentsByClass(cls), now);
+          const { locked: lockedCount, exam: examCount, practice: practiceCount } = attendance;
 
           return (
-            <div key={cls} className="bg-white rounded-3xl border-2 border-slate-200 p-6 shadow-sm space-y-4">
+            <div key={cls} className="bg-white rounded-3xl border-2 border-slate-200 p-4 shadow-sm space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-slate-100 pb-3">
                 <div className="flex items-center space-x-3">
                   <span className="w-10 h-10 rounded-2xl bg-blue-100 text-blue-900 border border-blue-200 font-black text-sm flex items-center justify-center">
@@ -64,7 +67,8 @@ export default function LiveSessionList() {
                       LỚP {cls}
                     </h3>
                     <p className="text-xs text-slate-500 font-medium">
-                      Sĩ số trực tuyến: <strong className="text-blue-900 font-bold">{sessionsInClass.length} học sinh</strong>
+                      Sĩ số lớp: <strong className="text-blue-900 font-bold">{attendance.total ?? 'Chưa có danh sách'}</strong>
+                      {' '}• Đang làm: <strong className="text-emerald-700">{attendance.active} / {attendance.total ?? '—'}</strong>
                       {' '}• Đang thi: <span className="font-bold text-red-600">{examCount}</span>
                       {' '}• Ôn tập: <span className="font-bold text-purple-600">{practiceCount}</span>
                       {lockedCount > 0 && (

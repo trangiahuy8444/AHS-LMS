@@ -34,6 +34,7 @@ export function useProctorCommands(s) {
             return;
           }
           const mins = cmd.payload?.minutes || 5;
+          if (latest.current.setPracticeDraftSession) latest.current.setPracticeDraftSession(previous => previous ? {...previous,durationMinutes:(previous.durationMinutes || 0)+mins} : previous);
           if (window.AsianSchoolTimer) {
             window.AsianSchoolTimer.extendSeconds(mins * 60);
           }

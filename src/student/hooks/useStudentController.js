@@ -1,3 +1,4 @@
+import { savePracticeDraft } from '../actions/practiceDraft.js';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useBlockDevtools } from './useBlockDevtools.js';
 import { useProctorCommands } from './useProctorCommands.js';
@@ -54,6 +55,8 @@ export function useStudentController() {
   const [practiceAnswers, setPracticeAnswers] = useState({ mcq: {}, tf: {}, essay: {} });
   const [examAnswers, setExamAnswers] = useState({ mcq: {}, tf: {}, essay: {} });
   const [examDraftSession, setExamDraftSession] = useState(null);
+  const [draftSaveFailed,setDraftSaveFailed] = useState(false);
+  const [practiceDraftSession,setPracticeDraftSession] = useState(null);
   const draftRestoredRef = useRef(null);
 
   useEffect(() => {
@@ -61,8 +64,8 @@ export function useStudentController() {
     // Chỉ bật lưu sau khi render đã nhận đúng object bài vừa phục hồi; không ghi state rỗng/cũ.
     if (draftRestoredRef.current !== examDraftSession && examAnswers !== examDraftSession.initialAnswers) return;
     draftRestoredRef.current = examDraftSession;
-    saveExamDraft(examDraftSession.identity, examAnswers);
-  }, [mode, examState, examDraftSession, examAnswers]);
+    setDraftSaveFailed(!saveExamDraft(examDraftSession.identity, examAnswers,undefined,activeQuestionIdx));
+  }, [mode, examState, examDraftSession, examAnswers, activeQuestionIdx]);
   
   // Timer & Anti-cheat Modal State
   const [timeLeftStr, setTimeLeftStr] = useState('45:00');
@@ -80,7 +83,7 @@ export function useStudentController() {
   useEffect(() => {
     const subId = scoreResult?.submissionId || scoreResult?.id;
     if (!subId || !window.AsianSchoolCloud?.watchSubmission) return;
-    const unsub = window.AsianSchoolCloud.watchSubmission({ submissionId: subId }, (sub) => {
+    const unsub = window.AsianSchoolCloud.watchSubmission({ submissionId: subId, receiptOnly: scoreResult?.receiptOnly === true }, (sub) => {
       if (!sub) return;
       setScoreResult(prev => ({
         ...prev,
@@ -93,7 +96,7 @@ export function useStudentController() {
       }));
     });
     return () => unsub();
-  }, [scoreResult?.submissionId, scoreResult?.id]);
+  }, [scoreResult?.submissionId, scoreResult?.id, scoreResult?.receiptOnly]);
 
   const handleConfirmScore = () => {
     const subId = scoreResult?.submissionId || scoreResult?.id;
@@ -157,12 +160,14 @@ export function useStudentController() {
 
   // Bộ đếm thời gian làm bài thực tế
   useEffect(() => {
-    if (examState !== 'in_progress') return;
+    if (examState !== 'in_progress' || mode === 'exam') return;
+    const initial = elapsedSeconds;
+    const anchor = performance.now();
     const timer = setInterval(() => {
-      setElapsedSeconds(prev => prev + 1);
+      setElapsedSeconds(initial + Math.floor((performance.now() - anchor) / 1000));
     }, 1000);
     return () => clearInterval(timer);
-  }, [examState]);
+  }, [examState, mode, examStartTime]);
 
   // Class Access Control State ('practice_only' | 'exam_only' | 'both_open' | 'closed')
   const [classAccessMode, setClassAccessMode] = useState(
@@ -311,6 +316,11 @@ export function useStudentController() {
     return items;
   }, [grade, practiceQuestions, practiceTfQuestions, practiceEssayQuestions, practiceAnswers]);
 
+  useEffect(() => {
+    if(mode!=='practice'||examState!=='in_progress'||!practiceDraftSession)return;
+    setDraftSaveFailed(!savePracticeDraft({grade,studentClass,studentId},{...practiceDraftSession,practiceSet,answers:practiceAnswers,activeQuestionIdx,violations:totalViolations}));
+  },[mode,examState,practiceDraftSession,practiceSet,practiceAnswers,activeQuestionIdx,totalViolations,grade,studentClass,studentId]);
+
   // Danh sách câu hỏi thống nhất cho Exam Mode (1 câu mỗi lần)
   const examItems = useMemo(() => {
     if (!currentOfficialExam) return [];
@@ -436,6 +446,9 @@ export function useStudentController() {
     setExamAnswers,
     examDraftSession,
     setExamDraftSession,
+    draftSaveFailed,
+    practiceDraftSession,
+    setPracticeDraftSession,
     timeLeftStr,
     setTimeLeftStr,
     secondsLeft,

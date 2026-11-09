@@ -87,7 +87,7 @@ export function createExamSubmitActions(s) {
     window.AsianSchoolAntiCheat.exitFullscreen();
 
     // Lưu ngay trước khi gửi, kể cả khi effect lưu nháp chưa kịp chạy.
-    saveExamDraft(examDraftSession?.identity, examAnswers);
+    saveExamDraft(examDraftSession?.identity, examAnswers,undefined,s.activeQuestionIdx || 0);
 
     // Bản sao bài làm trên máy, phòng khi mất mạng lúc nộp
     try {

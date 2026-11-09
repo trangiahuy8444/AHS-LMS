@@ -1,150 +1,45 @@
 import React from 'react';
 import { useStudent } from '../StudentContext.js';
 import StudentIdentity from '../components/StudentIdentity.jsx';
+import { sanitizeStudentFeedback } from '../../shared/studentFeedback.js';
 
-// THẺ KẾT QUẢ BÀI LÀM — ĐƯỢC THIẾT KẾ ĐỂ CHỤP ẢNH NỘP LÊN LMS
 export default function ResultCard() {
-  const { grade, mode, scoreResult } = useStudent();
-  const maxScore = scoreResult?.maxScore !== undefined ? scoreResult.maxScore : (grade === 10 ? 7.75 : 7);
-
+  const {grade,mode,scoreResult:result}=useStudent();
+  const practice=mode==='practice';
+  const max=result.maxScore ?? (grade===10?7.75:7);
+  const feedback=sanitizeStudentFeedback(result.teacherFeedback);
   return (
-    <div
-      id="result-capture-card"
-      className="bg-white text-slate-900 rounded-3xl shadow-xl border-2 border-slate-200 p-6 sm:p-8 space-y-5"
-    >
-      {/* Header Thẻ Kết Quả */}
-      <div className="flex items-center justify-between border-b-2 border-slate-100 pb-4">
-        <div className="flex items-center space-x-3">
-          <img
-            src={window.ASIAN_SCHOOL_LOGO_BASE64 || "../assets/logo_asian_school.png"}
-            alt="Logo Asian School"
-            className="h-12 w-auto object-contain"
-          />
-          <div>
-            <h3 className="font-black text-xs sm:text-sm text-blue-950 leading-tight uppercase">
-              TRƯỜNG QUỐC TẾ Á CHÂU (ASIAN SCHOOL)
-            </h3>
-            <p className="text-[11px] text-slate-600 font-bold">
-              BỘ MÔN TIN HỌC — XÁC NHẬN KẾT QUẢ BÀI LÀM TRỰC TUYẾN
-            </p>
+    <section id="result-capture-card" className="result-card bg-white border border-slate-200 rounded-2xl text-slate-900">
+      <header className="result-card-heading">
+        <img src={window.ASIAN_SCHOOL_LOGO_BASE64 || '../assets/logo_asian_school.png'} alt="Logo Asian School" />
+        <div><h3>TRƯỜNG QUỐC TẾ Á CHÂU</h3><p>BỘ MÔN TIN HỌC · XÁC NHẬN KẾT QUẢ</p></div>
+        <span>{practice?'ÔN TẬP':'THI GIỮA HK1'}</span>
+      </header>
+      <StudentIdentity extraLabel={practice?'Lượt làm':'Mã đề'} extraValue={practice?result.attemptNumber||1:result.examCode||'—'}/>
+      <div className="result-card-score">
+        {!practice && <h2>ĐÃ NỘP BÀI THÀNH CÔNG</h2>}
+        <p className="result-score-label">{practice?'ĐIỂM ĐẠT ĐƯỢC':result.isGraded?'ĐIỂM CHÍNH THỨC':'ĐIỂM TRẮC NGHIỆM'}</p>
+        {practice || result.isGraded || result.mcqPoints!=null ? (
+          <div className="result-score-value">
+            {practice?result.score:result.isGraded?(result.finalScore ?? result.score ?? '—'):result.mcqPoints}
+            <span> / {result.isGraded&&!practice?10:max} đ</span>
           </div>
-        </div>
-        <div className="text-right">
-          <span className="px-3.5 py-1.5 rounded-full text-xs font-black bg-blue-100 text-blue-900 border border-blue-300 shadow-sm inline-block">
-            {mode === 'practice' ? `ÔN TẬP ĐỀ CƯƠNG — LẦN ${scoreResult.attemptNumber || 1}` : 'THI GIỮA HK1'}
-          </span>
-        </div>
+        ) : <p className="text-sm text-slate-600">{result.receiptDetailsUnavailable?'Chưa tải được điểm':'Đang chấm trắc nghiệm'}</p>}
+        {!practice&&result.isGraded&&<p className="text-xs">Trắc nghiệm: {result.mcqPoints ?? '—'} đ · Tự luận: {result.essayTotal ?? '—'} đ</p>}
+        {!practice&&!result.isGraded&&result.mcqPoints!=null&&<p className="text-xs text-slate-600">Chưa bao gồm điểm tự luận.</p>}
+        {result.scoreConfirmed&&<p className="text-xs font-bold text-emerald-700">✓ ĐÃ XÁC NHẬN CHỐT ĐIỂM</p>}
       </div>
-
-      <StudentIdentity
-        extraLabel={mode === 'practice' ? 'Lượt làm' : 'Mã đề'}
-        extraValue={mode === 'practice' ? scoreResult.attemptNumber || 1 : scoreResult.examCode || '—'}
-      />
-
-      {/* Khối Điểm Số Nổi Bật (High Contrast, Padding Đáy Đầy Đủ Chống Che Chữ Khi Chụp) */}
-      <div className="text-center py-6 px-4 bg-blue-50/80 rounded-3xl border-2 border-blue-200 shadow-sm space-y-3 pb-8">
-        <p className="text-xs text-blue-900 font-black uppercase tracking-widest">
-          {mode === 'practice'
-            ? 'ĐIỂM ĐẠT ĐƯỢC'
-            : 'KẾT QUẢ BÀI THI CHÍNH THỨC'}
-        </p>
-        {mode === 'practice' ? (
-          <div className="text-5xl sm:text-6xl font-black text-red-600 my-1">
-            {scoreResult.score}
-            <span className="text-xl text-slate-600 font-bold"> / {maxScore}</span>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <h2 className="text-xl sm:text-2xl font-extrabold text-emerald-700">ĐÃ NỘP BÀI THÀNH CÔNG</h2>
-            <div className="rounded-2xl border border-blue-200 bg-white/80 p-4 space-y-2">
-              <p className="text-xs font-bold text-blue-900">{scoreResult.isGraded ? 'ĐIỂM CHÍNH THỨC' : 'ĐIỂM TRẮC NGHIỆM'}</p>
-              {scoreResult.isGraded ? (
-                <>
-                  <div className="text-4xl sm:text-5xl font-black text-blue-900">
-                    {scoreResult.finalScore ?? scoreResult.score ?? '—'}
-                    <span className="text-lg text-slate-600 font-bold"> / 10 đ</span>
-                  </div>
-                  <p className="text-xs text-slate-700">Trắc nghiệm: {scoreResult.mcqPoints ?? '—'} đ · Tự luận: {scoreResult.essayTotal ?? '—'} đ</p>
-                </>
-              ) : scoreResult.mcqPoints != null ? (
-                <>
-                  <div className="text-4xl sm:text-5xl font-black text-blue-900">
-                    {scoreResult.mcqPoints}
-                    <span className="text-lg text-slate-600 font-bold"> / {maxScore} đ</span>
-                  </div>
-                  <p className="text-xs text-slate-600">Chưa bao gồm điểm tự luận.</p>
-                </>
-              ) : (
-                <p className="text-sm font-semibold text-slate-600">Đang chấm trắc nghiệm</p>
-              )}
-            </div>
-            {scoreResult.scoreConfirmed && (
-              <div className="inline-flex items-center space-x-1 px-3 py-1 bg-emerald-100 border border-emerald-400 rounded-full text-emerald-800 text-xs font-black shadow-sm mt-1">
-                <span>✓</span>
-                <span>ĐÃ XÁC NHẬN CHỐT ĐIỂM</span>
-              </div>
-            )}
-          </div>
-        )}
-        <div className="space-y-2">
-          <p className="text-xs text-slate-700 font-bold">
-            {mode === 'practice'
-              ? `Làm đúng ${scoreResult.correctCount} / ${scoreResult.totalQuestions} câu trắc nghiệm • Tự luận không tính điểm (thang điểm trắc nghiệm: ${maxScore}đ) • Thời gian làm: ${scoreResult.durationFormatted || 'N/A'}`
-              : `Thời gian làm bài: ${scoreResult.durationFormatted || '45 phút'} • Nộp lúc: ${new Date(scoreResult.submittedAt).toLocaleTimeString('vi-VN')} • Số lần vi phạm: ${scoreResult.violations} lần`
-            }
-          </p>
-          {mode === 'exam' && scoreResult.correctMcq !== undefined && (
-            <p className="text-xs text-emerald-700 font-bold">
-              ✓ Số câu trắc nghiệm đúng: {scoreResult.correctMcq} câu
-            </p>
-          )}
-          {mode === 'practice' && (
-            <div className="pt-2">
-              <div className="inline-block px-6 py-2.5 bg-amber-100 border-2 border-amber-500 rounded-2xl text-amber-950 text-sm sm:text-base font-black shadow-md">
-                🎯 SỐ LẦN ĐÃ LÀM: LẦN THỨ {scoreResult.attemptNumber || 1}
-              </div>
-            </div>
-          )}
-          {scoreResult.violations >= 3 && (
-            <div className="mt-2 inline-block px-4 py-1.5 bg-red-100 border-2 border-red-500 rounded-xl text-red-800 text-xs font-black shadow-sm">
-              🚨 Vi phạm 3 lần: bài đã bị khóa, giám thị ghi nhận và xử lý theo quy chế
-            </div>
-          )}
-
-          {mode === 'exam' && (
-            scoreResult.isGraded ? (
-              <div className="mt-3 p-4 bg-emerald-50 border-2 border-emerald-300 rounded-2xl text-xs text-emerald-950 font-semibold space-y-1.5 text-left">
-                <div className="flex items-center space-x-1.5 font-black text-emerald-950 text-xs uppercase">
-                  <span>👨‍🏫</span>
-                  <span>NHẬN XÉT & LỜI PHÊ CỦA THẦY TRẦN GIA HUY:</span>
-                </div>
-                <p className="text-xs sm:text-sm text-emerald-900 font-bold leading-relaxed italic bg-white/80 p-3 rounded-xl border border-emerald-200">
-                  "{scoreResult.teacherFeedback?.trim() || 'Giáo viên chưa thêm nhận xét.'}"
-                </p>
-                <p className="text-[11px] text-emerald-800 font-medium">
-                  Điểm đã được giáo viên chấm và cập nhật.
-                </p>
-              </div>
-            ) : (
-              <div className="mt-3 p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl text-xs text-amber-900 font-semibold space-y-1 text-left">
-                <div className="flex items-center space-x-1.5 font-black text-amber-950 text-xs">
-                  <span>📝</span>
-                  <span>ĐANG CHỜ GIÁO VIÊN CHẤM TỰ LUẬN</span>
-                </div>
-                <p className="text-[11px] text-amber-800 leading-relaxed font-medium">
-                  Điểm chính thức theo thang 10 sẽ được cập nhật sau khi chấm xong.
-                </p>
-              </div>
-            )
-          )}
-        </div>
-      </div>
-
-      {/* Footer Thẻ */}
-      <div className="pt-2 border-t-2 border-slate-100 flex items-center justify-between text-[11px] text-slate-600 font-semibold">
-        <span>Hệ thống kiểm tra trực tuyến Tin học Asian School</span>
-        <span>Xác nhận: Giáo viên bộ môn Thầy Trần Gia Huy</span>
-      </div>
-    </div>
+      <dl className="result-card-facts">
+        <div><dt>Thời gian làm bài</dt><dd>{result.durationFormatted || 'Chưa có thông tin'}</dd></div>
+        <div><dt>Nộp lúc</dt><dd>{result.submittedAt?new Date(result.submittedAt).toLocaleTimeString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'}):'Chưa có thông tin'}</dd></div>
+        <div><dt>Số lần vi phạm</dt><dd>{result.violations || 0} lần</dd></div>
+        <div><dt>Trắc nghiệm đúng</dt><dd>{practice?`${result.correctCount ?? 0} / ${result.totalQuestions ?? 0} câu`:`${result.correctMcq ?? '—'} câu`}</dd></div>
+      </dl>
+      {practice&&<p className="result-status-line">🎯 SỐ LẦN ĐÃ LÀM: LẦN THỨ {result.attemptNumber||1} · Tự luận không tính điểm</p>}
+      {result.violations>=3&&<p className="result-violation-line">🚨 Vi phạm 3 lần: bài đã bị khóa, giám thị ghi nhận và xử lý theo quy chế</p>}
+      {!practice&&!result.isGraded&&<p className="result-status-line">{result.receiptDetailsUnavailable?'LƯỢT THI ĐÃ ĐƯỢC XÁC NHẬN NỘP · Chưa tải được chi tiết điểm; em báo giáo viên kiểm tra.':'ĐANG CHỜ GIÁO VIÊN CHẤM TỰ LUẬN'}</p>}
+      {!practice&&result.isGraded&&feedback&&<section className="result-feedback"><h4>NHẬN XÉT CỦA GIÁO VIÊN</h4><p>{feedback}</p></section>}
+      <footer>Hệ thống kiểm tra trực tuyến Tin học Asian School · Giáo viên: Thầy Trần Gia Huy</footer>
+    </section>
   );
 }

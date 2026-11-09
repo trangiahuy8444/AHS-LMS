@@ -1,3 +1,4 @@
+import { sanitizeStudentFeedback } from '../../shared/studentFeedback.js';
 import React from 'react';
 import { useStudent } from '../StudentContext.js';
 import { essayPresentation } from '../../shared/essayPresentation.js';
@@ -185,14 +186,14 @@ export default function AnswerReview() {
       )}
 
       {/* LỜI PHÊ & NHẬN XÉT CỦA GIÁO VIÊN */}
-      {scoreResult?.teacherFeedback && (
+      {sanitizeStudentFeedback(scoreResult?.teacherFeedback) && (
         <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-3xl p-5 shadow-sm space-y-2.5">
           <div className="flex items-center space-x-2 text-amber-950 font-black text-xs sm:text-sm uppercase tracking-wide">
             <span className="text-xl">✍️</span>
             <span>NHẬN XÉT & LỜI PHÊ CỦA THẦY TRẦN GIA HUY:</span>
           </div>
           <div className="bg-white/90 border border-amber-200 rounded-2xl p-4 text-xs sm:text-sm text-slate-800 font-medium whitespace-pre-line leading-relaxed shadow-inner">
-            {scoreResult.teacherFeedback}
+            {sanitizeStudentFeedback(scoreResult.teacherFeedback)}
           </div>
         </div>
       )}

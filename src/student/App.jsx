@@ -1,4 +1,5 @@
 import React from 'react';
+import { StudentLanguageProvider } from './StudentLanguage.jsx';
 import { StudentContext } from './StudentContext.js';
 import { useStudentController } from './hooks/useStudentController.js';
 import LockScreen from './components/LockScreen.jsx';
@@ -16,8 +17,8 @@ function App() {
   const student = useStudentController();
 
   return (
-    <StudentContext.Provider value={student}>
-      <div className="min-h-screen bg-slate-100 text-slate-900">
+    <StudentLanguageProvider><StudentContext.Provider value={student}>
+      <div className={`${student.examState === 'in_progress' ? 'student-workspace' : student.examState === 'submitted' ? 'student-workspace student-result-workspace' : 'min-h-screen'} bg-slate-100 text-slate-900`}>
       <LocalSandboxBanner />
       
         {/* MÀN HÌNH PHONG TỎA KHÓA BÀI THI KHI VI PHẠM 3 LẦN HOẶC GIÁM THỊ KHÓA */}
@@ -36,7 +37,7 @@ function App() {
         <StudentHeader />
 
         {/* NỘI DUNG CHÍNH */}
-        <main className="max-w-7xl mx-auto px-4 py-6 sm:py-8">
+        <main className={['in_progress','submitted'].includes(student.examState) ? 'student-workspace-main' : 'max-w-7xl mx-auto px-4 py-6 sm:py-8'}>
         
           {/* 1. MÀN HÌNH CHỌN CHẾ ĐỘ & ĐĂNG KÝ VÀO PHÒNG LÀM BÀI */}
           <EntryScreen />
@@ -52,7 +53,7 @@ function App() {
         {/* MODAL THÔNG BÁO TĨNH (KHÔNG NHẢY GIẬT, THAY THẾ ALERT) */}
         <NoticeDialog />
       </div>
-    </StudentContext.Provider>
+    </StudentContext.Provider></StudentLanguageProvider>
   );
 }
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { StudentContext } from '../src/student/StudentContext.js';
 import EntryScreen from '../src/student/screens/EntryScreen.jsx';
 import ExamScreen from '../src/student/screens/ExamScreen.jsx';
@@ -22,6 +22,7 @@ for (const mode of ['exam', 'practice']) {
     expect(before).toContain('Nội dung đã duyệt.');
     if (mode === 'exam') expect(before).toContain('60 phút');
     view.rerender(ui('in_progress',config));
+    fireEvent.click(screen.getByText('Nội quy & hướng dẫn'));
     expect(screen.getByRole('region',{name:'Hướng dẫn làm bài'}).textContent).toBe(before);
     expect(screen.queryByText(/Vi phạm đến lần thứ 3/)).toBeNull();
     const updated = {...config,studentGuidance:{[mode]:{title:'Thông báo mới',body:'Chỉ dẫn mới từ giáo viên.'}}};
@@ -38,6 +39,7 @@ it('exam defaults match at entry and during work, with a fallback duration when 
   const before = screen.getByRole('region',{name:'Hướng dẫn làm bài'}).textContent;
   expect(before).toContain('45 phút');
   view.rerender(ui('in_progress'));
+  fireEvent.click(screen.getByText('Nội quy & hướng dẫn'));
   expect(screen.getByRole('region',{name:'Hướng dẫn làm bài'}).textContent).toBe(before);
   expect(screen.queryByText(/THÔNG TIN LƯỢT THI/)).toBeNull();
 });

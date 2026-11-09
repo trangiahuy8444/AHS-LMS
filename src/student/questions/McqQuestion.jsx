@@ -1,8 +1,12 @@
+import { useStudentLanguage } from '../StudentLanguage.jsx';
+import { questionForLanguage } from '../../shared/questionLanguage.js';
 import React from 'react';
 import { useStudent } from '../StudentContext.js';
 
 // 1. Trắc nghiệm nhiều lựa chọn (MCQ)
 export default function McqQuestion({ currentItem }) {
+  const { language } = useStudentLanguage();
+  const display = questionForLanguage(currentItem.data, language);
   const { mode, practiceAnswers, setPracticeAnswers, examAnswers, setExamAnswers } = useStudent();
 
   if (!((currentItem.type === 'mcq' || currentItem.type === 'exam_mcq'))) return null;
@@ -10,11 +14,11 @@ export default function McqQuestion({ currentItem }) {
   return (
     <div className="space-y-6">
       <p className="text-lg sm:text-xl font-bold text-slate-900 leading-relaxed whitespace-pre-line">
-        {currentItem.data.question}
+        {display.question}
       </p>
 
       <div className="grid grid-cols-1 gap-3 pt-2">
-        {currentItem.data.options.map((opt, optIdx) => {
+        {display.options.map((opt, optIdx) => {
           const isSelected = mode === 'practice'
             ? practiceAnswers.mcq[currentItem.data.id] === optIdx
             : examAnswers.mcq[currentItem.data.num] === optIdx;
