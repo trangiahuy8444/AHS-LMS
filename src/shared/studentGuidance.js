@@ -1,7 +1,7 @@
 export const DEFAULT_STUDENT_GUIDANCE = {
   practice: {
     title: 'HƯỚNG DẪN VÀ ĐIỀU KIỆN HOÀN THÀNH (LMS)',
-    body: '📖 Tài liệu cho phép: Chỉ được sử dụng Sách giáo khoa trong quá trình làm bài.\n🎯 Yêu cầu đạt: Học sinh cần hoàn thành bài làm đạt từ 6.0 điểm trở lên ít nhất 5 lần.\n💡 Sau khi nộp bài, hệ thống sẽ mở hướng dẫn chấm Rubric phần Tự luận để học sinh đối chiếu bài làm.'
+    body: 'Tài liệu cho phép: Chỉ được sử dụng Sách giáo khoa trong quá trình làm bài.\nYêu cầu đạt: Học sinh cần hoàn thành bài làm đạt từ 6.0 điểm trở lên ít nhất 5 lần.\nSau khi nộp bài, hệ thống sẽ mở hướng dẫn chấm Rubric phần Tự luận để học sinh đối chiếu bài làm.'
   },
   exam: {
     title: 'HƯỚNG DẪN LÀM BÀI THI',

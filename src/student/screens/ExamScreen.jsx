@@ -62,7 +62,6 @@ export default function ExamScreen() {
           if (!currentItem) {
             return (
               <div className="bg-white border-2 border-slate-200 p-8 rounded-2xl text-center space-y-3">
-                <div className="animate-spin text-3xl inline-block">🔄</div>
                 <p className="text-slate-600 font-bold text-sm">{t('Đang tải bộ câu hỏi, vui lòng chờ trong giây lát...')}</p>
               </div>
             );
@@ -151,7 +150,6 @@ export default function ExamScreen() {
                         className="px-6 py-3 rounded-2xl bg-slate-100 text-slate-400 border border-slate-200 font-bold text-sm cursor-not-allowed flex items-center space-x-2"
                       >
                         <span>{t('Đã đến câu cuối')}</span>
-                        <span>✓</span>
                       </button>
                     )}
                   </div>

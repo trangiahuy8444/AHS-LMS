@@ -19,9 +19,6 @@ export default function SubmitConfirmModal() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
       <div className="bg-white text-slate-900 rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full border-2 border-slate-200 space-y-4">
-        <div className="w-14 h-14 bg-blue-100 text-blue-700 rounded-2xl mx-auto flex items-center justify-center text-2xl">
-          📝
-        </div>
         <h3 className="text-xl font-black text-center text-slate-900">
           {t('XÁC NHẬN NỘP BÀI LÀM')}
         </h3>
@@ -53,7 +50,7 @@ export default function SubmitConfirmModal() {
 
         {isEarlyLockActive ? (
           <div className="p-3 bg-amber-50 border-2 border-amber-300 rounded-2xl text-xs text-amber-900 font-bold text-center space-y-1">
-            <p>{language === 'en' ? `Minimum working time: ${minExamMinutes} minutes.` : `⏱️ Chưa đủ thời gian làm bài tối thiểu ${minExamMinutes} phút!`}</p>
+            <p>{language === 'en' ? `Minimum working time: ${minExamMinutes} minutes.` : `Chưa đủ thời gian làm bài tối thiểu ${minExamMinutes} phút!`}</p>
             <p className="text-[11px] text-amber-800 font-normal">
               {language === 'en' ? 'Time remaining before submission: ' : 'Thời gian cần làm thêm: '}<strong>{formatElapsed(remainingEarlyLockSeconds)}</strong>. {language === 'en' ? 'Please review your answers before submitting.' : 'Em hãy kiểm tra kỹ lại bài làm trước khi nộp.'}
             </p>

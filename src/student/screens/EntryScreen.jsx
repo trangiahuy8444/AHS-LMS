@@ -46,19 +46,19 @@ export default function EntryScreen() {
       return;
     }
     if (mode === 'exam' && classAccessMode === 'practice_only') {
-      showDialog('Thông Báo Ca Thi', `🔒 Ca thi chính thức của Lớp ${studentClass} chưa bắt đầu!\n\nEm vui lòng chọn chế độ "ÔN TẬP ĐỀ CƯƠNG" để luyện tập nhé.`, 'info');
+      showDialog('Thông Báo Ca Thi', `Ca thi chính thức của Lớp ${studentClass} chưa bắt đầu!\n\nEm vui lòng chọn chế độ "ÔN TẬP ĐỀ CƯƠNG" để luyện tập nhé.`, 'info');
       return;
     }
     if (mode === 'practice' && classAccessMode === 'exam_only') {
-      showDialog('Ca Thi Đang Diễn Ra', `⚠️ Lớp ${studentClass} hiện đang trong ca kiểm tra chính thức ${examDurationMinutes} phút!\n\nEm vui lòng chọn chế độ "THI GIỮA HK1" để làm bài.`, 'warning');
+      showDialog('Ca Thi Đang Diễn Ra', `Lớp ${studentClass} hiện đang trong ca kiểm tra chính thức ${examDurationMinutes} phút!\n\nEm vui lòng chọn chế độ "THI GIỮA HK1" để làm bài.`, 'warning');
       return;
     }
     if (classAccessMode === 'closed') {
-      showDialog('Cổng Làm Bài Tạm Đóng', `🔒 Cổng làm bài tạm thời đóng đối với Lớp ${studentClass}.\n\nVui lòng báo Giám thị Thầy Trần Gia Huy để được hỗ trợ.`, 'warning');
+      showDialog('Cổng Làm Bài Tạm Đóng', `Cổng làm bài tạm thời đóng đối với Lớp ${studentClass}.\n\nVui lòng báo Giám thị Thầy Trần Gia Huy để được hỗ trợ.`, 'warning');
       return;
     }
     if (mode === 'exam' && !examPasswordInput.trim()) {
-      showDialog('Yêu Cầu Mật Khẩu', '⚠️ VUI LÒNG NHẬP MẬT KHẨU PHÒNG THI!\n\nMật khẩu do Thầy/Cô giám thị cung cấp trước giờ làm bài.', 'warning');
+      showDialog('Yêu Cầu Mật Khẩu', 'VUI LÒNG NHẬP MẬT KHẨU PHÒNG THI!\n\nMật khẩu do Thầy/Cô giám thị cung cấp trước giờ làm bài.', 'warning');
       return;
     }
     setShowGuidanceConfirm(true);
@@ -91,9 +91,9 @@ export default function EntryScreen() {
             </label>
             <span className="text-[11px] font-bold text-blue-900 bg-blue-100 px-2.5 py-0.5 rounded-full border border-blue-200">
               Lớp {studentClass}: {
-                classAccessMode === 'exam_only' ? '🔴 Đang trong ca thi' :
-                (classAccessMode === 'practice_only' ? '🟢 Đang mở ôn tập' :
-                (classAccessMode === 'both_open' ? '🟡 Mở cả 2 chế độ' : '⚫ Đang đóng cổng'))
+                classAccessMode === 'exam_only' ? 'Đang trong ca thi' :
+                (classAccessMode === 'practice_only' ? 'Đang mở ôn tập' :
+                (classAccessMode === 'both_open' ? 'Mở cả 2 chế độ' : 'Đang đóng cổng'))
               }
             </span>
           </div>
@@ -119,7 +119,6 @@ export default function EntryScreen() {
               }`}
             >
               <div className="flex items-center space-x-2">
-                <span className="text-2xl">📖</span>
                 <span className="font-bold text-sm text-blue-950">ÔN TẬP ĐỀ CƯƠNG</span>
               </div>
               <p className="text-xs text-slate-600 mt-1 font-medium leading-relaxed">
@@ -130,7 +129,7 @@ export default function EntryScreen() {
               </p>
               {classAccessMode === 'exam_only' && (
                 <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                  ⚠️ Tạm đóng
+                  Tạm đóng
                 </span>
               )}
             </button>
@@ -155,7 +154,6 @@ export default function EntryScreen() {
               }`}
             >
               <div className="flex items-center space-x-2">
-                <span className="text-2xl">📝</span>
                 <span className="font-bold text-sm text-red-950">THI GIỮA HK1</span>
               </div>
               <p className="text-xs text-slate-600 mt-1 font-medium leading-relaxed">
@@ -163,12 +161,12 @@ export default function EntryScreen() {
               </p>
               {classAccessMode === 'practice_only' && (
                 <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700 border border-slate-300">
-                  🔒 Chưa mở ca thi
+                  Chưa mở ca thi
                 </span>
               )}
               {classAccessMode === 'exam_only' && (
-                <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-300 animate-pulse">
-                  🔴 Đang thi!
+                <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-300">
+                  Đang thi!
                 </span>
               )}
             </button>
@@ -190,7 +188,7 @@ export default function EntryScreen() {
                   onClick={() => {
                     if (studentClass && !isCurrentClassReviewOpen) {
                       showDialog(
-                        'Chức Năng Chưa Mở ⏳',
+                        'Chức Năng Chưa Mở',
                         `Thầy Trần Gia Huy hiện đang chấm bài tự luận cho Lớp ${studentClass} và chưa mở chức năng xem lại bài làm.\n\nEm vui lòng chờ Thầy thông báo sau khi lớp mình hoàn tất chấm điểm nhé!`,
                         'info'
                       );
@@ -198,7 +196,7 @@ export default function EntryScreen() {
                     }
                     if (!studentClass && !isAnyReviewOpen) {
                       showDialog(
-                        'Chức Năng Chưa Mở ⏳',
+                        'Chức Năng Chưa Mở',
                         'Thầy Trần Gia Huy hiện đang chấm bài và chưa mở chức năng xem lại bài làm.\n\nEm vui lòng chờ Thầy thông báo sau khi hoàn tất chấm điểm nhé!',
                         'info'
                       );
@@ -213,7 +211,6 @@ export default function EntryScreen() {
                   }`}
                 >
                   <div className="flex items-center space-x-2">
-                    <span className="text-2xl">📋</span>
                     <span className="font-bold text-sm text-indigo-950">XEM BÀI & CHỐT ĐIỂM</span>
                   </div>
                   <p className="text-xs text-slate-600 mt-1 font-medium leading-relaxed">
@@ -222,20 +219,20 @@ export default function EntryScreen() {
                   {studentClass ? (
                     isCurrentClassReviewOpen ? (
                       <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                        🟢 Lớp {studentClass}: Đang mở xem bài
+                        Lớp ${studentClass}: Đang mở xem bài
                       </span>
                     ) : (
                       <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700 border border-slate-300">
-                        🔒 Lớp {studentClass}: Chờ chấm bài
+                        Lớp ${studentClass}: Chờ chấm bài
                       </span>
                     )
                   ) : isAnyReviewOpen ? (
                     <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                      🟢 Mở theo từng lớp
+                      Mở theo từng lớp
                     </span>
                   ) : (
                     <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700 border border-slate-300">
-                      🔒 Đang chờ chấm
+                      Đang chờ chấm
                     </span>
                   )}
                 </button>
@@ -341,7 +338,7 @@ export default function EntryScreen() {
                       STT {String(s.stt).padStart(2, '0')} - {s.fullName}
                     </option>
                   ))}
-                  <option value="__guest__">➕ [+ Em là Thí sinh bổ sung / Học sinh mới]</option>
+                  <option value="__guest__">[+ Em là Thí sinh bổ sung / Học sinh mới]</option>
                 </select>
               ) : (
                 <input
@@ -383,9 +380,9 @@ export default function EntryScreen() {
                 {isEmergencyLmsOverride ? (
                   <div className="p-3 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 space-y-1">
                     <div className="flex items-center space-x-2 font-black text-xs text-amber-900 uppercase">
-                      <span>⚡</span><span>ĐÃ KÍCH HOẠT XÁC NHẬN MÃ KHẨN CẤP (CHO PHÉP VÀO THI)</span>
+                      <span>ĐÃ KÍCH HOẠT XÁC NHẬN MÃ KHẨN CẤP (CHO PHÉP VÀO THI)</span>
                     </div>
-                    <p className="text-[11px] text-amber-800 font-medium pl-6 leading-relaxed">
+                    <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
                       Em được phép vào làm bài thi với Mã LMS: <strong>{studentId}</strong>. Hệ thống đã lưu trữ ghi nhận để Giám thị Thầy Trần Gia Huy đối soát sau giờ thi.
                     </p>
                   </div>
@@ -393,17 +390,13 @@ export default function EntryScreen() {
                   lmsErrorCount <= 1 ? (
                     /* LẦN 1: Báo sai đơn giản giống như sai mật khẩu, yêu cầu kiểm tra lại */
                     <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-300 text-rose-950 font-medium flex items-center space-x-2 text-xs">
-                      <span className="text-base">⛔</span>
                       <span>Mã LMS chưa chính xác. Em vui lòng kiểm tra lại thẻ học sinh và nhập lại.</span>
                     </div>
                   ) : (
                     /* LẦN 2 TRỞ LÊN (NẾU VẪN SAI): Hiện thêm nút xác thực cam đoan khẩn cấp */
                     <div className="p-3 rounded-2xl bg-rose-50 border border-rose-300 text-rose-950 space-y-2">
-                      <div className="flex items-start space-x-2">
-                        <span className="text-base">⛔</span>
-                        <div className="text-xs">
-                          <span className="font-bold">MÃ LMS VẪN CHƯA KHỚP với học sinh <strong>{fullName}</strong>.</span>
-                        </div>
+                      <div className="text-xs">
+                        <span className="font-bold">MÃ LMS VẪN CHƯA KHỚP với học sinh <strong>{fullName}</strong>.</span>
                       </div>
                       <div className="bg-white p-2.5 rounded-xl border border-rose-200 text-xs space-y-1.5">
                         <p className="text-[11px] text-slate-600 font-medium">Lỡ danh sách của trường bị sai sót hoặc mã của em mới đổi?</p>
@@ -415,7 +408,6 @@ export default function EntryScreen() {
                           }}
                           className="w-full py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-98 text-slate-950 font-black text-xs shadow transition flex items-center justify-center space-x-1"
                         >
-                          <span>⚡</span>
                           <span>Em cam đoan đây là Mã LMS đúng — Báo Giám thị & Cho phép vào thi ngay</span>
                         </button>
                       </div>
@@ -462,7 +454,7 @@ export default function EntryScreen() {
           {mode === 'exam' && (
             <div className="pt-2">
               <label className="block text-xs font-bold text-red-700 uppercase tracking-wider mb-1 flex items-center justify-between">
-                <span>🔒 Mật Khẩu Phòng Thi (Do Giám thị cấp) <span className="text-red-500">*</span></span>
+                <span>Mật Khẩu Phòng Thi (Do Giám thị cấp) <span className="text-red-500">*</span></span>
               </label>
               <div className="relative">
                 <input
@@ -494,7 +486,6 @@ export default function EntryScreen() {
         {mode === 'review' ? (
           <div className="border-2 border-indigo-400 bg-indigo-50/70 rounded-2xl p-4 text-slate-800 space-y-2">
             <div className="flex items-center space-x-2">
-              <span className="text-xl">📋</span>
               <h4 className="text-xs font-black text-indigo-950 uppercase tracking-wider">
                 HƯỚNG DẪN ĐỐI SOÁT BÀI THI & CHỐT ĐIỂM
               </h4>
@@ -502,7 +493,7 @@ export default function EntryScreen() {
             <div className="text-xs space-y-1.5 pl-7 text-slate-700 font-medium leading-relaxed">
               <p>• Hệ thống sẽ tải lại bài thi chính thức của em cùng điểm trắc nghiệm và điểm tự luận đã được Thầy chấm.</p>
               <p>• Em kiểm tra kỹ từng câu hỏi, lời phê của Thầy và bấm <strong>"XÁC NHẬN ĐIỂM SỐ CHÍNH XÁC"</strong> để hoàn tất.</p>
-              <p className="text-indigo-900 font-bold">💡 Chức năng này không yêu cầu Mật khẩu phòng thi.</p>
+              <p className="text-indigo-900 font-bold">Chức năng này không yêu cầu Mật khẩu phòng thi.</p>
             </div>
           </div>
         ) : (
@@ -532,8 +523,8 @@ export default function EntryScreen() {
         </button>
         <p className="text-[11px] text-slate-500 italic mt-2 text-center">
           {mode === 'review'
-            ? '🔍 Tra cứu nhanh chóng, minh bạch kết quả theo chuẩn Asian School.'
-            : <>🖥️ Hệ thống sẽ tự động chuyển sang chế độ <strong>Toàn Màn Hình</strong> ngay khi bấm bắt đầu làm bài.</>
+            ? 'Tra cứu nhanh chóng, minh bạch kết quả theo chuẩn Asian School.'
+            : <>Hệ thống sẽ tự động chuyển sang chế độ <strong>Toàn Màn Hình</strong> ngay khi bấm bắt đầu làm bài.</>
           }
         </p>
       </div>
@@ -595,7 +586,6 @@ export default function EntryScreen() {
             {/* Lưu ý an toàn thi */}
             <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs space-y-1">
               <p className="font-bold flex items-center space-x-1">
-                <span>⚠️</span>
                 <span>Lưu ý quan trọng khi làm bài:</span>
               </p>
               <p className="leading-relaxed">
@@ -610,7 +600,6 @@ export default function EntryScreen() {
                 onClick={handleConfirmAndStart}
                 className="w-full py-4 bg-[#0267B1] hover:bg-[#025696] active:scale-[0.99] text-white font-black text-sm sm:text-base rounded-2xl shadow-lg shadow-blue-900/20 transition flex items-center justify-center space-x-2 uppercase tracking-wider"
               >
-                <span>✓</span>
                 <span>XÁC NHẬN ĐÃ ĐỌC KĨ THÔNG BÁO VÀ LÀM BÀI</span>
               </button>
               <button

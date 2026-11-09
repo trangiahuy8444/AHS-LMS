@@ -37,7 +37,7 @@ const EN = {
   'HƯỚNG DẪN LÀM BÀI THI':'EXAM INSTRUCTIONS',
   'HƯỚNG DẪN VÀ ĐIỀU KIỆN HOÀN THÀNH (LMS)':'INSTRUCTIONS AND COMPLETION REQUIREMENTS (LMS)',
   'Kiểm tra thông tin học sinh và mã đề trước khi làm bài.\nKhông chuyển tab hoặc rời toàn màn hình. Khi cần hỗ trợ, giơ tay báo giám thị.\nKiểm tra lại câu trả lời trước khi nộp bài.':'Check your student information and paper code before starting.\nDo not switch tabs or leave fullscreen. Raise your hand if you need help.\nReview your answers before submitting.',
-  '📖 Tài liệu cho phép: Chỉ được sử dụng Sách giáo khoa trong quá trình làm bài.\n🎯 Yêu cầu đạt: Học sinh cần hoàn thành bài làm đạt từ 6.0 điểm trở lên ít nhất 5 lần.\n💡 Sau khi nộp bài, hệ thống sẽ mở hướng dẫn chấm Rubric phần Tự luận để học sinh đối chiếu bài làm.':'📖 Permitted material: Only your textbook may be used while working.\n🎯 Completion requirement: Complete at least five attempts with a score of 6.0 or above.\n💡 After submission, the written-response rubric is available for you to compare with your work.'
+  'Tài liệu cho phép: Chỉ được sử dụng Sách giáo khoa trong quá trình làm bài.\nYêu cầu đạt: Học sinh cần hoàn thành bài làm đạt từ 6.0 điểm trở lên ít nhất 5 lần.\nSau khi nộp bài, hệ thống sẽ mở hướng dẫn chấm Rubric phần Tự luận để học sinh đối chiếu bài làm.':'Permitted material: Only your textbook may be used while working.\nCompletion requirement: Complete at least five attempts with a score of 6.0 or above.\nAfter submission, the written-response rubric is available for you to compare with your work.'
 
 };
 export function translateStudent(language, key) { return language === 'en' ? EN[key] ?? key : key; }

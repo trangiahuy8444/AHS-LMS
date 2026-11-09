@@ -32,13 +32,11 @@ export default function StudentHeader() {
             <StudentLanguageSwitch />
             {mode === 'exam' ? (
               <div className="flex items-center space-x-1 sm:space-x-2 bg-red-50 border-2 border-red-500 text-red-700 px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-xl font-mono-code font-black text-xs sm:text-sm shadow-sm">
-                <span className="text-sm">⏱️</span>
                 <span className="hidden xs:inline sm:inline text-[11px] font-sans font-bold text-red-600">{t('Còn:')}</span>
                 <span>{timeLeftStr}</span>
               </div>
             ) : (
               <div className="flex items-center space-x-1.5 bg-emerald-50 border-2 border-emerald-400 text-emerald-800 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs font-bold shadow-sm">
-                <span>⏱️</span>
                 <span className="hidden sm:inline font-bold">{t('Thời gian:')}</span>
                 <span className="font-mono-code font-black text-emerald-900">
                   {config.practiceDurationMinutes > 0 ? timeLeftStr : formatElapsed(elapsedSeconds)}
@@ -48,7 +46,6 @@ export default function StudentHeader() {
 
             {violations > 0 && (
               <div className="bg-amber-100 border border-amber-300 text-amber-900 px-2 sm:px-3 py-1 rounded-xl text-[10px] sm:text-xs font-extrabold flex items-center space-x-1">
-                <span>⚠️</span>
                 <span className="hidden sm:inline">{t('Vi phạm:')}</span>
                 <span>{violations}</span>
               </div>

@@ -27,7 +27,7 @@ export default function ResultCard() {
         ) : <p className="text-sm text-slate-600">{result.receiptDetailsUnavailable?'Chưa tải được điểm':'Đang chấm trắc nghiệm'}</p>}
         {!practice&&result.isGraded&&<p className="text-xs">Trắc nghiệm: {result.mcqPoints ?? '—'} đ · Tự luận: {result.essayTotal ?? '—'} đ</p>}
         {!practice&&!result.isGraded&&result.mcqPoints!=null&&<p className="text-xs text-slate-600">Chưa bao gồm điểm tự luận.</p>}
-        {result.scoreConfirmed&&<p className="text-xs font-bold text-emerald-700">✓ ĐÃ XÁC NHẬN CHỐT ĐIỂM</p>}
+        {result.scoreConfirmed&&<p className="text-xs font-bold text-emerald-700">ĐÃ XÁC NHẬN CHỐT ĐIỂM</p>}
       </div>
       <dl className="result-card-facts">
         <div><dt>Thời gian làm bài</dt><dd>{result.durationFormatted || 'Chưa có thông tin'}</dd></div>
@@ -35,10 +35,10 @@ export default function ResultCard() {
         <div><dt>Số lần vi phạm</dt><dd>{result.violations || 0} lần</dd></div>
         <div><dt>Trắc nghiệm đúng</dt><dd>{practice?`${result.correctCount ?? 0} / ${result.totalQuestions ?? 0} câu`:`${result.correctMcq ?? '—'} câu`}</dd></div>
       </dl>
-      {practice&&<p className="result-status-line">🎯 SỐ LẦN ĐÃ LÀM: LẦN THỨ {result.attemptNumber||1} · Tự luận không tính điểm</p>}
-      {result.violations>=3&&<p className="result-violation-line">🚨 Vi phạm 3 lần: bài đã bị khóa, giám thị ghi nhận và xử lý theo quy chế</p>}
+      {practice&&<p className="result-status-line">SỐ LẦN ĐÃ LÀM: LẦN THỨ {result.attemptNumber||1} · Tự luận không tính điểm</p>}
+      {result.violations>=3&&<p className="result-violation-line">Vi phạm 3 lần: bài đã bị khóa, giám thị ghi nhận và xử lý theo quy chế</p>}
       {!practice&&!result.isGraded&&<p className="result-status-line">{result.receiptDetailsUnavailable?'LƯỢT THI ĐÃ ĐƯỢC XÁC NHẬN NỘP · Chưa tải được chi tiết điểm; em báo giáo viên kiểm tra.':'ĐANG CHỜ GIÁO VIÊN CHẤM TỰ LUẬN'}</p>}
-      {!practice&&result.isGraded&&feedback&&<section className="result-feedback"><h4>NHẬN XÉT CỦA GIÁO VIÊN</h4><p>{feedback}</p></section>}
+      {!practice&&result.isGraded&&feedback&&<section className="result-feedback"><h4>NHẬN XÉT</h4><p>{feedback}</p></section>}
       <footer>Hệ thống kiểm tra trực tuyến Tin học Asian School · Giáo viên: Thầy Trần Gia Huy</footer>
     </section>
   );
