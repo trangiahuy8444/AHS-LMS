@@ -1,3 +1,9 @@
+## 09/11/2026 — Tự đóng hộp chấm sau khi lưu điểm
+
+- Theo yêu cầu giáo viên, khi thao tác lưu điểm trả thành công: cập nhật bảng bài nộp/ôn tập, tự đóng hộp chấm và hiện thông báo ngắn ở trang quản trị. Không cần bấm Đóng hộp thoại thêm lần nữa.
+- Nếu lưu trả lỗi (ví dụ điểm ngoài bước 0,25), giữ hộp và dữ liệu đang chỉnh, hiện lỗi; không thông báo thành công. Không thay cách tính điểm hoặc cơ chế đồng bộ đang dùng.
+- Kiểm tra: 207 Node + 181 Vitest đạt, 3 kiểm tra gói riêng tư bỏ qua; lint/build/không lọt đề đạt. Hai kiểm tra mới bao gồm lưu thành công/giữ hộp khi lưu lỗi, có chứng minh lỗi trước khi sửa.
+
 ## 09/11/2026 — Đồng nhất phong cách nhận xét lớp 9/25 với 9/21
 
 - Theo yêu cầu giáo viên, sửa nhận xét lớp 9/25 thành câu ngắn, chỉ lỗi sai/ý thiếu đã có, dùng “em”, tách mỗi câu hỏi thành một đoạn riêng. Không chấm lại hoặc sửa điểm.

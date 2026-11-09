@@ -42,13 +42,13 @@ export function createGradingActions(s) {
     if (!gradingSubmission) return;
     const res = window.AsianSchoolStorage.gradeEssaySubmission(gradingSubmission.id, tempEssayScores, sanitizeStudentFeedback(tempFeedback));
     if (res.success) {
-      setGradingSubmission(res.submission);
       setSubmissions(window.AsianSchoolStorage.getSubmissions());
       if (setPracticeSubs && typeof window.AsianSchoolStorage.getPracticeSubmissions === 'function') {
         setPracticeSubs(window.AsianSchoolStorage.getPracticeSubmissions());
       }
-      setGradingSuccessAlert(true);
-      setTimeout(() => setGradingSuccessAlert(false), 2500);
+      setGradingSuccessAlert(false);
+      setGradingSubmission(null);
+      showToast('Đã lưu điểm chấm và cập nhật tổng điểm.', 'success', 'Chấm bài');
     } else {
       showDialog('Lỗi Chấm Điểm', res.error, 'error');
     }
