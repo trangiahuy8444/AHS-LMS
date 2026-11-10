@@ -514,10 +514,10 @@
     const grade = Number(attempt.grade);
     const candidateSubIds = [
       `${attemptId}_${attempt.attemptsUsed || 1}`,
-      `${attemptId}_1`,
       `${attemptIdFor(grade, attempt.studentClass, key)}_${attempt.attemptsUsed || 1}`,
-      `${attemptIdFor(grade, attempt.studentClass, key)}_1`,
       `${legacyAttemptIdFor(grade, key)}_${attempt.attemptsUsed || 1}`,
+      `${attemptId}_1`,
+      `${attemptIdFor(grade, attempt.studentClass, key)}_1`,
       `${legacyAttemptIdFor(grade, key)}_1`
     ];
     let submission = null;
@@ -525,9 +525,14 @@
     for (const candId of candidateSubIds) {
       try {
         const snap = await db.collection('submissions').doc(candId).get();
-        if (snap.exists) {
+        if (snap.exists && !snap.metadata?.fromCache && !snap.metadata?.hasPendingWrites) {
           const candidate = snap.data();
-          if (Number(candidate.grade) === grade && lmsKey(candidate.studentId) === key) {
+          if (
+            Number(candidate.grade) === grade
+            && candidate.studentClass === attempt.studentClass
+            && lmsKey(candidate.studentId) === key
+            && (!candidate.attemptId || candidate.attemptId === attemptId || candidate.attemptId === legacyAttemptIdFor(grade, key) || candidate.attemptId === attemptIdFor(grade, attempt.studentClass, key))
+          ) {
             submission = candidate;
             foundSubId = candId;
             if (currentUid && candidate.uid !== currentUid) {
@@ -548,8 +553,8 @@
         grade: attempt.grade, studentClass: attempt.studentClass, studentId: attempt.studentId,
         fullName: attempt.fullName, examCode: attempt.examCode, violations: attempt.violations || 0,
         submittedAt: submittedAt ? new Date(submittedAt).toISOString() : null, isGraded: false,
-        submissionId: foundSubId, id: foundSubId,
-        ...submissionReceiptFields(submission)
+        ...submissionReceiptFields(submission),
+        ...(submission ? { submissionId: foundSubId, id: foundSubId } : {})
       }
     };
   }
