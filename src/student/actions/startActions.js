@@ -58,6 +58,14 @@ export function createStartActions(s) {
     // Xác thực 2 lớp danh tính học sinh nếu thuộc danh sách lớp đã số hóa (chống bạn khác thi hộ)
     const classRoster = getStudentsByClass(studentClass);
     const matched = classRoster.find(st => st.fullName === fullName);
+    if (!s.isManualName && classRoster.length > 0 && !matched) {
+      showDialog(
+        'Chưa Chọn Tên Thí Sinh',
+        `Họ tên "${fullName}" không nằm trong danh sách Lớp ${studentClass}.\n\nEm vui lòng chọn đúng Họ và tên của mình trong danh sách lớp trước khi vào thi nhé!`,
+        'warning'
+      );
+      return;
+    }
     if (matched && !verifyStudentLms(matched, studentId)) {
       // NẾU HỌC SINH ĐÃ XÁC NHẬN MÃ KHẨN CẤP (DO DỮ LIỆU NHÀ TRƯỜNG SAI SÓT HOẶC MÃ MỚI ĐỔI)
       if (!s.isEmergencyLmsOverride) {

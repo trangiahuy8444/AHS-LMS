@@ -205,7 +205,9 @@ export function useStudentController() {
     try {
       if (typeof localStorage !== 'undefined') {
         if (fullName) localStorage.setItem('ahs_student_fullname_v1', fullName);
+        else localStorage.removeItem('ahs_student_fullname_v1');
         if (studentId) localStorage.setItem('ahs_student_lms_v1', studentId);
+        else localStorage.removeItem('ahs_student_lms_v1');
         if (studentClass) localStorage.setItem('ahs_student_class_v1', studentClass);
         if (grade) localStorage.setItem('ahs_student_grade_v1', String(grade));
       }
@@ -256,7 +258,14 @@ export function useStudentController() {
   const currentOfficialExam = officialExam;
 
   // Cập nhật lớp & đề cương khi đổi khối
+  const isFirstGradeMount = useRef(true);
   useEffect(() => {
+    if (isFirstGradeMount.current) {
+      isFirstGradeMount.current = false;
+    } else {
+      setFullName('');
+      setStudentId('');
+    }
     if (CLASS_LISTS[grade] && !CLASS_LISTS[grade].includes(studentClass)) {
       setStudentClass(CLASS_LISTS[grade][0]);
     }
