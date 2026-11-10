@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { getStudentsByClass, verifyStudentLms } from '../../core/roster-data.js';
 import { createProctorActions } from '../actions/proctorActions.js';
 import { createClassAccessActions } from '../actions/classAccessActions.js';
 import { createGradingActions } from '../actions/gradingActions.js';
@@ -466,7 +467,7 @@ export function useAdminController() {
 
   // Filtered submissions
   const filteredSubmissions = useMemo(() => {
-    return submissions.filter(s => {
+    const list = submissions.filter(s => {
       if (filterGrade !== 'all' && s.grade !== parseInt(filterGrade)) return false;
       if (filterClass !== 'all' && s.studentClass !== filterClass) return false;
       if (filterMode !== 'all' && s.mode !== filterMode) return false;
@@ -480,6 +481,20 @@ export function useAdminController() {
       }
       return true;
     });
+
+    if (filterClass !== 'all') {
+      const roster = getStudentsByClass(filterClass) || [];
+      return list.slice().sort((a, b) => {
+        const idxA = roster.findIndex(st => verifyStudentLms(st, a.studentId) || String(st.studentId).trim() === String(a.studentId).trim());
+        const idxB = roster.findIndex(st => verifyStudentLms(st, b.studentId) || String(st.studentId).trim() === String(b.studentId).trim());
+        const posA = idxA !== -1 ? idxA : 999;
+        const posB = idxB !== -1 ? idxB : 999;
+        if (posA !== posB) return posA - posB;
+        return (a.studentId || '').localeCompare(b.studentId || '', undefined, { numeric: true });
+      });
+    }
+
+    return list;
   }, [submissions, filterGrade, filterClass, filterMode, filterGraded, searchQuery]);
 
   // Dữ liệu cho Master Answer Key

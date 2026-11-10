@@ -257,9 +257,11 @@ export default function SubmissionsTab() {
                   const finalScore = sub.finalScore !== undefined ? sub.finalScore : autoScore;
                   const hasPenalty = sub.violations >= 3;
                   const timing = window.AsianSchoolExamTiming.getSubmissionTiming(sub);
+                  const matchedRoster = sub.studentClass ? getStudentsByClass(sub.studentClass)?.find(st => verifyStudentLms(st, sub.studentId) || String(st.studentId).trim() === String(sub.studentId).trim()) : null;
+                  const sttDisplay = (filterClass !== 'all' && matchedRoster) ? matchedRoster.stt : (idx + 1);
                   return (
                     <tr key={sub.id || idx} className="hover:bg-slate-50 transition">
-                      <td className="py-3 px-4 font-mono-code text-slate-400">{idx + 1}</td>
+                      <td className="py-3 px-4 font-mono-code text-slate-400 font-bold">{sttDisplay}</td>
                       <td className="py-3 px-4 font-bold text-slate-900">{getCanonicalName(sub)}</td>
                       <td className="py-3 px-4">
                         <span className="px-2 py-0.5 rounded bg-blue-50 font-bold text-blue-900 border border-blue-200">

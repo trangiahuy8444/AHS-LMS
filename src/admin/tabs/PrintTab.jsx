@@ -29,6 +29,16 @@ export default function PrintTab() {
     return sub.fullName || '';
   };
 
+  const getRosterIndex = (sub) => {
+    if (!classRoster || classRoster.length === 0) return 999;
+    const idx = classRoster.findIndex(st => 
+      verifyStudentLms(st, sub.studentId) || 
+      String(st.studentId).trim() === String(sub.studentId).trim() ||
+      (st.fullName && sub.fullName && st.fullName.trim().toLowerCase() === sub.fullName.trim().toLowerCase())
+    );
+    return idx !== -1 ? idx : 999;
+  };
+
   // 1. Lọc và gom nhóm bài nộp ôn tập: Duy nhất (unique) 1 học sinh / 1 mã LMS trong lớp
   // Lấy kết quả cao nhất (bestScore), đếm tổng số lần làm (totalAttempts)
   const uniquePracticeSubs = useMemo(() => {
@@ -63,10 +73,16 @@ export default function PrintTab() {
         }
       }
     });
-    return Array.from(map.values()).sort((a, b) => (a.studentId || '').localeCompare(b.studentId || '', undefined, { numeric: true }));
-  }, [practiceSubs, printClass]);
+    return Array.from(map.values()).sort((a, b) => {
+      const posA = getRosterIndex(a);
+      const posB = getRosterIndex(b);
+      if (posA !== posB) return posA - posB;
+      return (a.studentId || '').localeCompare(b.studentId || '', undefined, { numeric: true });
+    });
+  }, [practiceSubs, printClass, classRoster]);
 
   // 2. Lọc và gom nhóm bài nộp thi chính thức: Duy nhất 1 học sinh / 1 mã LMS trong lớp
+  // Sắp xếp chính xác theo thứ tự STT sổ điểm / danh sách học sinh của lớp
   const uniqueExamSubs = useMemo(() => {
     const classSubs = (submissions || []).filter(s => s.studentClass === printClass);
     const map = new Map();
@@ -77,8 +93,13 @@ export default function PrintTab() {
         map.set(key, sub);
       }
     });
-    return Array.from(map.values()).sort((a, b) => (a.studentId || '').localeCompare(b.studentId || '', undefined, { numeric: true }));
-  }, [submissions, printClass]);
+    return Array.from(map.values()).sort((a, b) => {
+      const posA = getRosterIndex(a);
+      const posB = getRosterIndex(b);
+      if (posA !== posB) return posA - posB;
+      return (a.studentId || '').localeCompare(b.studentId || '', undefined, { numeric: true });
+    });
+  }, [submissions, printClass, classRoster]);
 
   // 3. Tự động đổi tên file xuất bản in / PDF theo cú pháp tên lớp của Asian School
   const handlePrint = () => {
@@ -248,9 +269,12 @@ export default function PrintTab() {
                     else if (finalScore >= 6.5) ranking = 'Khá';
                     else if (finalScore >= 5.0) ranking = 'Trung bình';
 
+                    const matchedRoster = classRoster.find(st => verifyStudentLms(st, sub.studentId) || String(st.studentId).trim() === String(sub.studentId).trim());
+                    const sttDisplay = matchedRoster?.stt || (idx + 1);
+
                     return (
                       <tr key={idx} className="text-slate-900">
-                        <td className="py-2 px-3 border-r border-slate-300 text-center font-mono-code">{idx + 1}</td>
+                        <td className="py-2 px-3 border-r border-slate-300 text-center font-mono-code font-bold">{sttDisplay}</td>
                         <td className="py-2 px-3 border-r border-slate-300 font-mono-code font-bold text-blue-900">{sub.studentId || '—'}</td>
                         <td className="py-2 px-3 border-r border-slate-300 font-bold">{getCanonicalName(sub)}</td>
                         <td className="py-2 px-3 border-r border-slate-300 text-center font-mono-code">{sub.examCode || '101'}</td>
@@ -324,9 +348,12 @@ export default function PrintTab() {
                     const pts = sub.bestScore !== undefined ? sub.bestScore : (sub.finalScore !== undefined ? sub.finalScore : (sub.score || 0));
                     const isPass = pts >= 6.0;
                     const attempts = sub.totalAttempts || sub.attemptNumber || 1;
+                    const matchedRoster = classRoster.find(st => verifyStudentLms(st, sub.studentId) || String(st.studentId).trim() === String(sub.studentId).trim());
+                    const sttDisplay = matchedRoster?.stt || (idx + 1);
+
                     return (
                       <tr key={idx} className="text-slate-900">
-                        <td className="py-2 px-3 border-r border-slate-300 text-center font-mono-code">{idx + 1}</td>
+                        <td className="py-2 px-3 border-r border-slate-300 text-center font-mono-code font-bold">{sttDisplay}</td>
                         <td className="py-2 px-3 border-r border-slate-300 font-mono-code font-bold text-blue-900">{sub.studentId || '—'}</td>
                         <td className="py-2 px-3 border-r border-slate-300 font-bold">{getCanonicalName(sub)}</td>
                         <td className="py-2 px-3 border-r border-slate-300 text-center font-mono-code font-bold text-amber-900">
