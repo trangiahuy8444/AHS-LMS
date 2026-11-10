@@ -21,16 +21,6 @@ export default function EntryScreen() {
   const classRoster = getStudentsByClass(studentClass);
   const matchedStudent = classRoster.find(s => s.fullName === fullName);
 
-  // Đảm bảo họ tên thuộc danh sách lớp hiện hành (tránh sót dữ liệu lưu của bạn ngồi trước ở máy tính phòng lab)
-  useEffect(() => {
-    if (!isManualName && classRoster.length > 0 && fullName) {
-      const exists = classRoster.some(s => s.fullName === fullName);
-      if (!exists) {
-        setFullName('');
-      }
-    }
-  }, [studentClass, grade, classRoster, isManualName, fullName, setFullName]);
-
   if (!(examState === 'entry')) return null;
 
   const examDurationMinutes = getExamDurationMinutes(config);
@@ -45,10 +35,6 @@ export default function EntryScreen() {
     const cleanStudentId = N ? N.normalizeLmsCode(studentId) : String(studentId || '').trim();
     if (!cleanFullName) {
       showDialog('Yêu Cầu Nhập Họ Tên', 'Vui lòng nhập đầy đủ Họ và tên học sinh trước khi bắt đầu!', 'warning');
-      return;
-    }
-    if (!isManualName && classRoster.length > 0 && !matchedStudent) {
-      showDialog('Chưa Chọn Tên', `Vui lòng chọn đúng tên của em trong danh sách Lớp ${studentClass} trước khi bắt đầu!`, 'warning');
       return;
     }
     if (!cleanStudentId) {

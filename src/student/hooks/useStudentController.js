@@ -258,14 +258,7 @@ export function useStudentController() {
   const currentOfficialExam = officialExam;
 
   // Cập nhật lớp & đề cương khi đổi khối
-  const isFirstGradeMount = useRef(true);
   useEffect(() => {
-    if (isFirstGradeMount.current) {
-      isFirstGradeMount.current = false;
-    } else {
-      setFullName('');
-      setStudentId('');
-    }
     if (CLASS_LISTS[grade] && !CLASS_LISTS[grade].includes(studentClass)) {
       setStudentClass(CLASS_LISTS[grade][0]);
     }
