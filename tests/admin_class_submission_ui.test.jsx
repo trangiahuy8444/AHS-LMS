@@ -8,13 +8,23 @@ vi.mock('../src/core/roster-data.js',()=>({ROSTER_BY_CLASS:{'9/21':[{studentId:'
 vi.mock('../src/admin/components/ClassGradingStatusBar.jsx',()=>({default:()=>null}));
 afterEach(cleanup);
 const submissions=[{studentClass:'9/21',grade:9,studentId:'1',mode:'exam'},{studentClass:'9/21',grade:9,studentId:'1',mode:'exam'}];
-it('keeps class totals and submitted counts visible after every student leaves the website',()=>{
+it('keeps class totals and submitted counts visible after every student leaves the website, never marks class finished when pupils remain unsubmitted',()=>{
  render(<AdminContext.Provider value={{liveSessions:[],liveFilter:'all',submissions,practiceSubs:[]}}><LiveSessionList/></AdminContext.Provider>);
  const summary=screen.getByLabelText('Tiến độ nộp bài lớp 9/21');
  expect(summary.textContent).toContain('Sĩ số: 2');
  expect(summary.textContent).toContain('Đã nộp thi: 1 / 2');
  expect(summary.textContent).toContain('Chưa nộp: 1');
  expect(screen.getByText(/Không có phiên trực tuyến/)).toBeTruthy();
+ expect(screen.queryByText(/ĐÃ THI XONG/)).toBeNull();
+});
+
+it('only marks class finished when 100% of the class roster has submitted and no pupil is actively taking the test',()=>{
+ const allDoneSubmissions = [
+   {studentClass:'9/21',grade:9,studentId:'1',mode:'exam'},
+   {studentClass:'9/21',grade:9,studentId:'2',mode:'exam'}
+ ];
+ render(<AdminContext.Provider value={{liveSessions:[],liveFilter:'all',submissions:allDoneSubmissions,practiceSubs:[]}}><LiveSessionList/></AdminContext.Provider>);
+ expect(screen.getByText(/ĐÃ THI XONG \(2\/2\)/)).toBeTruthy();
 });
 it('submission counts use all database rows, not the filtered table or search results, and update with new rows',()=>{
  const context={config:{},filterGrade:'9',filterClass:'9/21',filterMode:'all',filterGraded:'pending',searchQuery:'Không khớp tên',filteredSubmissions:[],submissions,practiceSubs:[],cloudStatus:{connected:true}};

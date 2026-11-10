@@ -1,8 +1,9 @@
 // Một học sinh có thể mở nhiều phiên; chỉ trạng thái mới nhất quyết định đang làm bài.
 // Nếu thí sinh đã nộp bài (có trong submissions) thì không tính là đang làm bài/đang thi.
-export function classAttendance(sessions, studentClass, roster, now = Date.now(), submissions = []) {
+export function classAttendance(sessions, studentClass, roster, now = Date.now(), submissions = [], timeoutMs = 180000) {
   const latest = new Map();
   const normalize = value => String(value || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  const cleanClass = s => String(s || '').trim().replace(/^lớp\s+/i, '');
   const aliases = new Map();
   for (const [index, student] of (roster || []).entries()) {
     for (const field of ['studentId','lmsCode','loginId','sisId','canvasUserId','legacyId']) {
@@ -17,7 +18,7 @@ export function classAttendance(sessions, studentClass, roster, now = Date.now()
   // Tập hợp các thí sinh đã nộp bài trong CSDL
   const submittedKeys = new Set();
   (submissions || []).forEach(sub => {
-    if (String(sub.studentClass || '').trim() !== studentClass) return;
+    if (cleanClass(sub.studentClass) !== cleanClass(studentClass)) return;
     if (sub.sessionId) submittedKeys.add(sub.sessionId);
     const subLms = normalize(sub.studentId);
     if (subLms) {
@@ -27,9 +28,13 @@ export function classAttendance(sessions, studentClass, roster, now = Date.now()
   });
 
   for (const session of sessions) {
-    if (session.studentClass !== studentClass) continue;
+    if (cleanClass(session.studentClass) !== cleanClass(studentClass)) continue;
+    const cleanName = String(session.fullName || '').trim().toLowerCase();
     const id = normalize(session.studentId || session.sessionId);
-    const key = aliases.get(id) || (/^\d+$/.test(id) ? aliases.get(id.replace(/^0+/, '')) : null) || id;
+    const rosterKey = aliases.get(id) || (/^\d+$/.test(id) ? aliases.get(id.replace(/^0+/, '')) : null);
+    const key = rosterKey
+      ? (cleanName ? `${rosterKey}|${cleanName}` : rosterKey)
+      : (cleanName ? `${id}|${cleanName}` : (id || session.sessionId));
     if (!latest.has(key) || Number(session.lastPing) > Number(latest.get(key).lastPing)) latest.set(key, session);
   }
 
@@ -41,7 +46,7 @@ export function classAttendance(sessions, studentClass, roster, now = Date.now()
     if (lms && submittedKeys.has(lms)) return false;
 
     return ['in_progress', 'practicing', 'locked'].includes(session.status) &&
-      Number(session.lastPing) > 0 && now - Number(session.lastPing) <= 180000;
+      Number(session.lastPing) > 0 && now - Number(session.lastPing) <= timeoutMs;
   }).map(([, session]) => session);
 
   return {

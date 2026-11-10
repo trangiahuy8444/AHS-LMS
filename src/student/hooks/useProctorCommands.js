@@ -18,8 +18,26 @@ export function useProctorCommands(s) {
     if (examState !== 'in_progress' || !sessionId) return;
     // Bỏ qua lệnh gửi trước khi mở phiên này (vd. "+5 phút cả phòng" cũ không cộng lại sau khi tải lại trang)
     const openedAt = Date.now() - 30 * 1000;
+    let lastHeartbeat = Date.now();
 
     const checkCommands = () => {
+      // Heartbeat định kỳ mỗi 30 giây để phiên thi của học sinh luôn 'active' liên tục trên bảng giám sát của Thầy
+      if (Date.now() - lastHeartbeat >= 30000) {
+        lastHeartbeat = Date.now();
+        if (window.AsianSchoolStorage && window.AsianSchoolStorage.updateLiveSession) {
+          window.AsianSchoolStorage.updateLiveSession({
+            sessionId,
+            fullName,
+            studentClass,
+            studentId,
+            grade,
+            mode,
+            examCode: assignedCode,
+            violations: violations || 0
+          });
+        }
+      }
+
       if (!window.AsianSchoolStorage) return;
       const pending = window.AsianSchoolStorage.getPendingProctorCommands(sessionId);
       pending.forEach(cmd => {

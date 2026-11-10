@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useStudent } from '../StudentContext.js';
+import { useStudentLanguage } from '../StudentLanguage.jsx';
 import ResultCard from '../result/ResultCard.jsx';
 import AnswerReview from '../result/AnswerReview.jsx';
 
 // 4. MÀN HÌNH KẾT QUẢ BÀI LÀM (CHUẨN TƯƠNG PHẢN, CHỤP ẢNH TÊN CHUẨN, MỞ ĐÁP ÁN TỰ LUẬN)
 export default function ResultScreen() {
+  const { t } = useStudentLanguage();
   const { mode, examState, scoreResult, isCapturing, handleCaptureScreenshot, handleRestartPractice,
     config, studentClass, handleReviewLookup } = useStudent();
   const [showExamReview, setShowExamReview] = useState(false);
@@ -24,8 +26,8 @@ export default function ResultScreen() {
     // Màn hình rộng: thẻ kết quả + nút ở cột trái (cố định trượt theo khi cuộn), xem lại bài làm ở cột phải
     <div className="result-workspace">
       <nav aria-label="Kết quả và bài làm" className="result-mobile-tabs">
-        <button type="button" aria-pressed={activePane==='summary'} onClick={()=>setActivePane('summary')}>Kết quả</button>
-        <button type="button" aria-pressed={activePane==='review'} onClick={()=>setActivePane('review')}>Bài làm</button>
+        <button type="button" aria-pressed={activePane==='summary'} onClick={()=>setActivePane('summary')}>{t('Kết quả')}</button>
+        <button type="button" aria-pressed={activePane==='review'} onClick={()=>setActivePane('review')}>{t('Bài làm')}</button>
       </nav>
       <div className="result-layout">
       <div className={`result-summary-pane ${activePane==='summary'?'active-pane':''}`}>
@@ -37,7 +39,7 @@ export default function ResultScreen() {
             disabled={isCapturing}
             className="px-5 sm:px-6 py-3 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-xs sm:text-sm rounded-2xl shadow-lg shadow-emerald-600/30 transition flex items-center space-x-2"
           >
-            <span>{isCapturing ? 'Đang tạo ảnh...' : 'CHỤP MÀN HÌNH KẾT QUẢ (NỘP LÊN LMS)'}</span>
+            <span>{isCapturing ? t('Đang tạo ảnh...') : t('CHỤP MÀN HÌNH KẾT QUẢ (NỘP LÊN LMS)')}</span>
           </button>
 
           {mode === 'practice' ? (
@@ -46,7 +48,7 @@ export default function ResultScreen() {
               onClick={handleRestartPractice}
               className="px-5 sm:px-6 py-3 bg-blue-700 hover:bg-blue-800 active:scale-95 text-white font-bold text-xs sm:text-sm rounded-2xl transition shadow-md flex items-center space-x-1.5"
             >
-              <span>Làm Lại Bài Ôn Tập</span>
+              <span>{t('Làm Lại Bài Ôn Tập')}</span>
             </button>
           ) : scoreResult?.isOfficialReview ? (
             <button
@@ -56,7 +58,7 @@ export default function ResultScreen() {
               }}
               className="px-5 sm:px-6 py-3 bg-indigo-700 hover:bg-indigo-800 active:scale-95 text-white font-bold text-xs sm:text-sm rounded-2xl transition shadow-md flex items-center space-x-1.5"
             >
-              <span>Về Trang Đăng Nhập</span>
+              <span>{t('Về Trang Đăng Nhập')}</span>
             </button>
           ) : (
             <button
@@ -64,7 +66,7 @@ export default function ResultScreen() {
               onClick={() => window.location.reload()}
               className="px-5 sm:px-6 py-3 bg-slate-800 hover:bg-slate-900 active:scale-95 text-white font-bold text-xs sm:text-sm rounded-2xl transition shadow-md flex items-center space-x-1.5"
             >
-              <span>Hoàn Tất Bài Thi</span>
+              <span>{t('Hoàn Tất Bài Thi')}</span>
             </button>
           )}
         </div>
@@ -88,11 +90,11 @@ export default function ResultScreen() {
             <div className="space-y-4">
               <div className="flex items-center justify-between bg-white p-4 rounded-2xl border-2 border-blue-200 shadow-sm">
                 <span className="text-xs font-black text-blue-950 uppercase flex items-center space-x-1.5">
-                  <span>ĐANG XEM CHI TIẾT BÀI THI & ĐỐI SOÁT CHỐT ĐIỂM</span>
+                  <span>{t('ĐANG XEM CHI TIẾT BÀI THI & ĐỐI SOÁT CHỐT ĐIỂM')}</span>
                 </span>
                 {scoreResult?.isOfficialReview ? (
                   <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-xl border border-indigo-200">
-                    Phòng khảo thí trực tuyến
+                    {t('Phòng khảo thí trực tuyến')}
                   </span>
                 ) : (
                   <button
@@ -100,7 +102,7 @@ export default function ResultScreen() {
                     onClick={() => setShowExamReview(false)}
                     className="text-xs text-slate-600 hover:text-slate-900 font-bold px-3 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-100 transition"
                   >
-                    Thu Gọn
+                    {t('Thu Gọn')}
                   </button>
                 )}
               </div>
@@ -109,17 +111,17 @@ export default function ResultScreen() {
           ) : (
             <div className="bg-white border-2 border-blue-200 rounded-3xl p-6 sm:p-8 space-y-4 shadow-sm text-center">
               <h3 className="text-base sm:text-lg font-black text-blue-950 uppercase">
-                Giáo Viên Đã Mở Quyền Xem Lại Bài Thi {studentClass ? `(Lớp ${studentClass})` : ''}
+                {language === 'en' ? `Exam Review Opened ${studentClass ? `(Class ${studentClass})` : ''}` : `Giáo Viên Đã Mở Quyền Xem Lại Bài Thi ${studentClass ? `(Lớp ${studentClass})` : ''}`}
               </h3>
               <p className="text-slate-600 text-xs sm:text-sm max-w-md mx-auto leading-relaxed font-medium">
-                Thầy đã mở chức năng đối soát bài làm. Em hãy mở xem lại toàn bộ câu hỏi và đáp án để chốt điểm số chính xác của mình.
+                {language === 'en' ? 'Review access is open. You can check questions and answers to confirm your official score.' : 'Thầy đã mở chức năng đối soát bài làm. Em hãy mở xem lại toàn bộ câu hỏi và đáp án để chốt điểm số chính xác của mình.'}
               </p>
               <button
                 type="button"
                 onClick={() => setShowExamReview(true)}
                 className="px-6 py-3.5 bg-[#0267B1] hover:bg-[#025694] active:scale-95 text-white font-black text-xs sm:text-sm rounded-2xl shadow-lg shadow-blue-700/30 transition inline-flex items-center space-x-2"
               >
-                <span>Xem Chi Tiết Bài Làm & Chốt Điểm</span>
+                <span>{language === 'en' ? 'Review Answers & Confirm Score' : 'Xem Chi Tiết Bài Làm & Chốt Điểm'}</span>
               </button>
             </div>
           )

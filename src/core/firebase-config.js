@@ -503,18 +503,37 @@
     return result;
   }
 
-  async function completedExamResult(attempt, attemptId) {
-    const subId = `${attemptId}_${attempt.attemptsUsed || 1}`;
+  async function completedExamResult(attempt, attemptId, currentUid) {
+    const key = lmsKey(attempt.studentId);
+    const grade = Number(attempt.grade);
+    const candidateSubIds = [
+      `${attemptId}_${attempt.attemptsUsed || 1}`,
+      `${attemptId}_1`,
+      `${attemptIdFor(grade, attempt.studentClass, key)}_${attempt.attemptsUsed || 1}`,
+      `${attemptIdFor(grade, attempt.studentClass, key)}_1`,
+      `${legacyAttemptIdFor(grade, key)}_${attempt.attemptsUsed || 1}`,
+      `${legacyAttemptIdFor(grade, key)}_1`
+    ];
     let submission = null;
-    try {
-      const snap = await db.collection('submissions').doc(subId).get({ source: 'server' });
-      if (snap.exists && !snap.metadata?.fromCache && !snap.metadata?.hasPendingWrites) {
-        const candidate = snap.data();
-        if (Number(candidate.grade) === Number(attempt.grade) && candidate.studentClass === attempt.studentClass
-          && lmsKey(candidate.studentId) === lmsKey(attempt.studentId)
-          && (!candidate.attemptId || candidate.attemptId === attemptId)) submission = candidate;
-      }
-    } catch (e) { /* Lượt đã nộp được máy chủ xác nhận; không bịa điểm khi chưa đọc được bài chi tiết. */ }
+    let foundSubId = candidateSubIds[0];
+    for (const candId of candidateSubIds) {
+      try {
+        const snap = await db.collection('submissions').doc(candId).get();
+        if (snap.exists) {
+          const candidate = snap.data();
+          if (Number(candidate.grade) === grade && lmsKey(candidate.studentId) === key) {
+            submission = candidate;
+            foundSubId = candId;
+            if (currentUid && candidate.uid !== currentUid) {
+              try {
+                await db.collection('submissions').doc(candId).update({ uid: currentUid });
+              } catch (eUp) { /* đã có rule isAttemptOwner bảo vệ */ }
+            }
+            break;
+          }
+        }
+      } catch (e) { /* thử candidate tiếp theo */ }
+    }
     const submittedAt = toMillis(attempt.submittedAt);
     return {
       completed: true, examCode: attempt.examCode,
@@ -523,8 +542,8 @@
         grade: attempt.grade, studentClass: attempt.studentClass, studentId: attempt.studentId,
         fullName: attempt.fullName, examCode: attempt.examCode, violations: attempt.violations || 0,
         submittedAt: submittedAt ? new Date(submittedAt).toISOString() : null, isGraded: false,
-        ...submissionReceiptFields(submission),
-        ...(submission ? { submissionId: subId, id: subId } : {})
+        submissionId: foundSubId, id: foundSubId,
+        ...submissionReceiptFields(submission)
       }
     };
   }
@@ -672,7 +691,7 @@
 
     const allowed = Number.isInteger(attempt.allowedAttempts) ? attempt.allowedAttempts : (cfg.maxExamAttempts || 1);
     if (attempt.submitted && attempt.attemptsUsed >= allowed) {
-      return completedExamResult(attempt, attemptId);
+      return completedExamResult(attempt, attemptId, uid);
     }
 
     if (attempt.submitted && attempt.locked) {

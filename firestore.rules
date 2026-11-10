@@ -236,6 +236,11 @@ service cloud.firestore {
         );
       }
 
+      function isAttemptOwner() {
+        let attemptPath = /databases/$(database)/documents/exam_attempts/$(resource.data.attemptId);
+        return signedIn() && exists(attemptPath) && get(attemptPath).data.uid == request.auth.uid;
+      }
+
       function validSubmission(d) {
         let a = attemptAfter(d.attemptId);
         return d.keys().hasOnly(['id', 'uid', 'attemptId', 'sessionId', 'fullName', 'studentClass', 'studentId',
@@ -268,11 +273,11 @@ service cloud.firestore {
           && d.sessionId is string && d.submittedAt is string
           && d.isGraded == false && d.essayScores == {} && d.essayTotal == 0 && d.teacherFeedback == '';
       }
-      allow read: if isTeacher() || (signedIn() && resource.data.uid == request.auth.uid) || canStudentReview();
+      allow read: if isTeacher() || (signedIn() && (resource.data.uid == request.auth.uid || isAttemptOwner())) || canStudentReview();
       allow create: if signedIn() && validSubmission(request.resource.data);
       allow update: if isTeacher() || (
         signedIn()
-        && (resource.data.uid == request.auth.uid || canStudentReview())
+        && (resource.data.uid == request.auth.uid || isAttemptOwner() || canStudentReview())
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['scoreConfirmed', 'scoreConfirmedAt'])
         && request.resource.data.scoreConfirmed == true
         && request.resource.data.scoreConfirmedAt == request.time

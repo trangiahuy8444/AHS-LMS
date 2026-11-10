@@ -97,6 +97,7 @@ export function useAdminController() {
   const [preventEarlySubmission, setPreventEarlySubmission] = useState(config.preventEarlySubmission !== false);
   const [minExamMinutes, setMinExamMinutes] = useState(config.minExamMinutes !== undefined ? config.minExamMinutes : 15);
   const [allowStudentReviewOfficialExam, setAllowStudentReviewOfficialExam] = useState(Boolean(config.allowStudentReviewOfficialExam));
+  const [reminderDurationSeconds, setReminderDurationSeconds] = useState(config.reminderDurationSeconds || 5);
 
   // Google Drive & Retention States
   const [googleDriveUrl, setGoogleDriveUrl] = useState(config.googleDriveWebhookUrl || '');
@@ -298,6 +299,8 @@ export function useAdminController() {
     setMinExamMinutes,
     allowStudentReviewOfficialExam,
     setAllowStudentReviewOfficialExam,
+    reminderDurationSeconds,
+    setReminderDurationSeconds,
     googleDriveUrl,
     setGoogleDriveUrl,
     googleDriveToken,

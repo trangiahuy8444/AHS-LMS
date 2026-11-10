@@ -62,14 +62,14 @@ export default function LiveSessionList({ query = '', classFilter = 'all', statu
           {Object.keys(classGroups).sort((a,b) => Number(classGroups[b].some(isLiveSessionLocked)) - Number(classGroups[a].some(isLiveSessionLocked)) || a.localeCompare(b,'vi',{numeric:true})).map(cls => {
           const visibleSessions = classGroups[cls];
           const sessionsInClass = modeSessions.filter(session => session.studentClass === cls);
-          const attendance = classAttendance(liveSessions, cls, getStudentsByClass(cls), now, savedRows);
+          const attendance = classAttendance(liveSessions, cls, getStudentsByClass(cls), now, savedRows, 15 * 60 * 1000);
           const { locked: lockedCount, exam: examCount, practice: practiceCount } = attendance;
           const progress = classSubmissionProgress(savedRows, cls, getStudentsByClass(cls), liveFilter === 'practice' ? 'practice' : 'exam');
           const totalExamDone = progress.submitted + (progress.unmatched || 0);
-          const isAllRosterSubmitted = progress.total !== null && (progress.submitted >= progress.total || (totalExamDone >= progress.total && (progress.missing === 0 || progress.missing === null)));
-          const isClassFinished = isAllRosterSubmitted
-            || (progress.total !== null && totalExamDone >= progress.total && attendance.active === 0)
-            || (progress.submitted > 0 && attendance.active === 0 && (sessionsInClass.length === 0 || sessionsInClass.every(s => s.status === 'submitted' || savedRows.some(row => (s.sessionId && row.sessionId === s.sessionId) || (s.studentId && row.studentId === s.studentId)))));
+          const isAllRosterSubmitted = progress.total !== null && progress.total > 0 && (progress.submitted >= progress.total || (totalExamDone >= progress.total && progress.missing === 0));
+          const isClassFinished = attendance.active === 0 && (
+            isAllRosterSubmitted || (progress.total === null && sessionsInClass.length > 0 && sessionsInClass.every(s => s.status === 'submitted' || savedRows.some(row => (s.sessionId && row.sessionId === s.sessionId) || (s.studentId && row.studentId === s.studentId))))
+          );
 
           return (
             <div key={cls} className="bg-white rounded-3xl border-2 border-slate-200 p-4 shadow-sm space-y-3">
@@ -85,13 +85,21 @@ export default function LiveSessionList({ query = '', classFilter = 'all', statu
                       </h3>
                       {isClassFinished ? (
                         <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-[11px] flex items-center space-x-1">
-                          <span>✅</span>
-                          <span>ĐÃ THI XONG ({progress.submitted}/{progress.total ?? progress.submitted})</span>
+                          <span>{liveFilter === 'practice' ? 'ĐÃ NỘP ĐỦ' : 'ĐÃ THI XONG'} ({progress.submitted}/{progress.total ?? progress.submitted})</span>
                         </span>
                       ) : attendance.active > 0 ? (
-                        <span className="px-2.5 py-0.5 rounded-full bg-red-100 text-red-800 border border-red-300 font-bold text-[11px] flex items-center space-x-1 animate-pulse">
-                          <span>🔴</span>
-                          <span>ĐANG THI ({attendance.active} em)</span>
+                        <span className={`px-2.5 py-0.5 rounded-full font-bold text-[11px] flex items-center space-x-1 animate-pulse border ${
+                          examCount > 0
+                            ? 'bg-red-100 text-red-800 border-red-300'
+                            : 'bg-purple-100 text-purple-800 border-purple-300'
+                        }`}>
+                          <span>
+                            {examCount > 0 && practiceCount > 0
+                              ? `ĐANG LÀM (${attendance.active} em)`
+                              : (examCount > 0
+                                  ? `ĐANG THI (${examCount} em)`
+                                  : `ĐANG ÔN TẬP (${practiceCount} em)`)}
+                          </span>
                         </span>
                       ) : null}
                     </div>
@@ -102,7 +110,7 @@ export default function LiveSessionList({ query = '', classFilter = 'all', statu
                       {' '}• Ôn tập: <span className="font-bold text-purple-600">{practiceCount}</span>
                       {lockedCount > 0 && (
                         <span className="ml-2 px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-bold text-[10px] border border-red-300">
-                          🚨 {lockedCount} em bị khóa
+                          {lockedCount} em bị khóa
                         </span>
                       )}
                     </p>
@@ -116,7 +124,6 @@ export default function LiveSessionList({ query = '', classFilter = 'all', statu
                     className="px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold border border-red-200 transition flex items-center space-x-1"
                     title={`Dọn dẹp toàn bộ thí sinh Lớp ${cls} khi chuyển sang ca thi lớp mới`}
                   >
-                    <span>🗑️</span>
                     <span>Xóa Lớp Này</span>
                   </button>
                   <button
@@ -127,7 +134,6 @@ export default function LiveSessionList({ query = '', classFilter = 'all', statu
                     }}
                     className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-800 text-xs font-bold border border-blue-200 transition flex items-center space-x-1"
                   >
-                    <span>⏱️</span>
                     <span>+5p Cả Lớp</span>
                   </button>
                   <button
@@ -139,7 +145,6 @@ export default function LiveSessionList({ query = '', classFilter = 'all', statu
                     }}
                     className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-200 transition flex items-center space-x-1"
                   >
-                    <span>📢</span>
                     <span>Nhắn Cả Lớp</span>
                   </button>
                 </div>
@@ -189,17 +194,17 @@ export default function LiveSessionList({ query = '', classFilter = 'all', statu
                                     : 'bg-emerald-100 text-emerald-900 border border-emerald-200'))
                         }`}>
                           {isLocked
-                            ? '🚨 BỊ KHÓA'
+                            ? 'BỊ KHÓA'
                             : (isSubmitted
                                 ? 'Đã nộp bài'
-                                : (isPractice ? '📖 Ôn tập' : '📝 Đang thi'))}
+                                : (isPractice ? 'Ôn tập' : 'Đang thi'))}
                         </span>
                       </div>
 
                       {isLocked && (
                         <div className="p-2.5 rounded-xl bg-red-100 border border-red-300 text-xs text-red-900 space-y-1.5">
                           <div className="font-black flex items-center justify-between">
-                            <span>⚠️ BỊ KHÓA TOÀN MÀN HÌNH</span>
+                            <span>BỊ KHÓA TOÀN MÀN HÌNH</span>
                             {session.violations >= 3 && <span className="text-red-700 font-extrabold bg-red-200 px-1 rounded">KHÓA</span>}
                           </div>
                           <div className="grid grid-cols-2 gap-1.5 pt-1">
@@ -209,7 +214,6 @@ export default function LiveSessionList({ query = '', classFilter = 'all', statu
                               className="py-1.5 px-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-lg text-[11px] shadow transition flex items-center justify-center space-x-1"
                               title="Mở khóa để học sinh tiếp tục làm bài đang dang dở"
                             >
-                              <span>🔓</span>
                               <span>MỞ KHÓA</span>
                             </button>
                             <button
@@ -218,7 +222,6 @@ export default function LiveSessionList({ query = '', classFilter = 'all', statu
                               className="py-1.5 px-1 bg-amber-600 hover:bg-amber-700 text-white font-extrabold rounded-lg text-[11px] shadow transition flex items-center justify-center space-x-1"
                               title="Xóa khóa trên máy chủ và cho học sinh thi lại từ đầu"
                             >
-                              <span>🔄</span>
                               <span>RESET LƯỢT</span>
                             </button>
                           </div>
@@ -294,7 +297,7 @@ export default function LiveSessionList({ query = '', classFilter = 'all', statu
                                       <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
                                         pViolations > 0 ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'text-slate-400'
                                       }`}>
-                                        {pViolations > 0 ? `⚠️ ${pViolations} VP` : '0 VP'}
+                                        {pViolations > 0 ? `${pViolations} VP` : '0 VP'}
                                       </span>
                                       <span className="text-slate-400 text-[10px] font-mono-code">
                                         {p.submittedAt ? new Date(p.submittedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : ''}
@@ -316,7 +319,7 @@ export default function LiveSessionList({ query = '', classFilter = 'all', statu
                                       <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
                                         subViolations > 0 ? 'bg-red-100 text-red-900 border border-red-300' : 'text-emerald-700'
                                       }`}>
-                                        {subViolations > 0 ? `⚠️ ${subViolations} VP` : '0 VP'}
+                                        {subViolations > 0 ? `${subViolations} VP` : '0 VP'}
                                       </span>
                                       <span className="text-emerald-600 text-[10px] font-mono-code">
                                         {sub.isGraded ? 'Đã chấm' : 'Chờ chấm'}
@@ -336,7 +339,7 @@ export default function LiveSessionList({ query = '', classFilter = 'all', statu
                           onClick={() => handleExtendTime(session.sessionId, session.fullName, 5)}
                           className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 transition text-center"
                         >
-                          ⏱️ +5 Phút
+                          +5 Phút
                         </button>
 
                         <button
@@ -348,13 +351,13 @@ export default function LiveSessionList({ query = '', classFilter = 'all', statu
                           }}
                           className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition text-center"
                         >
-                          ✉️ Nhắn
+                          Nhắn
                         </button>
 
                         {isLocked ? (
                           // Nút mở khóa nằm ở khung đỏ phía trên (chỉ một nút)
                           <span className="p-1.5 rounded-lg bg-red-50 text-red-700 border border-red-200 text-center">
-                            🔒 Đang khóa
+                            Đang khóa
                           </span>
                         ) : (
                           <button
@@ -362,7 +365,7 @@ export default function LiveSessionList({ query = '', classFilter = 'all', statu
                             onClick={() => handleLockSession(session.sessionId, session.fullName)}
                             className="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition text-center"
                           >
-                            🔒 Khóa
+                            Khóa
                           </button>
                         )}
 
@@ -371,7 +374,7 @@ export default function LiveSessionList({ query = '', classFilter = 'all', statu
                           onClick={() => handleForceSubmit(session.sessionId, session.fullName)}
                           className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 transition text-center"
                         >
-                          🛑 Thu Bài
+                          Thu Bài
                         </button>
 
                         <button
@@ -379,7 +382,6 @@ export default function LiveSessionList({ query = '', classFilter = 'all', statu
                           onClick={() => handleRemoveCandidate(session.sessionId, session.fullName)}
                           className="p-1.5 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 border border-red-300 transition text-center col-span-2 font-bold flex items-center justify-center space-x-1"
                         >
-                          <span>🗑️</span>
                           <span>Xóa Thí Sinh</span>
                         </button>
                       </div>

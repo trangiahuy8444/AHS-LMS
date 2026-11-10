@@ -69,6 +69,7 @@
     minExamMinutes: 15, // Thời gian tối thiểu (phút) được phép nộp bài thi
     allowStudentReviewOfficialExam: false, // Mặc định khóa xem lại chi tiết bài thi chính thức (toàn trường)
     classReviewControl: {}, // Điều khiển mở xem lại bài làm và chốt điểm theo từng lớp: { '8/19': true, '8/20': false, ... }
+    reminderDurationSeconds: 5, // Thời gian (giây) hiển thị nhắc nhở của giáo viên trên màn hình học sinh
     
     // Cấu hình Google Drive Webhook & Vòng đời lưu trữ (Retention)
     googleDriveWebhookUrl: '', // URL Web App Google Apps Script kết nối Google Drive / Sheets

@@ -8,6 +8,7 @@ export default function ExamTimingCard() {
     setShuffleOptions, requireAllQuestionsAnswered, setRequireAllQuestionsAnswered,
     lockOnExamViolation, setLockOnExamViolation, lockOnPracticeViolation, setLockOnPracticeViolation,
     preventEarlySubmission, setPreventEarlySubmission, minExamMinutes, setMinExamMinutes,
+    reminderDurationSeconds, setReminderDurationSeconds,
     handleSaveExamConfig } = useAdmin();
 
   return (
@@ -242,6 +243,47 @@ export default function ExamTimingCard() {
             </p>
           </div>
         )}
+
+        {/* Thời gian hiển thị thông báo nhắc nhở của giáo viên */}
+        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2 sm:col-span-2">
+          <div className="flex items-center justify-between">
+            <label className="block text-xs font-bold text-slate-700">
+              🔔 Thời Gian Hiển Thị Thông Báo Nhắc Nhở Học Sinh (Giây):
+            </label>
+            <span className="text-xs font-black text-blue-900 bg-blue-100 border border-blue-300 px-2.5 py-0.5 rounded-lg">
+              {reminderDurationSeconds || 5} giây
+            </span>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <input
+              type="number"
+              min={2}
+              max={60}
+              value={reminderDurationSeconds || 5}
+              onChange={e => setReminderDurationSeconds(Math.max(2, Math.min(60, Number(e.target.value) || 5)))}
+              className="w-28 bg-white border-2 border-slate-200 rounded-xl px-3.5 py-2 text-xs text-blue-950 font-bold focus:outline-none focus:border-blue-600"
+            />
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {[3, 5, 7, 10, 15].map(sec => (
+                <button
+                  key={sec}
+                  type="button"
+                  onClick={() => setReminderDurationSeconds(sec)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition border ${
+                    (reminderDurationSeconds || 5) === sec
+                      ? 'bg-blue-600 text-white border-blue-700 shadow-sm'
+                      : 'bg-white text-slate-700 border-slate-200 hover:border-blue-400'
+                  }`}
+                >
+                  {sec}s{sec === 5 ? ' (Mặc định)' : ''}
+                </button>
+              ))}
+            </div>
+          </div>
+          <p className="text-[11px] text-slate-500 italic">
+            Thời gian thông báo nhắc nhở hiển thị trên màn hình học sinh trước khi tự động ẩn.
+          </p>
+        </div>
       </div>
 
       <div className="pt-2 border-t border-slate-100 flex justify-end">

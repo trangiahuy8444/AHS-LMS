@@ -4,7 +4,7 @@ export function createSettingsActions(s) {
   const { setSubmissions, setConfig, setConfigSavedNotice, examPeriod, examDurationMinutes,
     practiceDurationMinutes, shuffleQuestions, shuffleOptions, requireAllQuestionsAnswered,
     lockOnExamViolation, lockOnPracticeViolation, preventEarlySubmission, minExamMinutes,
-    allowStudentReviewOfficialExam,
+    allowStudentReviewOfficialExam, reminderDurationSeconds,
     googleDriveUrl, googleDriveToken, setIsSyncingDrive, setDriveSyncNotice, setIsTestingDrive,
     setDriveTestMessage, setHasDownloadedBackup, showDialog } = s;
 
@@ -23,7 +23,8 @@ export function createSettingsActions(s) {
       lockOnPracticeViolation: !!lockOnPracticeViolation,
       preventEarlySubmission: preventEarlySubmission !== false,
       minExamMinutes: parseInt(minExamMinutes, 10) || 15,
-      allowStudentReviewOfficialExam: !!allowStudentReviewOfficialExam
+      allowStudentReviewOfficialExam: !!allowStudentReviewOfficialExam,
+      reminderDurationSeconds: parseInt(reminderDurationSeconds, 10) || 5
     });
     setConfig(updated);
     setConfigSavedNotice('Đã lưu cấu hình thời gian, quy chế và chế độ trộn đề thành công!');

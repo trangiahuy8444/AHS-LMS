@@ -2,9 +2,12 @@ import { sanitizeStudentFeedback, getEssayFeedbackForQuestion } from '../../shar
 import React from 'react';
 import { useStudent } from '../StudentContext.js';
 import { essayPresentation } from '../../shared/essayPresentation.js';
+import { useStudentLanguage } from '../StudentLanguage.jsx';
+import { questionForLanguage } from '../../shared/questionLanguage.js';
 
 // PHẦN ĐÁNH GIÁ ĐÚNG/SAI & MỞ ĐÁP ÁN TỰ LUẬN CHO HỌC SINH
 export default function AnswerReview() {
+  const { t, language } = useStudentLanguage();
   const { grade, mode, practiceAnswers, examAnswers, practiceQuestions, practiceTfQuestions,
     practiceEssayQuestions, currentOfficialExam, scoreResult, handleConfirmScore } = useStudent();
 
@@ -105,19 +108,19 @@ export default function AnswerReview() {
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-blue-200/80 pb-3">
             <div>
               <h3 className="font-black text-sm text-blue-950 uppercase">
-                ĐỐI SOÁT BÀI LÀM & XÁC NHẬN ĐIỂM SỐ CHÍNH THỨC
+                {t('ĐỐI SOÁT BÀI LÀM & XÁC NHẬN ĐIỂM SỐ CHÍNH THỨC')}
               </h3>
               <p className="text-xs text-slate-600 font-medium">
-                Em vui lòng kiểm tra kỹ lại toàn bộ bài làm trắc nghiệm và tự luận bên dưới trước khi bấm xác nhận chốt điểm.
+                {t('Em vui lòng kiểm tra kỹ lại toàn bộ bài làm trắc nghiệm và tự luận bên dưới trước khi bấm xác nhận chốt điểm.')}
               </p>
             </div>
             {scoreResult?.scoreConfirmed ? (
               <span className="px-3.5 py-1.5 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-sm flex items-center space-x-1.5">
-                <span>ĐÃ CHỐT ĐIỂM THÀNH CÔNG</span>
+                <span>{t('ĐÃ CHỐT ĐIỂM THÀNH CÔNG')}</span>
               </span>
             ) : (
               <span className="px-3.5 py-1.5 rounded-full text-xs font-black bg-amber-100 text-amber-900 border border-amber-300 shadow-sm flex items-center space-x-1.5">
-                <span>ĐANG CHỜ EM XÁC NHẬN</span>
+                <span>{t('ĐANG CHỜ EM XÁC NHẬN')}</span>
               </span>
             )}
           </div>
@@ -126,28 +129,28 @@ export default function AnswerReview() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
             <div className="bg-white p-3 rounded-2xl border border-blue-200 text-center">
               <span className="text-[11px] font-bold text-slate-500 uppercase block">
-                {Number(grade) === 10 ? 'Trắc Nghiệm & Đ/S' : 'Trắc Nghiệm'}
+                {t(Number(grade) === 10 ? 'Trắc Nghiệm & Đ/S' : 'Trắc Nghiệm')}
               </span>
               <span className="text-base sm:text-lg font-black text-blue-900">
-                {scoreResult?.mcqPoints !== undefined ? scoreResult.mcqPoints : (scoreResult?.score || 0)} đ
+                {scoreResult?.mcqPoints !== undefined ? scoreResult.mcqPoints : (scoreResult?.score || 0)} {language === 'en' ? 'pts' : 'đ'}
               </span>
             </div>
             <div className="bg-white p-3 rounded-2xl border border-blue-200 text-center">
-              <span className="text-[11px] font-bold text-slate-500 uppercase block">Tự Luận (Thầy Chấm)</span>
+              <span className="text-[11px] font-bold text-slate-500 uppercase block">{t('Tự Luận (Thầy Chấm)')}</span>
               <span className="text-base sm:text-lg font-black text-indigo-700">
-                {scoreResult?.essayTotal !== undefined ? `${scoreResult.essayTotal} đ` : (scoreResult?.isGraded ? '0 đ' : 'Chờ chấm')}
+                {scoreResult?.essayTotal !== undefined ? `${scoreResult.essayTotal} ${language === 'en' ? 'pts' : 'đ'}` : (scoreResult?.isGraded ? (language === 'en' ? '0 pts' : '0 đ') : (language === 'en' ? 'Pending' : 'Chờ chấm'))}
               </span>
             </div>
             <div className="bg-white p-3 rounded-2xl border border-blue-200 text-center">
-              <span className="text-[11px] font-bold text-slate-500 uppercase block">Tổng Điểm Bài Thi</span>
+              <span className="text-[11px] font-bold text-slate-500 uppercase block">{t('Tổng Điểm Bài Thi')}</span>
               <span className="text-base sm:text-lg font-black text-emerald-700">
-                {scoreResult?.finalScore !== undefined ? scoreResult.finalScore : scoreResult?.score} / 10 đ
+                {scoreResult?.finalScore !== undefined ? scoreResult.finalScore : scoreResult?.score} / 10 {language === 'en' ? 'pts' : 'đ'}
               </span>
             </div>
             <div className="bg-white p-3 rounded-2xl border border-blue-200 text-center">
-              <span className="text-[11px] font-bold text-slate-500 uppercase block">Số Câu Đúng</span>
+              <span className="text-[11px] font-bold text-slate-500 uppercase block">{t('Số Câu Đúng')}</span>
               <span className="text-base sm:text-lg font-black text-amber-700">
-                {correctCount} câu
+                {correctCount} {t('câu')}
               </span>
             </div>
           </div>
@@ -156,24 +159,28 @@ export default function AnswerReview() {
             <div className="p-4 bg-emerald-50 border-2 border-emerald-300 rounded-2xl text-emerald-950 text-xs font-bold flex items-center space-x-3">
               <div>
                 <p className="text-sm font-black text-emerald-900">
-                  EM ĐÃ XÁC NHẬN ĐIỂM SỐ CHÍNH XÁC
+                  {t('EM ĐÃ XÁC NHẬN ĐIỂM SỐ CHÍNH XÁC')}
                 </p>
                 <p className="text-[11px] text-emerald-800 font-normal mt-0.5">
-                  Thời điểm chốt: {new Date(scoreResult.scoreConfirmedAt || Date.now()).toLocaleString('vi-VN')}. Điểm số này đã được gửi lưu trữ chính thức vào sổ điểm của Thầy.
+                  {language === 'en'
+                    ? `Confirmed at: ${new Date(scoreResult.scoreConfirmedAt || Date.now()).toLocaleString('en-US')}. This score is officially recorded in the teacher's gradebook.`
+                    : `Thời điểm chốt: ${new Date(scoreResult.scoreConfirmedAt || Date.now()).toLocaleString('vi-VN')}. Điểm số này đã được gửi lưu trữ chính thức vào sổ điểm của Thầy.`}
                 </p>
               </div>
             </div>
           ) : (
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-white rounded-2xl border border-blue-200 shadow-sm">
               <p className="text-xs text-slate-700 leading-relaxed font-medium">
-                Em vui lòng xem kỹ từng câu hỏi trắc nghiệm (đúng/sai) và phần tự luận được chấm ở dưới. Nếu kết quả chính xác, hãy bấm nút xác nhận chốt điểm.
+                {language === 'en'
+                  ? 'Please review each question (multiple choice and written response) below carefully. If correct, click confirm.'
+                  : 'Em vui lòng xem kỹ từng câu hỏi trắc nghiệm (đúng/sai) và phần tự luận được chấm ở dưới. Nếu kết quả chính xác, hãy bấm nút xác nhận chốt điểm.'}
               </p>
               <button
                 type="button"
                 onClick={handleConfirmScore}
                 className="shrink-0 px-6 py-3 bg-[#0267B1] hover:bg-[#025694] active:scale-95 text-white font-black text-xs sm:text-sm rounded-2xl shadow-lg shadow-blue-700/30 transition flex items-center space-x-2"
               >
-                <span>XÁC NHẬN ĐIỂM SỐ CHÍNH XÁC</span>
+                <span>{t('XÁC NHẬN ĐIỂM SỐ CHÍNH XÁC')}</span>
               </button>
             </div>
           )}
@@ -185,29 +192,32 @@ export default function AnswerReview() {
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
             <h3 className="font-black text-base text-slate-900">
-              PHẦN I: CHI TIẾT TRẮC NGHIỆM ({examMcqList.length} câu • Mã Đề: {scoreResult?.examCode || currentOfficialExam?.code || '101'})
+              {language === 'en'
+                ? `PART I: MULTIPLE CHOICE DETAILS (${examMcqList.length} questions • Paper: ${scoreResult?.examCode || currentOfficialExam?.code || '101'})`
+                : `PHẦN I: CHI TIẾT TRẮC NGHIỆM (${examMcqList.length} câu • Mã Đề: ${scoreResult?.examCode || currentOfficialExam?.code || '101'})`}
             </h3>
             <span className="text-xs text-slate-500 font-semibold">
-              Ký hiệu: <span className="text-emerald-700 font-bold">Làm đúng</span> • <span className="text-rose-700 font-bold">Làm sai</span>
+              {t('Ký hiệu:')} <span className="text-emerald-700 font-bold">{t('Làm đúng')}</span> • <span className="text-rose-700 font-bold">{t('Làm sai')}</span>
             </span>
           </div>
 
-          {examMcqList.map((q, idx) => {
-            const userChoice = answers.mcq?.[q.num] !== undefined
-              ? answers.mcq[q.num]
-              : (answers.mcq?.[String(q.num)] !== undefined ? answers.mcq[String(q.num)] : scoreResult?.mcqResults?.[q.num]?.userChoice);
+          {examMcqList.map((rawQ, idx) => {
+            const q = questionForLanguage(rawQ, language);
+            const userChoice = answers.mcq?.[rawQ.num] !== undefined
+              ? answers.mcq[rawQ.num]
+              : (answers.mcq?.[String(rawQ.num)] !== undefined ? answers.mcq[String(rawQ.num)] : scoreResult?.mcqResults?.[rawQ.num]?.userChoice);
             const isAnswered = userChoice !== undefined && userChoice !== null;
             const letters = ['A', 'B', 'C', 'D'];
             const userLetter = isAnswered ? letters[userChoice] : null;
-            const mcqRes = scoreResult?.mcqResults?.[q.num] || scoreResult?.mcqResults?.[String(q.num)];
-            const hasKey = q.correctAnswer !== undefined || mcqRes !== undefined;
-            const correctAnsIdx = mcqRes?.correctAnswer !== undefined ? mcqRes.correctAnswer : q.correctAnswer;
+            const mcqRes = scoreResult?.mcqResults?.[rawQ.num] || scoreResult?.mcqResults?.[String(rawQ.num)];
+            const hasKey = rawQ.correctAnswer !== undefined || mcqRes !== undefined;
+            const correctAnsIdx = mcqRes?.correctAnswer !== undefined ? mcqRes.correctAnswer : rawQ.correctAnswer;
             const isCorrect = mcqRes ? mcqRes.isCorrect : (hasKey && isAnswered && userChoice === correctAnsIdx);
-            const ptsEarned = isCorrect ? (mcqRes?.pointsEarned || q.points || 0.25) : 0;
+            const ptsEarned = isCorrect ? (mcqRes?.pointsEarned || rawQ.points || 0.25) : 0;
 
             return (
               <div
-                key={q.num || idx}
+                key={rawQ.num || idx}
                 className={`p-5 rounded-2xl border-2 shadow-sm space-y-3 transition ${
                   hasKey
                     ? (isCorrect
@@ -219,9 +229,9 @@ export default function AnswerReview() {
                 <div className="flex items-center justify-between">
                   <span className="font-black text-xs text-slate-600 uppercase flex items-center space-x-2">
                     <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-300 text-slate-700 font-mono-code font-bold">
-                      Câu {q.num || (idx + 1)}
+                      {language === 'en' ? `Question ${rawQ.num || (idx + 1)}` : `Câu ${rawQ.num || (idx + 1)}`}
                     </span>
-                    {q.pointsText && <span className="text-slate-400 font-normal">({q.pointsText})</span>}
+                    {rawQ.pointsText && <span className="text-slate-400 font-normal">({language === 'en' ? `${ptsEarned || 0.25} pts` : rawQ.pointsText})</span>}
                   </span>
                   <span
                     className={`px-3 py-1 rounded-full text-xs font-black shadow-sm ${
@@ -235,10 +245,12 @@ export default function AnswerReview() {
                     }`}
                   >
                     {!isAnswered
-                      ? '— Chưa làm (0đ)'
+                      ? (language === 'en' ? '— Unanswered (0 pts)' : '— Chưa làm (0đ)')
                       : hasKey
-                        ? (isCorrect ? `LÀM ĐÚNG (+${ptsEarned}đ)` : `LÀM SAI (0đ) • Em chọn ${userLetter}`)
-                        : `Đã chọn: ${userLetter}`}
+                        ? (isCorrect
+                            ? (language === 'en' ? `CORRECT (+${ptsEarned} pts)` : `LÀM ĐÚNG (+${ptsEarned}đ)`)
+                            : (language === 'en' ? `INCORRECT (0 pts) • You chose ${userLetter}` : `LÀM SAI (0đ) • Em chọn ${userLetter}`))
+                        : (language === 'en' ? `Selected: ${userLetter}` : `Đã chọn: ${userLetter}`)}
                   </span>
                 </div>
 
@@ -256,15 +268,15 @@ export default function AnswerReview() {
 
                     if (isUserSelected && isCorrectOption) {
                       optStyle = 'bg-emerald-50 border-emerald-500 text-emerald-950 font-bold ring-2 ring-emerald-500/30';
-                      badgeText = 'Em chọn ĐÚNG';
+                      badgeText = language === 'en' ? 'Your choice: CORRECT' : 'Em chọn ĐÚNG';
                       badgeStyle = 'text-emerald-800 bg-emerald-100 border-emerald-300';
                     } else if (isUserSelected && !isCorrectOption) {
                       optStyle = 'bg-rose-50 border-rose-400 text-rose-950 font-bold ring-2 ring-rose-500/20';
-                      badgeText = 'Em đã chọn (Sai)';
+                      badgeText = language === 'en' ? 'Your choice (Incorrect)' : 'Em đã chọn (Sai)';
                       badgeStyle = 'text-rose-800 bg-rose-100 border-rose-300';
                     } else if (!isUserSelected && isCorrectOption) {
                       optStyle = 'bg-emerald-50/70 border-emerald-400 text-emerald-900 font-bold border-dashed';
-                      badgeText = 'Đáp án đúng';
+                      badgeText = language === 'en' ? 'Correct answer' : 'Đáp án đúng';
                       badgeStyle = 'text-emerald-800 bg-emerald-100 border-emerald-300';
                     }
 
@@ -301,75 +313,94 @@ export default function AnswerReview() {
         <div className="space-y-4 pt-4">
           <div className="flex items-center justify-between border-b border-slate-200 pb-3">
             <h3 className="font-black text-base text-slate-900">
-              PHẦN II: CHI TIẾT TRẮC NGHIỆM ĐÚNG / SAI ({examTfList.length} câu)
+              {language === 'en' ? `PART II: TRUE / FALSE DETAILS (${examTfList.length} questions)` : `PHẦN II: CHI TIẾT TRẮC NGHIỆM ĐÚNG / SAI (${examTfList.length} câu)`}
             </h3>
             <span className="text-xs text-slate-500 font-semibold">
-              Mỗi ý đúng: +0.25đ • Tối đa 1.0đ/câu
+              {language === 'en' ? 'Each correct statement: +0.25 pts • Max 1.0 pt/question' : 'Mỗi ý đúng: +0.25đ • Tối đa 1.0đ/câu'}
             </span>
           </div>
 
-          {examTfList.map((tf) => (
-            <div key={tf.num} className="p-5 rounded-2xl bg-white border-2 border-slate-200 shadow-sm space-y-3">
-              <span className="font-black text-xs text-purple-800 uppercase">
-                Câu {tf.num} (Đúng / Sai)
-              </span>
-              <p className="font-bold text-slate-900 text-sm whitespace-pre-line">
-                {tf.context}
-              </p>
+          {examTfList.map((rawTf) => {
+            const tf = questionForLanguage(rawTf, language);
+            return (
+              <div key={rawTf.num} className="p-5 rounded-2xl bg-white border-2 border-slate-200 shadow-sm space-y-3">
+                <span className="font-black text-xs text-purple-800 uppercase">
+                  {language === 'en' ? `Question ${rawTf.num} (True / False)` : `Câu ${rawTf.num} (Đúng / Sai)`}
+                </span>
+                <p className="font-bold text-slate-900 text-sm whitespace-pre-line">
+                  {tf.context}
+                </p>
 
-              <div className="space-y-2 pt-1">
-                {(tf.subQuestions || []).map(sub => {
-                  const userVal = answers.tf?.[tf.num]?.[sub.letter] ?? answers.tf?.[String(tf.num)]?.[sub.letter] ?? scoreResult?.tfResults?.[tf.num]?.subResults?.[sub.letter]?.userChoice;
-                  const isAns = userVal !== undefined && userVal !== null;
-                  const tfRes = scoreResult?.tfResults?.[tf.num]?.subResults?.[sub.letter] || scoreResult?.tfResults?.[String(tf.num)]?.subResults?.[sub.letter];
-                  const hasSubKey = sub.correctAnswer !== undefined || tfRes !== undefined;
-                  const correctSubVal = tfRes?.correctAnswer !== undefined ? tfRes.correctAnswer : sub.correctAnswer;
-                  const isSubCorrect = tfRes ? tfRes.isCorrect : (hasSubKey && userVal === correctSubVal);
+                <div className="space-y-2 pt-1">
+                  {(tf.subQuestions || []).map(sub => {
+                    const userVal = answers.tf?.[rawTf.num]?.[sub.letter] ?? answers.tf?.[String(rawTf.num)]?.[sub.letter] ?? scoreResult?.tfResults?.[rawTf.num]?.subResults?.[sub.letter]?.userChoice;
+                    const isAns = userVal !== undefined && userVal !== null;
+                    const tfRes = scoreResult?.tfResults?.[rawTf.num]?.subResults?.[sub.letter] || scoreResult?.tfResults?.[String(rawTf.num)]?.subResults?.[sub.letter];
+                    const hasSubKey = sub.correctAnswer !== undefined || tfRes !== undefined;
+                    const correctSubVal = tfRes?.correctAnswer !== undefined ? tfRes.correctAnswer : sub.correctAnswer;
+                    const isSubCorrect = tfRes ? tfRes.isCorrect : (hasSubKey && userVal === correctSubVal);
 
-                  return (
-                    <div
-                      key={sub.letter}
-                      className={`p-3.5 rounded-xl border-2 text-xs sm:text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2 transition ${
-                        !isAns
-                          ? 'bg-slate-50 border-slate-200 text-slate-700'
-                          : hasSubKey
-                            ? (isSubCorrect ? 'bg-emerald-50 border-emerald-300 text-emerald-950 font-bold' : 'bg-rose-50 border-rose-300 text-rose-950 font-bold')
-                            : 'bg-blue-50 border-blue-300 text-blue-950 font-bold'
-                      }`}
-                    >
-                      <span className="leading-relaxed"><strong>{sub.letter})</strong> {sub.text}</span>
-                      <div className="shrink-0 flex items-center space-x-2">
-                        <span className={`px-2.5 py-1 rounded text-xs font-black ${
+                    return (
+                      <div
+                        key={sub.letter}
+                        className={`p-3.5 rounded-xl border-2 text-xs sm:text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2 transition ${
                           !isAns
-                            ? 'bg-slate-200 text-slate-700'
+                            ? 'bg-slate-50 border-slate-200 text-slate-700'
                             : hasSubKey
-                              ? (isSubCorrect ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white')
-                              : 'bg-blue-600 text-white'
-                        }`}>
-                          {isAns ? (userVal ? 'Em chọn: ĐÚNG' : 'Em chọn: SAI') : 'Chưa làm'}
-                        </span>
-                        {isAns && hasSubKey && (
-                          <span className={`text-[11px] font-extrabold px-2 py-0.5 rounded border ${
-                            isSubCorrect ? 'bg-emerald-100 text-emerald-900 border-emerald-300' : 'bg-rose-100 text-rose-900 border-rose-300'
+                              ? (isSubCorrect ? 'bg-emerald-50 border-emerald-300 text-emerald-950 font-bold' : 'bg-rose-50 border-rose-300 text-rose-950 font-bold')
+                              : 'bg-blue-50 border-blue-300 text-blue-950 font-bold'
+                        }`}
+                      >
+                        <span className="leading-relaxed"><strong>{sub.letter})</strong> {sub.text}</span>
+                        <div className="shrink-0 flex items-center space-x-2">
+                          <span className={`px-2.5 py-1 rounded text-xs font-black ${
+                            !isAns
+                              ? 'bg-slate-200 text-slate-700'
+                              : hasSubKey
+                                ? (isSubCorrect ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white')
+                                : 'bg-blue-600 text-white'
                           }`}>
-                            {isSubCorrect ? 'Đúng (+0.25đ)' : `Sai (Đáp án: ${correctSubVal ? 'ĐÚNG' : 'SAI'})`}
+                            {isAns
+                              ? (userVal ? (language === 'en' ? 'You chose: TRUE' : 'Em chọn: ĐÚNG') : (language === 'en' ? 'You chose: FALSE' : 'Em chọn: SAI'))
+                              : (language === 'en' ? 'Unanswered' : 'Chưa làm')}
                           </span>
-                        )}
+                          {isAns && hasSubKey && (
+                            <span className={`text-[11px] font-extrabold px-2 py-0.5 rounded border ${
+                              isSubCorrect ? 'bg-emerald-100 text-emerald-900 border-emerald-300' : 'bg-rose-100 text-rose-900 border-rose-300'
+                            }`}>
+                              {isSubCorrect
+                                ? (language === 'en' ? 'Correct (+0.25 pts)' : 'Đúng (+0.25đ)')
+                                : (language === 'en' ? `Incorrect (Answer: ${correctSubVal ? 'TRUE' : 'FALSE'})` : `Sai (Đáp án: ${correctSubVal ? 'ĐÚNG' : 'SAI'})`)}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
       {/* PHẦN LUYỆN TẬP ĐỀ CƯƠNG (PRACTICE MODE) */}
       {mode === 'practice' && (
         <div className="p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl text-xs text-amber-950 font-semibold space-y-1">
-          <p><strong>Ghi chú sư phạm:</strong> Đối với phần trắc nghiệm, hệ thống chỉ thông báo câu nào em làm <strong>ĐÚNG</strong> hoặc <strong>SAI</strong> để em tự tra cứu lại tài liệu.</p>
-          <p>Đối với <strong>Phần Tự Luận</strong>, hệ thống đã mở toàn bộ <strong>Hướng dẫn trả lời & Thang điểm chấm (Rubric LMS)</strong> ở phía dưới để em đối chiếu!</p>
+          <p>
+            {language === 'en' ? (
+              <><strong>Pedagogical note:</strong> For multiple choice, the system only indicates whether each question is <strong>CORRECT</strong> or <strong>INCORRECT</strong> so you can review course materials.</>
+            ) : (
+              <><strong>Ghi chú sư phạm:</strong> Đối với phần trắc nghiệm, hệ thống chỉ thông báo câu nào em làm <strong>ĐÚNG</strong> hoặc <strong>SAI</strong> để em tự tra cứu lại tài liệu.</>
+            )}
+          </p>
+          <p>
+            {language === 'en' ? (
+              <>For the <strong>Written Response</strong> section, the full <strong>Study Guide & Rubric</strong> is provided below for your reference!</>
+            ) : (
+              <>Đối với <strong>Phần Tự Luận</strong>, hệ thống đã mở toàn bộ <strong>Hướng dẫn trả lời & Thang điểm chấm (Rubric LMS)</strong> ở phía dưới để em đối chiếu!</>
+            )}
+          </p>
         </div>
       )}
 
@@ -377,18 +408,19 @@ export default function AnswerReview() {
       {mode === 'practice' && (
         <div className="space-y-4">
           <h3 className="font-black text-base text-slate-900">
-            Kết Quả Đánh Giá Từng Câu Trắc Nghiệm
+            {t('Kết Quả Đánh Giá Từng Câu Trắc Nghiệm')}
           </h3>
 
-          {practiceQuestions.map((q, idx) => {
-            const userChoice = practiceAnswers.mcq[q.id];
+          {practiceQuestions.map((rawQ, idx) => {
+            const q = questionForLanguage(rawQ, language);
+            const userChoice = practiceAnswers.mcq[rawQ.id];
             const isAnswered = userChoice !== undefined;
-            const isCorrect = userChoice === q.correctAnswer;
+            const isCorrect = userChoice === rawQ.correctAnswer;
             const userLetter = isAnswered ? ['A', 'B', 'C', 'D'][userChoice] : null;
 
             return (
               <div
-                key={q.id}
+                key={rawQ.id}
                 className={`p-5 rounded-2xl border-2 shadow-sm space-y-2.5 transition ${
                   !isAnswered
                     ? 'bg-slate-50 border-slate-200 text-slate-800'
@@ -397,7 +429,7 @@ export default function AnswerReview() {
               >
                 <div className="flex items-center justify-between">
                   <span className="font-black text-xs text-slate-600 uppercase">
-                    Câu {idx + 1}
+                    {language === 'en' ? `Question ${idx + 1}` : `Câu ${idx + 1}`}
                   </span>
                   <span
                     className={`px-3 py-1 rounded-full text-xs font-black ${
@@ -406,7 +438,7 @@ export default function AnswerReview() {
                         : (isCorrect ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white')
                     }`}
                   >
-                    {!isAnswered ? '— Chưa làm' : (isCorrect ? 'Bạn làm ĐÚNG' : 'Bạn làm SAI')}
+                    {!isAnswered ? (language === 'en' ? '— Unanswered' : '— Chưa làm') : (isCorrect ? (language === 'en' ? 'You are CORRECT' : 'Bạn làm ĐÚNG') : (language === 'en' ? 'You are INCORRECT' : 'Bạn làm SAI'))}
                   </span>
                 </div>
 
@@ -414,7 +446,7 @@ export default function AnswerReview() {
 
                 {/* Hiển thị đầy đủ 4 phương án A, B, C, D */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
-                  {q.options.map((optText, optIdx) => {
+                  {(q.options || []).map((optText, optIdx) => {
                     const letter = ['A', 'B', 'C', 'D'][optIdx];
                     const isUserSelected = userChoice === optIdx;
 
@@ -428,7 +460,7 @@ export default function AnswerReview() {
                         badgeClass = "bg-emerald-600 text-white border-emerald-600";
                         tagBadge = (
                           <span className="shrink-0 text-[11px] font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300">
-                            Em đã chọn
+                            {language === 'en' ? 'Your choice' : 'Em đã chọn'}
                           </span>
                         );
                       } else {
@@ -436,7 +468,7 @@ export default function AnswerReview() {
                         badgeClass = "bg-rose-600 text-white border-rose-600";
                         tagBadge = (
                           <span className="shrink-0 text-[11px] font-black text-rose-700 bg-rose-100 px-2 py-0.5 rounded border border-rose-300">
-                            Em đã chọn
+                            {language === 'en' ? 'Your choice' : 'Em đã chọn'}
                           </span>
                         );
                       }
@@ -460,10 +492,12 @@ export default function AnswerReview() {
                 <div className="pt-2 text-xs">
                   {isAnswered ? (
                     <p className={`font-semibold ${isCorrect ? 'text-emerald-800' : 'text-rose-800'}`}>
-                      Phương án em đã chọn: <strong>{userLetter}. {q.options[userChoice]}</strong> {isCorrect ? '(Chính xác ✓)' : '(Chưa chính xác ✕ — Hãy đọc lại lý thuyết để tìm ra phương án đúng)'}
+                      {language === 'en'
+                        ? <>Your selected option: <strong>{userLetter}. {q.options[userChoice]}</strong> {isCorrect ? '(Correct ✓)' : '(Incorrect ✕ — Review course materials to find the correct answer)'}</>
+                        : <>Phương án em đã chọn: <strong>{userLetter}. {q.options[userChoice]}</strong> {isCorrect ? '(Chính xác ✓)' : '(Chưa chính xác ✕ — Hãy đọc lại lý thuyết để tìm ra phương án đúng)'}</>}
                     </p>
                   ) : (
-                    <p className="text-slate-500 italic font-medium">Em chưa chọn đáp án cho câu hỏi này.</p>
+                    <p className="text-slate-500 italic font-medium">{t('Em chưa chọn đáp án cho câu hỏi này.')}</p>
                   )}
                 </div>
               </div>
@@ -475,47 +509,49 @@ export default function AnswerReview() {
       {/* 2. Đánh giá Đúng/Sai (Khối 10 Practice) */}
       {mode === 'practice' && grade === 10 && practiceTfQuestions.length > 0 && (
         <div className="space-y-4 pt-4">
-          <h3 className="font-black text-base text-slate-900 flex items-center space-x-2">
-            <span>⚖️</span>
-            <span>Kết Quả Đánh Giá Phần Đúng / Sai</span>
+          <h3 className="font-black text-base text-slate-900">
+            {t('Kết Quả Đánh Giá Phần Đúng / Sai')}
           </h3>
 
-          {practiceTfQuestions.map((tf) => (
-            <div key={tf.num} className="p-5 rounded-2xl bg-white border-2 border-slate-200 shadow-sm space-y-3">
-              <span className="font-black text-xs text-purple-800 uppercase">
-                Câu {tf.num} (Đúng / Sai)
-              </span>
-              <p className="font-bold text-slate-900 text-sm whitespace-pre-line">
-                {tf.context}
-              </p>
+          {practiceTfQuestions.map((rawTf) => {
+            const tf = questionForLanguage(rawTf, language);
+            return (
+              <div key={rawTf.num} className="p-5 rounded-2xl bg-white border-2 border-slate-200 shadow-sm space-y-3">
+                <span className="font-black text-xs text-purple-800 uppercase">
+                  {language === 'en' ? `Question ${rawTf.num} (True / False)` : `Câu ${rawTf.num} (Đúng / Sai)`}
+                </span>
+                <p className="font-bold text-slate-900 text-sm whitespace-pre-line">
+                  {tf.context}
+                </p>
 
-              <div className="space-y-2 pt-1">
-                {tf.subQuestions.map(sub => {
-                  const userVal = practiceAnswers.tf[tf.num]?.[sub.letter];
-                  const isAns = userVal !== undefined;
-                  const isSubCorrect = userVal === sub.correctAnswer;
-                  return (
-                    <div
-                      key={sub.letter}
-                      className={`p-3 rounded-xl border-2 text-xs flex items-center justify-between ${
-                        !isAns
-                          ? 'bg-slate-50 border-slate-200 text-slate-700'
-                          : (isSubCorrect ? 'bg-emerald-50 border-emerald-300 text-emerald-950 font-bold' : 'bg-rose-50 border-rose-300 text-rose-950 font-bold')
-                      }`}
-                    >
-                      <span><strong>{sub.letter})</strong> {sub.text}</span>
-                      <span className={`px-2 py-0.5 rounded text-[11px] font-black ${
-                        !isAns ? 'bg-slate-200 text-slate-700' : (isSubCorrect ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white')
-                      }`}>
-                        {isAns ? (userVal ? 'Chọn ĐÚNG' : 'Chọn SAI') : 'Chưa làm'}
-                        {isAns && (isSubCorrect ? ' (✓ ĐÚNG)' : ' (✕ SAI)')}
-                      </span>
-                    </div>
-                  );
-                })}
+                <div className="space-y-2 pt-1">
+                  {(tf.subQuestions || []).map(sub => {
+                    const userVal = practiceAnswers.tf[rawTf.num]?.[sub.letter];
+                    const isAns = userVal !== undefined;
+                    const isSubCorrect = userVal === sub.correctAnswer;
+                    return (
+                      <div
+                        key={sub.letter}
+                        className={`p-3 rounded-xl border-2 text-xs flex items-center justify-between ${
+                          !isAns
+                            ? 'bg-slate-50 border-slate-200 text-slate-700'
+                            : (isSubCorrect ? 'bg-emerald-50 border-emerald-300 text-emerald-950 font-bold' : 'bg-rose-50 border-rose-300 text-rose-950 font-bold')
+                        }`}
+                      >
+                        <span><strong>{sub.letter})</strong> {sub.text}</span>
+                        <span className={`px-2 py-0.5 rounded text-[11px] font-black ${
+                          !isAns ? 'bg-slate-200 text-slate-700' : (isSubCorrect ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white')
+                        }`}>
+                          {isAns ? (userVal ? (language === 'en' ? 'Chose TRUE' : 'Chọn ĐÚNG') : (language === 'en' ? 'Chose FALSE' : 'Chọn SAI')) : (language === 'en' ? 'Unanswered' : 'Chưa làm')}
+                          {isAns && (isSubCorrect ? ' (✓)' : ' (✕)')}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -524,34 +560,41 @@ export default function AnswerReview() {
         <div className="space-y-4 pt-4">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
             <h3 className="font-black text-base text-slate-900">
-              {examTfList.length > 0 ? 'PHẦN III' : 'PHẦN II'}: CHI TIẾT PHẦN TỰ LUẬN ({examEssayList.length} câu)
+              {language === 'en'
+                ? `${examTfList.length > 0 ? 'PART III' : 'PART II'}: WRITTEN RESPONSE DETAILS (${examEssayList.length} questions)`
+                : `${examTfList.length > 0 ? 'PHẦN III' : 'PHẦN II'}: CHI TIẾT PHẦN TỰ LUẬN (${examEssayList.length} câu)`}
             </h3>
             <span className="px-3 py-1 rounded-full text-xs font-black bg-indigo-100 text-indigo-900 border border-indigo-200">
-              {Number(grade) === 10 ? 'Thang điểm: 2,25 điểm (0,75đ / câu)' : 'Thang điểm: 3,0 điểm (1,0đ / câu)'}
+              {language === 'en'
+                ? (Number(grade) === 10 ? 'Scale: 2.25 pts (0.75 pts / question)' : 'Scale: 3.0 pts (1.0 pt / question)')
+                : (Number(grade) === 10 ? 'Thang điểm: 2,25 điểm (0,75đ / câu)' : 'Thang điểm: 3,0 điểm (1,0đ / câu)')}
             </span>
           </div>
 
-          {examEssayList.map((eq) => {
+          {examEssayList.map((rawEq) => {
+            const eq = questionForLanguage(rawEq, language);
             const { stem, subItems } = essayPresentation(eq);
             const studentAnswer = (mode === 'practice'
-              ? practiceAnswers?.essay?.[eq.num]
-              : (answers.essay?.[eq.num] ?? answers.essay?.[String(eq.num)] ?? '')) || '';
-            const essayScore = scoreResult?.essayScores?.[eq.num] ?? scoreResult?.essayScores?.[String(eq.num)];
-            const maxPoints = Math.round((Number(eq.points) || parseFloat(String(eq.pointsText || '').replace(/[^\d.,]/g, '').replace(',', '.')) || (Number(grade) === 10 ? 0.75 : 1.0)) * 100) / 100;
-            const pointsLabel = eq.pointsText || `${maxPoints.toString().replace('.', ',')} điểm`;
-            const questionFeedback = getEssayFeedbackForQuestion(scoreResult?.teacherFeedback, eq.num);
+              ? practiceAnswers?.essay?.[rawEq.num]
+              : (answers.essay?.[rawEq.num] ?? answers.essay?.[String(rawEq.num)] ?? '')) || '';
+            const essayScore = scoreResult?.essayScores?.[rawEq.num] ?? scoreResult?.essayScores?.[String(rawEq.num)];
+            const maxPoints = Math.round((Number(rawEq.points) || parseFloat(String(rawEq.pointsText || '').replace(/[^\d.,]/g, '').replace(',', '.')) || (Number(grade) === 10 ? 0.75 : 1.0)) * 100) / 100;
+            const pointsLabel = rawEq.pointsText || `${maxPoints.toString().replace('.', ',')} điểm`;
+            const questionFeedback = getEssayFeedbackForQuestion(scoreResult?.teacherFeedback, rawEq.num);
             const isGraded = scoreResult?.isGraded || essayScore !== undefined;
             const hasDeduction = isGraded && Number(essayScore) < maxPoints;
             const feedbackText = questionFeedback || (hasDeduction ? (sanitizeStudentFeedback(scoreResult?.teacherFeedback) || '') : '');
 
             return (
-              <div key={eq.num} className="bg-white border-2 border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
+              <div key={rawEq.num} className="bg-white border-2 border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                   <span className="font-black text-sm text-indigo-900 uppercase">
-                    Câu {eq.num} (Tự luận) — {isGraded ? `${essayScore !== undefined ? essayScore : 0} / ${maxPoints} điểm` : pointsLabel}
+                    {language === 'en'
+                      ? `Question ${rawEq.num} (Written response) — ${isGraded ? `${essayScore !== undefined ? essayScore : 0} / ${maxPoints} pts` : `${maxPoints} pts`}`
+                      : `Câu ${rawEq.num} (Tự luận) — ${isGraded ? `${essayScore !== undefined ? essayScore : 0} / ${maxPoints} điểm` : pointsLabel}`}
                   </span>
                   <span className="text-xs text-slate-500 font-bold">
-                    {studentAnswer.trim() ? 'Đã làm bài' : 'Chưa nhập bài làm'}
+                    {studentAnswer.trim() ? t('Đã làm bài') : t('Chưa nhập bài làm')}
                   </span>
                 </div>
 
@@ -562,11 +605,11 @@ export default function AnswerReview() {
                 {subItems.length > 0 && (
                   <div className="space-y-2 bg-indigo-50/60 p-4 rounded-2xl border border-indigo-200 text-xs sm:text-sm">
                     <span className="font-bold text-indigo-900 text-xs block uppercase">
-                      Các ý yêu cầu trả lời:
+                      {t('Các ý yêu cầu trả lời:')}
                     </span>
                     {subItems.map(item => (
                       <div key={item.letter} className="flex items-start space-x-2 text-slate-800 font-semibold">
-                        <span className="font-black text-indigo-700 shrink-0">Ý {item.letter})</span>
+                        <span className="font-black text-indigo-700 shrink-0">{t('Ý')} {item.letter})</span>
                         <span className="leading-relaxed">{item.text}</span>
                       </div>
                     ))}
@@ -576,10 +619,10 @@ export default function AnswerReview() {
                 {/* Bài làm của học sinh */}
                 <div className="space-y-1.5">
                   <span className="text-xs font-bold text-slate-600 uppercase tracking-wider block">
-                    Bài làm em đã gõ:
+                    {t('Bài làm em đã gõ:')}
                   </span>
                   <div className="bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 text-slate-900 text-sm leading-relaxed whitespace-pre-line">
-                    {studentAnswer.trim() ? studentAnswer : <em className="text-slate-400">Học sinh chưa nhập bài làm cho câu hỏi này.</em>}
+                    {studentAnswer.trim() ? studentAnswer : <em className="text-slate-400">{t('Học sinh chưa nhập bài làm cho câu hỏi này.')}</em>}
                   </div>
                 </div>
 
@@ -589,7 +632,7 @@ export default function AnswerReview() {
                     hasDeduction && feedbackText ? (
                       <div className="bg-indigo-50/70 border border-indigo-200 rounded-2xl p-4 space-y-2">
                         <span className="text-xs font-bold text-indigo-900 uppercase block tracking-wider">
-                          Nhận xét:
+                          {t('Nhận xét:')}
                         </span>
                         <div className="bg-white/95 border border-indigo-200 rounded-xl p-3.5 text-xs sm:text-sm text-slate-800 font-medium leading-relaxed whitespace-pre-line">
                           {feedbackText}
@@ -598,9 +641,9 @@ export default function AnswerReview() {
                     ) : null
                   ) : (
                     <div className="bg-amber-50/80 border border-amber-200 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-amber-950">
-                      <span>Tự luận:</span>
+                      <span>{t('Tự luận:')}</span>
                       <span className="text-xs font-bold text-amber-900 bg-white px-3 py-1 rounded-xl border border-amber-300">
-                        Đang chờ chấm điểm
+                        {t('Đang chờ chấm điểm')}
                       </span>
                     </div>
                   )
@@ -610,11 +653,11 @@ export default function AnswerReview() {
                 {mode === 'practice' && (
                   <details className="group bg-blue-50/70 border-2 border-blue-200 rounded-2xl p-3.5 text-xs">
                     <summary className="cursor-pointer font-black text-blue-900 uppercase tracking-wide flex items-center justify-between">
-                      <span>Gợi Ý Đáp Án & Hướng Dẫn Tự Ôn Tập</span>
-                      <span className="text-[11px] text-blue-600 font-semibold group-open:hidden">Nhấn để xem gợi ý ▾</span>
+                      <span>{t('Gợi Ý Đáp Án & Hướng Dẫn Tự Ôn Tập')}</span>
+                      <span className="text-[11px] text-blue-600 font-semibold group-open:hidden">{language === 'en' ? 'Click to view hints ▾' : 'Nhấn để xem gợi ý ▾'}</span>
                     </summary>
                     <p className="mt-2.5 text-xs sm:text-sm text-blue-950 font-medium leading-relaxed whitespace-pre-line border-t border-blue-100 pt-2">
-                      {eq.modelAnswer || 'Đang cập nhật hướng dẫn trả lời chi tiết từ giáo viên.'}
+                      {eq.modelAnswer || (language === 'en' ? 'Detailed answer guide is being updated by the teacher.' : 'Đang cập nhật hướng dẫn trả lời chi tiết từ giáo viên.')}
                     </p>
                   </details>
                 )}
