@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAdmin } from '../AdminContext.js';
+import { getStudentsByClass, verifyStudentLms } from '../../core/roster-data.js';
 
 export default function PrintTab() {
   const {
@@ -14,6 +15,19 @@ export default function PrintTab() {
     handleClearPracticeClass,
     handleDeletePracticeSubmission
   } = useAdmin();
+
+  const classRoster = useMemo(() => getStudentsByClass(printClass) || [], [printClass]);
+
+  const getCanonicalName = (sub) => {
+    if (!sub) return '';
+    if (classRoster && classRoster.length > 0) {
+      const matched = classRoster.find(st => verifyStudentLms(st, sub.studentId) || String(st.studentId).trim() === String(sub.studentId).trim());
+      if (matched && matched.fullName) {
+        return matched.fullName;
+      }
+    }
+    return sub.fullName || '';
+  };
 
   // 1. Lọc và gom nhóm bài nộp ôn tập: Duy nhất (unique) 1 học sinh / 1 mã LMS trong lớp
   // Lấy kết quả cao nhất (bestScore), đếm tổng số lần làm (totalAttempts)
@@ -238,7 +252,7 @@ export default function PrintTab() {
                       <tr key={idx} className="text-slate-900">
                         <td className="py-2 px-3 border-r border-slate-300 text-center font-mono-code">{idx + 1}</td>
                         <td className="py-2 px-3 border-r border-slate-300 font-mono-code font-bold text-blue-900">{sub.studentId || '—'}</td>
-                        <td className="py-2 px-3 border-r border-slate-300 font-bold">{sub.fullName}</td>
+                        <td className="py-2 px-3 border-r border-slate-300 font-bold">{getCanonicalName(sub)}</td>
                         <td className="py-2 px-3 border-r border-slate-300 text-center font-mono-code">{sub.examCode || '101'}</td>
                         <td className="py-2 px-3 border-r border-slate-300 text-center font-mono-code">{sub.durationFormatted || '45 phút'}</td>
                         <td className="py-2 px-3 border-r border-slate-300 text-center">{autoScore}</td>
@@ -314,7 +328,7 @@ export default function PrintTab() {
                       <tr key={idx} className="text-slate-900">
                         <td className="py-2 px-3 border-r border-slate-300 text-center font-mono-code">{idx + 1}</td>
                         <td className="py-2 px-3 border-r border-slate-300 font-mono-code font-bold text-blue-900">{sub.studentId || '—'}</td>
-                        <td className="py-2 px-3 border-r border-slate-300 font-bold">{sub.fullName}</td>
+                        <td className="py-2 px-3 border-r border-slate-300 font-bold">{getCanonicalName(sub)}</td>
                         <td className="py-2 px-3 border-r border-slate-300 text-center font-mono-code font-bold text-amber-900">
                           {attempts} lượt
                         </td>

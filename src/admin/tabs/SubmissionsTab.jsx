@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAdmin } from '../AdminContext.js';
-import { ROSTER_BY_CLASS } from '../../core/roster-data.js';
+import { ROSTER_BY_CLASS, getStudentsByClass, verifyStudentLms } from '../../core/roster-data.js';
 import ClassSubmissionSummary from '../components/ClassSubmissionSummary.jsx';
 import ClassGradingStatusBar from '../components/ClassGradingStatusBar.jsx';
 import '../../core/exam-timing.js';
@@ -37,6 +37,20 @@ export default function SubmissionsTab() {
   const progressClasses = filterClass !== 'all' ? [filterClass] : [...new Set([
     ...Object.keys(ROSTER_BY_CLASS), ...savedRows.map(row => row.studentClass).filter(Boolean)
   ])].filter(cls => filterGrade === 'all' || cls.startsWith(filterGrade + '/')).sort((a,b) => a.localeCompare(b, 'vi', {numeric:true}));
+
+  const getCanonicalName = (sub) => {
+    if (!sub) return '';
+    if (sub.studentClass) {
+      const roster = getStudentsByClass(sub.studentClass);
+      if (roster && roster.length > 0) {
+        const matched = roster.find(st => verifyStudentLms(st, sub.studentId) || String(st.studentId).trim() === String(sub.studentId).trim());
+        if (matched && matched.fullName) {
+          return matched.fullName;
+        }
+      }
+    }
+    return sub.fullName || '';
+  };
 
   return (
     <div className="space-y-6">
@@ -246,7 +260,7 @@ export default function SubmissionsTab() {
                   return (
                     <tr key={sub.id || idx} className="hover:bg-slate-50 transition">
                       <td className="py-3 px-4 font-mono-code text-slate-400">{idx + 1}</td>
-                      <td className="py-3 px-4 font-bold text-slate-900">{sub.fullName}</td>
+                      <td className="py-3 px-4 font-bold text-slate-900">{getCanonicalName(sub)}</td>
                       <td className="py-3 px-4">
                         <span className="px-2 py-0.5 rounded bg-blue-50 font-bold text-blue-900 border border-blue-200">
                           Lớp {sub.studentClass}

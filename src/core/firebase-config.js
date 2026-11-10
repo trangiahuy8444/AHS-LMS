@@ -166,11 +166,17 @@
                 localMap.set(cloudItem.id, cloudItem);
                 changed = true;
               } else {
-                // Cập nhật nếu cloud có trạng thái chấm mới hơn
-                if ((cloudItem.isGraded && !local.isGraded) || (cloudItem.autoGradedAt && !local.autoGradedAt)) {
-                  localMap.set(cloudItem.id, { ...local, ...cloudItem });
-                  changed = true;
-                } else if (cloudItem.gradedAt && local.gradedAt && cloudItem.gradedAt > local.gradedAt) {
+                // Cập nhật nếu cloud có trạng thái chấm mới hơn hoặc thông tin thí sinh/điểm số được cập nhật trên Cloud
+                const cloudHasNewerGrading = ((cloudItem.isGraded && !local.isGraded) || (cloudItem.autoGradedAt && !local.autoGradedAt))
+                  || (cloudItem.gradedAt && local.gradedAt && cloudItem.gradedAt > local.gradedAt);
+                const infoChanged = cloudItem.fullName !== local.fullName
+                  || cloudItem.finalScore !== local.finalScore
+                  || cloudItem.teacherFeedback !== local.teacherFeedback
+                  || cloudItem.studentClass !== local.studentClass
+                  || cloudItem.studentId !== local.studentId
+                  || cloudItem.examCode !== local.examCode;
+
+                if (cloudHasNewerGrading || infoChanged) {
                   localMap.set(cloudItem.id, { ...local, ...cloudItem });
                   changed = true;
                 }
