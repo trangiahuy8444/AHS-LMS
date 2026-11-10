@@ -10,7 +10,7 @@ export default function TeacherReminderBanner() {
   const [visible, setVisible] = useState(false);
   const { id, count, message, createdAt } = reminder || {};
 
-  const durationSeconds = Number(student?.config?.reminderDurationSeconds) || 5;
+  const durationSeconds = Number(student?.config?.reminderDurationSeconds) || 3;
   const durationMs = durationSeconds * 1000;
 
   useEffect(() => {
