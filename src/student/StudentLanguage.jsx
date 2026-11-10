@@ -82,7 +82,6 @@ const EN = {
   'Kết Quả Đánh Giá Phần Đúng / Sai':'True / False Review',
   'Chọn ĐÚNG':'Chose TRUE',
   'Chọn SAI':'Chose FALSE',
-  'Chưa làm':'Unanswered',
   'Các ý yêu cầu trả lời:':'Questions to answer:',
   'Ý':'Part',
   'Đã làm bài':'Answered',

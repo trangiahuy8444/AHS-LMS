@@ -1,6 +1,6 @@
 import StudentGuidance from '../components/StudentGuidance.jsx';
 import { getExamDurationMinutes } from '../../shared/studentGuidance.js';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStudent } from '../StudentContext.js';
 import { CLASS_LISTS } from '../constants.js';
 import { getStudentsByClass, verifyStudentLms } from '../../core/roster-data.js';

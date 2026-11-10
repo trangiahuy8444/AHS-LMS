@@ -6,7 +6,7 @@ import AnswerReview from '../result/AnswerReview.jsx';
 
 // 4. MÀN HÌNH KẾT QUẢ BÀI LÀM (CHUẨN TƯƠNG PHẢN, CHỤP ẢNH TÊN CHUẨN, MỞ ĐÁP ÁN TỰ LUẬN)
 export default function ResultScreen() {
-  const { t } = useStudentLanguage();
+  const { t, language } = useStudentLanguage();
   const { mode, examState, scoreResult, isCapturing, handleCaptureScreenshot, handleRestartPractice,
     config, studentClass, handleReviewLookup } = useStudent();
   const [showExamReview, setShowExamReview] = useState(false);
