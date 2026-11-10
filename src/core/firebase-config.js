@@ -586,24 +586,46 @@
       }
     }
 
-    // UID mới chưa đọc được lượt ở máy cũ. Nhận lại lượt trước khi đòi mã cho lượt MỚI;
-    // rules vẫn kiểm mật khẩu và ca thi, chỉ thay uid/deviceChanges, không đổi mã hay số lượt.
-    if (!attempt && cfg.codeAllocationMode === 'student_choice') {
+    // UID mới chưa đọc được lượt ở máy cũ (ví dụ: cúp điện, khởi động lại máy đóng băng Deep Freeze, đổi trình duyệt).
+    // Nhận lại lượt trước khi đòi mã cho lượt MỚI; rules kiểm mật khẩu phòng thi và ca thi, chỉ thay uid/deviceChanges, không đổi mã hay số lượt.
+    if (!attempt) {
       try {
-        await persistArchived(attemptRef, 'exam_attempts', attemptId, { uid, deviceChanges: FieldValue.increment(1) }, { grade, studentClass: data.studentClass });
-        attempt = await readAttempt(attemptRef);
-      } catch (e) { /* Không có lượt hoặc chưa được phép nhận lại: tiếp tục kiểm lượt mới bên dưới. */ }
+        await attemptRef.update({ uid, deviceChanges: FieldValue.increment(1) });
+        const cand = await readAttempt(attemptRef);
+        if (cand && cand.examCode && cand.startedAt) {
+          attempt = cand;
+        }
+      } catch (e) {
+        try {
+          await persistArchived(attemptRef, 'exam_attempts', attemptId, { uid, deviceChanges: FieldValue.increment(1) }, { grade, studentClass: data.studentClass });
+          const cand = await readAttempt(attemptRef);
+          if (cand && cand.examCode && cand.startedAt) {
+            attempt = cand;
+          }
+        } catch (e2) { /* Không có lượt hoặc chưa được phép nhận lại: tiếp tục kiểm tra */ }
+      }
       if (!attempt && scopedAttemptId !== legacyAttemptId) {
         try {
           const legacyRef = db.collection('exam_attempts').doc(legacyAttemptId);
-          await persistArchived(legacyRef, 'exam_attempts', legacyAttemptId, { uid, deviceChanges: FieldValue.increment(1) }, { grade, studentClass: data.studentClass });
+          await legacyRef.update({ uid, deviceChanges: FieldValue.increment(1) });
           const legacyAttempt = await readAttempt(legacyRef);
-          if (legacyAttempt && legacyAttempt.studentClass === data.studentClass) {
+          if (legacyAttempt && legacyAttempt.studentClass === data.studentClass && legacyAttempt.examCode && legacyAttempt.startedAt) {
             attemptId = legacyAttemptId;
             attemptRef = legacyRef;
             attempt = legacyAttempt;
           }
-        } catch (e) { /* bỏ qua */ }
+        } catch (e) {
+          try {
+            const legacyRef = db.collection('exam_attempts').doc(legacyAttemptId);
+            await persistArchived(legacyRef, 'exam_attempts', legacyAttemptId, { uid, deviceChanges: FieldValue.increment(1) }, { grade, studentClass: data.studentClass });
+            const legacyAttempt = await readAttempt(legacyRef);
+            if (legacyAttempt && legacyAttempt.studentClass === data.studentClass && legacyAttempt.examCode && legacyAttempt.startedAt) {
+              attemptId = legacyAttemptId;
+              attemptRef = legacyRef;
+              attempt = legacyAttempt;
+            }
+          } catch (e2) { /* bỏ qua */ }
+        }
       }
     }
     if (!attempt) {
@@ -630,14 +652,18 @@
         console.warn('[startExam] Lượt thi mới không tạo được, thử nhận lại lượt từ máy khác:', createErr?.message || createErr);
         // Mã LMS này đã có lượt thi từ máy khác: nhận lại lượt bằng mật khẩu phòng thi
         try {
-          await persistArchived(attemptRef, 'exam_attempts', attemptId, { uid, deviceChanges: FieldValue.increment(1) }, { grade, studentClass: data.studentClass });
-        } catch (takeoverErr) {
-          console.warn('[startExam] Nhận lại lượt thất bại:', takeoverErr?.message || takeoverErr);
-          const isPerm = (createErr && createErr.code === 'permission-denied') || (takeoverErr && takeoverErr.code === 'permission-denied');
-          if (isPerm) {
-            throw new Error('Mật khẩu phòng thi chưa chính xác hoặc Thầy/Cô chưa mở ca thi cho lớp này. Em kiểm tra lại mật khẩu do Thầy/Cô giám thị cung cấp.');
+          await attemptRef.update({ uid, deviceChanges: FieldValue.increment(1) });
+        } catch (eDirect) {
+          try {
+            await persistArchived(attemptRef, 'exam_attempts', attemptId, { uid, deviceChanges: FieldValue.increment(1) }, { grade, studentClass: data.studentClass });
+          } catch (takeoverErr) {
+            console.warn('[startExam] Nhận lại lượt thất bại:', takeoverErr?.message || takeoverErr);
+            const isPerm = (createErr && createErr.code === 'permission-denied') || (takeoverErr && takeoverErr.code === 'permission-denied');
+            if (isPerm) {
+              throw new Error('Mật khẩu phòng thi chưa chính xác hoặc Thầy/Cô chưa mở ca thi cho lớp này. Em kiểm tra lại mật khẩu do Thầy/Cô giám thị cung cấp.');
+            }
+            throw denied;
           }
-          throw denied;
         }
       }
       attempt = await readAttempt(attemptRef);
@@ -680,7 +706,15 @@
     }
 
     const examDocId = `g${grade}_${attempt.examCode}`;
-    await db.collection('exam_sessions').doc(uid).set({ attemptId, examDocId });
+    try {
+      await db.collection('exam_sessions').doc(uid).set({ attemptId, examDocId });
+    } catch (sessionErr) {
+      console.warn('[startExam] Lỗi thiết lập exam_sessions:', sessionErr);
+      if (sessionErr?.code === 'permission-denied' || String(sessionErr?.message || '').includes('Missing or insufficient permissions')) {
+        throw new Error('Mật khẩu phòng thi chưa chính xác hoặc Thầy/Cô chưa mở ca thi cho lớp này. Em kiểm tra lại mật khẩu do Thầy/Cô giám thị cung cấp.');
+      }
+      throw sessionErr;
+    }
     const baseDurationSeconds = (attempt.durationMinutes || cfg.examDurationMinutes || 45) * 60;
     const extraTimeSeconds = Number.isSafeInteger(attempt.extraTimeSeconds) && attempt.extraTimeSeconds >= 0 ? attempt.extraTimeSeconds : 0;
     const startedAtMs = toMillis(attempt.startedAt);
@@ -798,7 +832,7 @@
             activeQuestionIdx: Number.isSafeInteger(activeQuestionIdx) && activeQuestionIdx >= 0 ? activeQuestionIdx : 0,
             draftSavedAt: FieldValue.serverTimestamp()
           };
-          await persistArchived(ref, 'exam_attempts', ref.id, update, { grade, studentClass });
+          await ref.update(update);
           console.log('[Cloud Draft] Đã đồng bộ bản nháp bài thi lên Firestore:', ref.id);
           resolve(true);
         } catch (err) {

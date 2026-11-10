@@ -136,7 +136,8 @@ export function createStartActions(s) {
         });
       } catch (err) {
         setIsContactingServer(false);
-        if (config?.allowStudentReviewOfficialExam && String(err.message || '').includes('đã dùng hết')) {
+        const errMsg = String(err?.message || '');
+        if (config?.allowStudentReviewOfficialExam && errMsg.includes('đã dùng hết')) {
           showDialog(
             'Đã Hoàn Thành Bài Thi 📝',
             `Em đã hoàn thành bài thi chính thức này rồi!\n\nHiện Thầy Trần Gia Huy đã mở chức năng XEM LẠI BÀI THI & CHỐT ĐIỂM. Em có muốn xem lại bài làm và điểm số của mình ngay bây giờ không?`,
@@ -145,7 +146,10 @@ export function createStartActions(s) {
           );
           return;
         }
-        showDialog('Chưa Vào Được Phòng Thi', `❌ ${err.message || 'Không kết nối được máy chủ.'}\n\nNếu em chắc chắn đã nhập đúng mật khẩu, hãy báo Thầy/Cô giám thị.`, 'error');
+        const friendlyMsg = (err?.code === 'permission-denied' || errMsg.includes('Missing or insufficient permissions'))
+          ? 'Mật khẩu phòng thi chưa chính xác hoặc Thầy/Cô chưa mở ca thi cho lớp này. Em kiểm tra lại mật khẩu do Thầy/Cô giám thị cung cấp.'
+          : (errMsg || 'Không kết nối được máy chủ.');
+        showDialog('Chưa Vào Được Phòng Thi', `❌ ${friendlyMsg}\n\nNếu em chắc chắn đã nhập đúng mật khẩu, hãy báo Thầy/Cô giám thị.`, 'error');
         return;
       }
       setIsContactingServer(false);

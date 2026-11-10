@@ -123,7 +123,7 @@ service cloud.firestore {
       function takeover() {
         return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['uid', 'deviceChanges'])
           && request.resource.data.uid == request.auth.uid
-          && request.resource.data.deviceChanges == resource.data.deviceChanges + 1
+          && request.resource.data.deviceChanges == resource.data.get('deviceChanges', 0) + 1
           && classOpen(resource.data.studentClass)
           && roomPasswordOk();
       }
