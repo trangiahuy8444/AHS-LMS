@@ -256,7 +256,6 @@ export default function SubmissionsTab() {
                 <th className="py-3 px-4">Mã LMS</th>
                 <th className="py-3 px-4">Chế Độ</th>
                 <th className="py-3 px-4">Mã Đề</th>
-                <th className="py-3 px-4 text-center">Thời Gian Làm</th>
                 <th className="py-3 px-4 text-center">Điểm TN</th>
                 <th className="py-3 px-4 text-center">Tự Luận</th>
                 <th className="py-3 px-4 text-center">Tổng Điểm</th>
@@ -268,7 +267,7 @@ export default function SubmissionsTab() {
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {filteredSubmissions.length === 0 ? (
                 <tr>
-                  <td colSpan="13" className="py-12 text-center text-slate-500 font-medium">
+                  <td colSpan="12" className="py-12 text-center text-slate-500 font-medium">
                     Chưa có bài nộp nào phù hợp với bộ lọc hiện tại.
                   </td>
                 </tr>
@@ -304,9 +303,6 @@ export default function SubmissionsTab() {
                       </td>
                       <td className="py-3 px-4 font-mono-code font-bold text-slate-800">
                         {sub.examCode || '—'}
-                      </td>
-                      <td className="py-3 px-4 text-center font-mono-code text-slate-600">
-                        {sub.durationFormatted || '45 phút'}
                       </td>
                       <td className="py-3 px-4 text-center font-bold text-slate-800">
                         {autoScore}đ

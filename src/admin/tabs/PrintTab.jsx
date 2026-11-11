@@ -266,11 +266,9 @@ export default function PrintTab() {
                   <th className="py-2.5 px-3 border-r border-slate-400">Mã LMS</th>
                   <th className="py-2.5 px-3 border-r border-slate-400">Họ và Tên Học Sinh</th>
                   <th className="py-2.5 px-3 border-r border-slate-400 text-center">Mã Đề</th>
-                  <th className="py-2.5 px-3 border-r border-slate-400 text-center">Thời Gian Làm</th>
                   <th className="py-2.5 px-3 border-r border-slate-400 text-center">Điểm TN</th>
                   <th className="py-2.5 px-3 border-r border-slate-400 text-center">Điểm TL</th>
                   <th className="py-2.5 px-3 border-r border-slate-400 text-center">Tổng Điểm</th>
-                  <th className="py-2.5 px-3 border-r border-slate-400 text-center">Xếp Loại</th>
                   <th className="py-2.5 px-3 border-r border-slate-400 text-center">Xác Nhận Điểm</th>
                   <th className="py-2.5 px-3">Lời Phê / Ghi Chú Của Giáo Viên</th>
                 </tr>
@@ -278,7 +276,7 @@ export default function PrintTab() {
               <tbody className="divide-y divide-slate-300">
                 {uniqueExamSubs.length === 0 ? (
                   <tr>
-                    <td colSpan="11" className="py-8 text-center text-slate-500 italic">
+                    <td colSpan="9" className="py-8 text-center text-slate-500 italic">
                       Chưa có dữ liệu bài nộp nào của Lớp {printClass}.
                     </td>
                   </tr>
@@ -287,10 +285,6 @@ export default function PrintTab() {
                     const autoScore = sub.mcqPoints !== undefined ? sub.mcqPoints : (sub.score !== undefined ? sub.score : 0);
                     const essayScore = sub.isGraded ? (sub.essayTotal || 0) : 0;
                     const finalScore = sub.finalScore !== undefined ? sub.finalScore : (autoScore + essayScore);
-                    let ranking = 'Chưa đạt';
-                    if (finalScore >= 8.0) ranking = 'Giỏi';
-                    else if (finalScore >= 6.5) ranking = 'Khá';
-                    else if (finalScore >= 5.0) ranking = 'Trung bình';
 
                     const matchedRoster = classRoster.find(st => verifyStudentLms(st, sub.studentId) || String(st.studentId).trim() === String(sub.studentId).trim());
                     const sttDisplay = matchedRoster?.stt || (idx + 1);
@@ -302,11 +296,9 @@ export default function PrintTab() {
                         <td className="py-2 px-3 border-r border-slate-300 font-mono-code font-bold text-blue-900">{sub.studentId || '—'}</td>
                         <td className="py-2 px-3 border-r border-slate-300 font-bold">{getCanonicalName(sub)}</td>
                         <td className="py-2 px-3 border-r border-slate-300 text-center font-mono-code">{sub.examCode || '101'}</td>
-                        <td className="py-2 px-3 border-r border-slate-300 text-center font-mono-code">{sub.durationFormatted || '45 phút'}</td>
                         <td className="py-2 px-3 border-r border-slate-300 text-center">{autoScore}</td>
                         <td className="py-2 px-3 border-r border-slate-300 text-center">{sub.isGraded ? essayScore : '—'}</td>
                         <td className="py-2 px-3 border-r border-slate-300 text-center font-black text-sm text-red-600">{finalScore}</td>
-                        <td className="py-2 px-3 border-r border-slate-300 text-center font-semibold">{ranking}</td>
                         <td className="py-2 px-3 border-r border-slate-300 text-center">
                           {sub.scoreConfirmed ? (
                             <span className="inline-flex flex-col items-center text-emerald-700 font-bold text-[11px]">
@@ -366,7 +358,6 @@ export default function PrintTab() {
                   <th className="py-2.5 px-3 border-r border-slate-400">Mã LMS</th>
                   <th className="py-2.5 px-3 border-r border-slate-400">Họ và Tên Học Sinh</th>
                   <th className="py-2.5 px-3 border-r border-slate-400 text-center">Số Lần Làm</th>
-                  <th className="py-2.5 px-3 border-r border-slate-400 text-center">Thời Gian Làm</th>
                   <th className="py-2.5 px-3 border-r border-slate-400 text-center">Điểm Đạt (Cao Nhất)</th>
                   <th className="py-2.5 px-3 border-r border-slate-400 text-center">Đúng/Tổng</th>
                   <th className="py-2.5 px-3 border-r border-slate-400 text-center">Thời Điểm Nộp</th>
@@ -378,7 +369,7 @@ export default function PrintTab() {
               <tbody className="divide-y divide-slate-300">
                 {uniquePracticeSubs.length === 0 ? (
                   <tr>
-                    <td colSpan="11" className="py-8 text-center text-slate-500 italic">
+                    <td colSpan="10" className="py-8 text-center text-slate-500 italic">
                       Chưa có dữ liệu bài làm ôn tập đề cương nào của Lớp {printClass}.
                     </td>
                   </tr>
@@ -398,7 +389,6 @@ export default function PrintTab() {
                         <td className="py-2 px-3 border-r border-slate-300 text-center font-mono-code font-bold text-amber-900">
                           {attempts} lượt
                         </td>
-                        <td className="py-2 px-3 border-r border-slate-300 text-center font-mono-code">{sub.durationFormatted || 'N/A'}</td>
                         <td className="py-2 px-3 border-r border-slate-300 text-center font-black text-sm text-red-600">{pts}</td>
                         <td className="py-2 px-3 border-r border-slate-300 text-center font-mono-code text-slate-700">
                           {sub.correctCount !== undefined ? `${sub.correctCount}/${sub.totalQuestions || 25}` : '—'}
