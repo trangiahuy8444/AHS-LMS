@@ -62,7 +62,18 @@ export default function LiveSessionList({ query = '', classFilter = 'all', statu
           {Object.keys(classGroups).sort((a,b) => Number(classGroups[b].some(isLiveSessionLocked)) - Number(classGroups[a].some(isLiveSessionLocked)) || a.localeCompare(b,'vi',{numeric:true})).map(cls => {
           const visibleSessions = classGroups[cls];
           const sessionsInClass = modeSessions.filter(session => session.studentClass === cls);
-          const attendance = classAttendance(liveSessions, cls, getStudentsByClass(cls), now, savedRows, 15 * 60 * 1000);
+          const attendance = classAttendance(liveSessions, cls, getStudentsByClass(cls), now, savedRows, 90 * 60 * 1000);
+          // Đồng bộ số lượng với các thẻ thí sinh đang làm bài thực tế trong lớp
+          const activeInClass = sessionsInClass.filter(s => {
+            const normLms = window.AsianSchoolNormalize ? window.AsianSchoolNormalize.normalizeLmsCode(s.studentId) : String(s.studentId || '').replace(/\D/g, '');
+            const hasSavedSub = savedRows.some(row => (s.sessionId && row.sessionId === s.sessionId) || (normLms && (window.AsianSchoolNormalize ? window.AsianSchoolNormalize.normalizeLmsCode(row.studentId) : String(row.studentId || '').replace(/\D/g, '')) === normLms && row.mode === s.mode));
+            return s.status !== 'submitted' && !hasSavedSub;
+          });
+          attendance.active = Math.max(attendance.active, activeInClass.length);
+          attendance.exam = Math.max(attendance.exam, activeInClass.filter(s => s.mode === 'exam').length);
+          attendance.practice = Math.max(attendance.practice, activeInClass.filter(s => s.mode === 'practice').length);
+          attendance.locked = Math.max(attendance.locked, activeInClass.filter(isLiveSessionLocked).length);
+
           const { locked: lockedCount, exam: examCount, practice: practiceCount } = attendance;
           const progress = classSubmissionProgress(savedRows, cls, getStudentsByClass(cls), liveFilter === 'practice' ? 'practice' : 'exam');
           const totalExamDone = progress.submitted + (progress.unmatched || 0);

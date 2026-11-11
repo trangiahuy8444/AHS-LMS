@@ -58,8 +58,11 @@ export function classAttendance(sessions, studentClass, roster, now = Date.now()
       if (rk && submittedKeys.has(`${m}#${rk}`)) return false;
     }
 
-    return ['in_progress', 'practicing', 'locked'].includes(session.status) &&
-      Number(session.lastPing) > 0 && now - Number(session.lastPing) <= timeoutMs;
+    const isStatusActive = !session.status || ['in_progress', 'practicing', 'locked', 'active', 'taking'].includes(session.status);
+    if (!isStatusActive) return false;
+
+    const pingTime = Number(session.lastPing || session.startedAt || session.joinedAt || 0);
+    return pingTime === 0 || (now - pingTime <= timeoutMs);
   });
 
   return {
