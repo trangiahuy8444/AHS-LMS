@@ -169,7 +169,7 @@
               const isNewSubmission = local && cloudItem.serverSubmittedAt
                 && toMillis(cloudItem.serverSubmittedAt) !== toMillis(local.serverSubmittedAt);
               if (!local || isNewSubmission) {
-                if (Boolean(cloudItem.scoreConfirmed)) {
+                if (cloudItem.scoreConfirmed) {
                   scoreConfirmChanged = true;
                 }
                 localMap.set(cloudItem.id, cloudItem);
