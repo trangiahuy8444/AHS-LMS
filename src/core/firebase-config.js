@@ -134,7 +134,11 @@
             const cloudIdSet = new Set();
             if (!snapshot.empty) {
               snapshot.forEach((doc) => {
-                const item = { id: doc.id, ...doc.data() };
+                const data = doc.data();
+                if (data.scoreConfirmedAt && typeof data.scoreConfirmedAt.toDate === 'function') {
+                  data.scoreConfirmedAt = data.scoreConfirmedAt.toDate().toISOString();
+                }
+                const item = { id: doc.id, ...data };
                 cloudList.push(item);
                 cloudIdSet.add(doc.id);
               });
@@ -174,7 +178,9 @@
                   || cloudItem.teacherFeedback !== local.teacherFeedback
                   || cloudItem.studentClass !== local.studentClass
                   || cloudItem.studentId !== local.studentId
-                  || cloudItem.examCode !== local.examCode;
+                  || cloudItem.examCode !== local.examCode
+                  || Boolean(cloudItem.scoreConfirmed) !== Boolean(local.scoreConfirmed)
+                  || toMillis(cloudItem.scoreConfirmedAt) !== toMillis(local.scoreConfirmedAt);
 
                 if (cloudHasNewerGrading || infoChanged) {
                   localMap.set(cloudItem.id, { ...local, ...cloudItem });
@@ -1183,7 +1189,13 @@
     return db.collection('submissions').doc(subId).onSnapshot({ includeMetadataChanges: true },
       (snap) => {
         const fromServer = !snap.metadata?.hasPendingWrites && !snap.metadata?.fromCache;
-        if (snap.exists && (!opts?.receiptOnly || fromServer)) cb(opts?.receiptOnly ? submissionReceiptFields(snap.data()) : snap.data(), { fromServer });
+        if (snap.exists && (!opts?.receiptOnly || fromServer)) {
+          const data = snap.data();
+          if (data && data.scoreConfirmedAt && typeof data.scoreConfirmedAt.toDate === 'function') {
+            data.scoreConfirmedAt = data.scoreConfirmedAt.toDate().toISOString();
+          }
+          cb(opts?.receiptOnly ? submissionReceiptFields(data) : data, { fromServer });
+        }
       },
       (e) => console.warn('[Firestore] Theo dõi bài nộp thất bại:', e.message)
     );
@@ -1194,15 +1206,51 @@
     if (!db || !subId) return false;
     await waitForUser();
     const FieldValue = firebase.firestore.FieldValue;
-    const ref = db.collection('submissions').doc(subId);
+    let targetId = subId;
+    let ref = db.collection('submissions').doc(targetId);
+    const updatePayload = {
+      scoreConfirmed: true,
+      scoreConfirmedAt: FieldValue.serverTimestamp()
+    };
+
     if (window.AsianSchoolDriveArchive) {
-      const source = await ref.get({ source: 'server' });
-      if (!source.exists) throw new Error('Không tìm thấy bài nộp để xác nhận.');
-      await persistArchived(ref, 'submissions', subId, {
-        scoreConfirmed: true, scoreConfirmedAt: FieldValue.serverTimestamp()
-      }, source.data());
+      let source = null;
+      try {
+        source = await ref.get({ source: 'server' });
+      } catch (e) {
+        try { source = await ref.get(); } catch (e2) { /* ignore */ }
+      }
+      if ((!source || !source.exists) && opts && typeof opts === 'object' && opts.grade && opts.studentId) {
+        const g = Number(opts.grade);
+        const k = lmsKey(opts.studentId);
+        const candidates = [
+          `${attemptIdFor(g, opts.studentClass, k)}_1`,
+          `${attemptIdFor(g, opts.studentClass, k)}_2`,
+          `${legacyAttemptIdFor(g, k)}_1`,
+          `${legacyAttemptIdFor(g, k)}_2`
+        ];
+        for (const cand of candidates) {
+          if (cand === targetId) continue;
+          try {
+            const cSnap = await db.collection('submissions').doc(cand).get();
+            if (cSnap.exists) {
+              targetId = cand;
+              ref = db.collection('submissions').doc(cand);
+              source = cSnap;
+              break;
+            }
+          } catch (e) { /* ignore */ }
+        }
+      }
+      if (!source || !source.exists) throw new Error('Không tìm thấy bài nộp để xác nhận.');
+      try {
+        await persistArchived(ref, 'submissions', targetId, updatePayload, source.data());
+      } catch (archiveErr) {
+        console.warn('[Firestore] Fallback direct score confirmation update:', archiveErr?.message);
+        await ref.update(updatePayload);
+      }
     } else {
-      await ref.update({ scoreConfirmed: true, scoreConfirmedAt: FieldValue.serverTimestamp() });
+      await ref.update(updatePayload);
     }
     return true;
   }
@@ -1353,6 +1401,9 @@
 
     if (!subDoc) {
       throw new Error(`Không tìm thấy bài thi chính thức của Mã LMS ${key} thuộc Lớp ${data.studentClass || 'đã chọn'}. Em vui lòng kiểm tra lại đúng Khối, Lớp và Mã LMS.`);
+    }
+    if (subDoc.scoreConfirmedAt && typeof subDoc.scoreConfirmedAt.toDate === 'function') {
+      subDoc.scoreConfirmedAt = subDoc.scoreConfirmedAt.toDate().toISOString();
     }
 
     let examData = null;

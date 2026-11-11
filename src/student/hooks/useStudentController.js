@@ -109,7 +109,12 @@ export function useStudentController() {
       async () => {
         try {
           if (window.AsianSchoolCloud && window.AsianSchoolCloud.confirmSubmissionScore) {
-            await window.AsianSchoolCloud.confirmSubmissionScore({ submissionId: subId });
+            await window.AsianSchoolCloud.confirmSubmissionScore({
+              submissionId: subId,
+              grade: scoreResult?.grade || grade,
+              studentClass: scoreResult?.studentClass || studentClass,
+              studentId: scoreResult?.studentId || studentId
+            });
           }
         } catch (e) {
           console.warn('Firestore confirm error:', e);
@@ -221,11 +226,12 @@ export function useStudentController() {
     const syncAccess = () => {
       const acc = window.AsianSchoolStorage.getClassAccessMode(studentClass);
       setClassAccessMode(acc);
-      if (acc === 'exam_only') {
-        setMode('exam');
-      } else if (acc === 'practice_only') {
-        setMode('practice');
-      }
+      setMode(prevMode => {
+        if (prevMode === 'review') return 'review';
+        if (acc === 'exam_only') return 'exam';
+        if (acc === 'practice_only') return 'practice';
+        return prevMode;
+      });
     };
     syncAccess();
 

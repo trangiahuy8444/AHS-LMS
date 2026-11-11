@@ -219,11 +219,11 @@ export default function EntryScreen() {
                   {studentClass ? (
                     isCurrentClassReviewOpen ? (
                       <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                        Lớp ${studentClass}: Đang mở xem bài
+                        Lớp {studentClass}: Đang mở xem bài
                       </span>
                     ) : (
                       <span className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700 border border-slate-300">
-                        Lớp ${studentClass}: Chờ chấm bài
+                        Lớp {studentClass}: Chờ chấm bài
                       </span>
                     )
                   ) : isAnyReviewOpen ? (

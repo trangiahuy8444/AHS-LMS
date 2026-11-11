@@ -137,7 +137,11 @@ export function createStartActions(s) {
       } catch (err) {
         setIsContactingServer(false);
         const errMsg = String(err?.message || '');
-        if (config?.allowStudentReviewOfficialExam && errMsg.includes('đã dùng hết')) {
+        const canReviewThisClass = Boolean(
+          config?.allowStudentReviewOfficialExam ||
+          (studentClass && config?.classReviewControl && config.classReviewControl[studentClass] === true)
+        );
+        if (canReviewThisClass && errMsg.includes('đã dùng hết')) {
           showDialog(
             'Đã Hoàn Thành Bài Thi 📝',
             `Em đã hoàn thành bài thi chính thức này rồi!\n\nHiện Thầy Trần Gia Huy đã mở chức năng XEM LẠI BÀI THI & CHỐT ĐIỂM. Em có muốn xem lại bài làm và điểm số của mình ngay bây giờ không?`,
