@@ -81,6 +81,19 @@ export default function PrintTab() {
     });
   }, [practiceSubs, printClass, classRoster]);
 
+  const formatConfirmedTime = (val) => {
+    if (!val) return '';
+    try {
+      const d = typeof val?.toDate === 'function'
+        ? val.toDate()
+        : (typeof val?.seconds === 'number' ? new Date(val.seconds * 1000) : new Date(val));
+      if (isNaN(d.getTime())) return '';
+      return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '';
+    }
+  };
+
   // 2. Lọc và gom nhóm bài nộp thi chính thức: Duy nhất 1 học sinh / 1 mã LMS trong lớp
   // Sắp xếp chính xác theo thứ tự STT sổ điểm / danh sách học sinh của lớp
   const uniqueExamSubs = useMemo(() => {
@@ -91,6 +104,15 @@ export default function PrintTab() {
       if (!key) return;
       if (!map.has(key)) {
         map.set(key, sub);
+      } else {
+        const existing = map.get(key);
+        if (sub.scoreConfirmed && !existing.scoreConfirmed) {
+          map.set(key, {
+            ...existing,
+            scoreConfirmed: true,
+            scoreConfirmedAt: sub.scoreConfirmedAt || existing.scoreConfirmedAt
+          });
+        }
       }
     });
     return Array.from(map.values()).sort((a, b) => {
@@ -249,13 +271,14 @@ export default function PrintTab() {
                   <th className="py-2.5 px-3 border-r border-slate-400 text-center">Điểm TL</th>
                   <th className="py-2.5 px-3 border-r border-slate-400 text-center">Tổng Điểm</th>
                   <th className="py-2.5 px-3 border-r border-slate-400 text-center">Xếp Loại</th>
+                  <th className="py-2.5 px-3 border-r border-slate-400 text-center">Xác Nhận Điểm</th>
                   <th className="py-2.5 px-3">Lời Phê / Ghi Chú Của Giáo Viên</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-300">
                 {uniqueExamSubs.length === 0 ? (
                   <tr>
-                    <td colSpan="10" className="py-8 text-center text-slate-500 italic">
+                    <td colSpan="11" className="py-8 text-center text-slate-500 italic">
                       Chưa có dữ liệu bài nộp nào của Lớp {printClass}.
                     </td>
                   </tr>
@@ -271,6 +294,7 @@ export default function PrintTab() {
 
                     const matchedRoster = classRoster.find(st => verifyStudentLms(st, sub.studentId) || String(st.studentId).trim() === String(sub.studentId).trim());
                     const sttDisplay = matchedRoster?.stt || (idx + 1);
+                    const confirmedTime = formatConfirmedTime(sub.scoreConfirmedAt);
 
                     return (
                       <tr key={idx} className="text-slate-900">
@@ -283,6 +307,20 @@ export default function PrintTab() {
                         <td className="py-2 px-3 border-r border-slate-300 text-center">{sub.isGraded ? essayScore : '—'}</td>
                         <td className="py-2 px-3 border-r border-slate-300 text-center font-black text-sm text-red-600">{finalScore}</td>
                         <td className="py-2 px-3 border-r border-slate-300 text-center font-semibold">{ranking}</td>
+                        <td className="py-2 px-3 border-r border-slate-300 text-center">
+                          {sub.scoreConfirmed ? (
+                            <span className="inline-flex flex-col items-center text-emerald-700 font-bold text-[11px]">
+                              <span>✓ Đã xác nhận</span>
+                              {confirmedTime && (
+                                <span className="text-[10px] font-mono-code text-emerald-600">
+                                  ({confirmedTime})
+                                </span>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic text-[11px]">Chưa xác nhận</span>
+                          )}
+                        </td>
                         <td className="py-2 px-3 text-slate-700 italic">
                           {(sub.penaltyPoints > 0 || sub.violations >= 3) ? `[Vi phạm ${sub.violations} lần] ${sub.teacherFeedback || ''}` : (sub.teacherFeedback || '')}
                         </td>
@@ -298,6 +336,7 @@ export default function PrintTab() {
               <div>
                 <p>Số lượng học sinh nộp bài: <strong>{uniqueExamSubs.length}</strong> học sinh</p>
                 <p>Số lượng bài đã chấm: <strong>{uniqueExamSubs.filter(s => s.isGraded).length}</strong> bài</p>
+                <p>Số lượng học sinh đã xác nhận điểm: <strong>{uniqueExamSubs.filter(s => s.scoreConfirmed).length}/{uniqueExamSubs.length}</strong> học sinh</p>
               </div>
               <div className="text-center space-y-12">
                 <p className="italic">Thành phố Hồ Chí Minh, ngày ...... tháng ...... năm 2026</p>

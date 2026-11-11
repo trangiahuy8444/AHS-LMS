@@ -52,6 +52,19 @@ export default function SubmissionsTab() {
     return sub.fullName || '';
   };
 
+  const formatConfirmedTime = (val) => {
+    if (!val) return '';
+    try {
+      const d = typeof val?.toDate === 'function'
+        ? val.toDate()
+        : (typeof val?.seconds === 'number' ? new Date(val.seconds * 1000) : new Date(val));
+      if (isNaN(d.getTime())) return '';
+      return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '';
+    }
+  };
+
   return (
     <div className="space-y-6">
       
@@ -175,9 +188,16 @@ export default function SubmissionsTab() {
 
         {/* THANH CÔNG CỤ XUẤT NHẬP */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
-          <span className="text-xs text-slate-500 font-semibold">
-            Tìm thấy: <strong className="text-blue-950 font-bold">{filteredSubmissions.length}</strong> bài nộp
-          </span>
+          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 font-semibold">
+            <span>
+              Tìm thấy: <strong className="text-blue-950 font-bold">{filteredSubmissions.length}</strong> bài nộp
+            </span>
+            {filteredSubmissions.some(s => s.mode === 'exam') && (
+              <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold">
+                🟢 Đã xác nhận điểm: {filteredSubmissions.filter(s => s.mode === 'exam' && s.scoreConfirmed).length} / {filteredSubmissions.filter(s => s.mode === 'exam').length}
+              </span>
+            )}
+          </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -241,13 +261,14 @@ export default function SubmissionsTab() {
                 <th className="py-3 px-4 text-center">Tự Luận</th>
                 <th className="py-3 px-4 text-center">Tổng Điểm</th>
                 <th className="py-3 px-4 text-center">Trạng Thái</th>
+                <th className="py-3 px-4 text-center">Xác Nhận Điểm</th>
                 <th className="py-3 px-4 text-center">Thao Tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {filteredSubmissions.length === 0 ? (
                 <tr>
-                  <td colSpan="12" className="py-12 text-center text-slate-500 font-medium">
+                  <td colSpan="13" className="py-12 text-center text-slate-500 font-medium">
                     Chưa có bài nộp nào phù hợp với bộ lọc hiện tại.
                   </td>
                 </tr>
@@ -259,6 +280,7 @@ export default function SubmissionsTab() {
                   const timing = window.AsianSchoolExamTiming.getSubmissionTiming(sub);
                   const matchedRoster = sub.studentClass ? getStudentsByClass(sub.studentClass)?.find(st => verifyStudentLms(st, sub.studentId) || String(st.studentId).trim() === String(sub.studentId).trim()) : null;
                   const sttDisplay = (filterClass !== 'all' && matchedRoster) ? matchedRoster.stt : (idx + 1);
+                  const confirmedTime = formatConfirmedTime(sub.scoreConfirmedAt);
                   return (
                     <tr key={sub.id || idx} className="hover:bg-slate-50 transition">
                       <td className="py-3 px-4 font-mono-code text-slate-400 font-bold">{sttDisplay}</td>
@@ -328,18 +350,20 @@ export default function SubmissionsTab() {
                             Chờ chấm ⏳
                           </span>
                         )}
-                        {sub.mode === 'exam' && (
-                          <div className="mt-1">
-                            {sub.scoreConfirmed ? (
-                              <span className="inline-block px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black border border-emerald-300">
-                                🟢 Đã chốt {sub.scoreConfirmedAt ? `(${new Date(sub.scoreConfirmedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })})` : ''}
-                              </span>
-                            ) : (
-                              <span className="inline-block px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold border border-slate-200">
-                                ⏳ Chưa chốt
-                              </span>
-                            )}
-                          </div>
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        {sub.mode === 'exam' ? (
+                          sub.scoreConfirmed ? (
+                            <span className="inline-block px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black border border-emerald-300">
+                              🟢 Đã xác nhận {confirmedTime ? `(${confirmedTime})` : ''}
+                            </span>
+                          ) : (
+                            <span className="inline-block px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold border border-slate-200">
+                              ⏳ Chưa xác nhận
+                            </span>
+                          )
+                        ) : (
+                          <span className="text-slate-400 text-[10px]">—</span>
                         )}
                       </td>
                       <td className="py-3 px-4 text-center">
