@@ -3,7 +3,7 @@
 export function classAttendance(sessions, studentClass, roster, now = Date.now(), submissions = [], timeoutMs = 180000) {
   const latest = new Map();
   const normalize = value => String(value || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-  const cleanClass = s => String(s || '').trim().replace(/^lớp\s+/i, '');
+  const cleanClass = s => String(s || '').trim().replace(/^lớp\s+/i, '').replace(/\s+/g, '');
   const aliases = new Map();
   for (const [index, student] of (roster || []).entries()) {
     for (const field of ['studentId','lmsCode','loginId','sisId','canvasUserId','legacyId']) {
@@ -15,15 +15,20 @@ export function classAttendance(sessions, studentClass, roster, now = Date.now()
     }
   }
 
-  // Tập hợp các thí sinh đã nộp bài trong CSDL
+  // Tập hợp các thí sinh đã nộp bài trong CSDL — tách riêng theo chế độ (thi / ôn tập):
+  // đã nộp bài ôn tập KHÔNG có nghĩa là đã nộp bài thi chính thức.
+  const modeOf = value => (value === 'practice' ? 'practice' : 'exam');
   const submittedKeys = new Set();
   (submissions || []).forEach(sub => {
     if (cleanClass(sub.studentClass) !== cleanClass(studentClass)) return;
-    if (sub.sessionId) submittedKeys.add(sub.sessionId);
+    const m = modeOf(sub.mode);
+    if (sub.sessionId) submittedKeys.add(`${m}#${sub.sessionId}`);
     const subLms = normalize(sub.studentId);
     if (subLms) {
-      submittedKeys.add(subLms);
-      if (aliases.has(subLms)) submittedKeys.add(aliases.get(subLms));
+      submittedKeys.add(`${m}#${subLms}`);
+      if (/^\d+$/.test(subLms)) submittedKeys.add(`${m}#${subLms.replace(/^0+/, '')}`);
+      const rk = aliases.get(subLms) || (/^\d+$/.test(subLms) ? aliases.get(subLms.replace(/^0+/, '')) : null);
+      if (rk) submittedKeys.add(`${m}#${rk}`);
     }
   });
 
@@ -32,22 +37,30 @@ export function classAttendance(sessions, studentClass, roster, now = Date.now()
     const cleanName = String(session.fullName || '').trim().toLowerCase();
     const id = normalize(session.studentId || session.sessionId);
     const rosterKey = aliases.get(id) || (/^\d+$/.test(id) ? aliases.get(id.replace(/^0+/, '')) : null);
-    const key = rosterKey
+    const baseKey = rosterKey
       ? (cleanName ? `${rosterKey}|${cleanName}` : rosterKey)
       : (cleanName ? `${id}|${cleanName}` : (id || session.sessionId));
+    // Gộp theo từng chế độ để phiên ôn tập cũ không che mất phiên thi đang diễn ra
+    const key = `${modeOf(session.mode)}#${baseKey}`;
     if (!latest.has(key) || Number(session.lastPing) > Number(latest.get(key).lastPing)) latest.set(key, session);
   }
 
-  const active = [...latest.entries()].filter(([key, session]) => {
-    // Nếu phiên đã đánh dấu submitted hoặc đã có trong CSDL nộp bài -> Không tính là đang làm
+  const active = [...latest.values()].filter(session => {
+    // Nếu phiên đã đánh dấu submitted hoặc đã có bài nộp CÙNG CHẾ ĐỘ trong CSDL -> Không tính là đang làm
     if (session.status === 'submitted') return false;
-    if (submittedKeys.has(key) || (session.sessionId && submittedKeys.has(session.sessionId))) return false;
+    const m = modeOf(session.mode);
+    if (session.sessionId && submittedKeys.has(`${m}#${session.sessionId}`)) return false;
     const lms = normalize(session.studentId);
-    if (lms && submittedKeys.has(lms)) return false;
+    if (lms) {
+      if (submittedKeys.has(`${m}#${lms}`)) return false;
+      if (/^\d+$/.test(lms) && submittedKeys.has(`${m}#${lms.replace(/^0+/, '')}`)) return false;
+      const rk = aliases.get(lms) || (/^\d+$/.test(lms) ? aliases.get(lms.replace(/^0+/, '')) : null);
+      if (rk && submittedKeys.has(`${m}#${rk}`)) return false;
+    }
 
     return ['in_progress', 'practicing', 'locked'].includes(session.status) &&
       Number(session.lastPing) > 0 && now - Number(session.lastPing) <= timeoutMs;
-  }).map(([, session]) => session);
+  });
 
   return {
     total: roster?.length || null,
