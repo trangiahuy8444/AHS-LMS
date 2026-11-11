@@ -243,10 +243,83 @@ export function createGradingActions(s) {
     }
   };
 
+  // --- ADMIN XÁC NHẬN ĐIỂM THAY HỌC SINH (TRƯỜNG HỢP HỌC SINH QUÊN BẤM XÁC NHẬN) ---
+
+  const handleAdminConfirmScore = (sub) => {
+    const targetId = sub?.id || sub?.submissionId;
+    if (!targetId) return;
+    const res = window.AsianSchoolStorage.confirmScore(targetId, { confirmedByAdmin: true });
+    if (res && res.success) {
+      setSubmissions(window.AsianSchoolStorage.getSubmissions());
+      if (setGradingSubmission) {
+        setGradingSubmission(prev => (prev && (prev.id === targetId || prev.submissionId === targetId))
+          ? { ...prev, scoreConfirmed: true, scoreConfirmedAt: res.confirmedAt, confirmedByAdmin: true }
+          : prev
+        );
+      }
+      if (typeof window.AsianSchoolStorage.syncAllToGoogleDrive === 'function') {
+        window.AsianSchoolStorage.syncAllToGoogleDrive().catch(() => {});
+      }
+      if (showToast) {
+        showToast(
+          `✓ Đã xác nhận điểm thay cho ${sub.fullName || sub.studentId} (Lớp ${sub.studentClass || ''}) và đồng bộ lên Google Drive!`,
+          'success',
+          'Xác nhận điểm'
+        );
+      }
+    }
+  };
+
+  const handleAdminConfirmBatchScores = (subList = [], scopeLabel = '') => {
+    const targets = (subList || []).filter(s => s && s.mode === 'exam' && !s.scoreConfirmed && (s.id || s.submissionId));
+    if (targets.length === 0) {
+      if (showToast) {
+        showToast('Tất cả học sinh trong danh sách này đã được xác nhận điểm!', 'info', 'Xác nhận điểm');
+      }
+      return;
+    }
+
+    const doConfirmBatch = () => {
+      const ids = targets.map(t => t.id || t.submissionId);
+      const res = window.AsianSchoolStorage.confirmBatchScoresByAdmin
+        ? window.AsianSchoolStorage.confirmBatchScoresByAdmin(ids)
+        : (() => {
+            ids.forEach(id => window.AsianSchoolStorage.confirmScore(id, { confirmedByAdmin: true }));
+            return { success: true, count: ids.length };
+          })();
+      if (res && res.success) {
+        setSubmissions(window.AsianSchoolStorage.getSubmissions());
+        if (typeof window.AsianSchoolStorage.syncAllToGoogleDrive === 'function') {
+          window.AsianSchoolStorage.syncAllToGoogleDrive().catch(() => {});
+        }
+        if (showToast) {
+          showToast(
+            `✓ Đã xác nhận điểm thay cho ${res.count || targets.length} học sinh${scopeLabel ? ` (${scopeLabel})` : ''} và đồng bộ lên Google Drive!`,
+            'success',
+            'Xác nhận hàng loạt'
+          );
+        }
+      }
+    };
+
+    if (showDialog) {
+      showDialog(
+        'Xác Nhận Điểm Thay Cho Học Sinh ✅',
+        `Thầy có chắc chắn muốn xác nhận điểm thay cho ${targets.length} học sinh chưa bấm xác nhận${scopeLabel ? ` (${scopeLabel})` : ''} và cập nhật lên Google Drive?`,
+        'warning',
+        doConfirmBatch
+      );
+    } else {
+      doConfirmBatch();
+    }
+  };
+
   return {
     openGradingModal,
     handleSaveGrading,
     handleStartBatchGrading,
-    handleCancelBatchGrading
+    handleCancelBatchGrading,
+    handleAdminConfirmScore,
+    handleAdminConfirmBatchScores
   };
 }

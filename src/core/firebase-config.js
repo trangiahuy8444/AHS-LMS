@@ -125,6 +125,7 @@
     // 1. Đồng bộ Submissions từ Firestore (CHỈ DÀNH CHO ADMIN)
     // Học sinh TUYỆT ĐỐI KHÔNG lắng nghe để bảo mật dữ liệu bài thi và tránh quá tải đọc quota Firestore
     if (!isStudentPortal) {
+      let driveConfirmSyncTimer = null;
       try {
         db.collection('submissions').onSnapshot(
           (snapshot) => {
@@ -148,6 +149,7 @@
             const currentLocal = storage.getSubmissions();
             const localMap = new Map();
             let changed = false;
+            let scoreConfirmChanged = false;
 
             // Xóa khỏi local các bài thi chính thức đã bị xóa trên Cloud Firestore
             currentLocal.forEach((sub) => {
@@ -167,12 +169,20 @@
               const isNewSubmission = local && cloudItem.serverSubmittedAt
                 && toMillis(cloudItem.serverSubmittedAt) !== toMillis(local.serverSubmittedAt);
               if (!local || isNewSubmission) {
+                if (Boolean(cloudItem.scoreConfirmed)) {
+                  scoreConfirmChanged = true;
+                }
                 localMap.set(cloudItem.id, cloudItem);
                 changed = true;
               } else {
                 // Cập nhật nếu cloud có trạng thái chấm mới hơn hoặc thông tin thí sinh/điểm số được cập nhật trên Cloud
                 const cloudHasNewerGrading = ((cloudItem.isGraded && !local.isGraded) || (cloudItem.autoGradedAt && !local.autoGradedAt))
                   || (cloudItem.gradedAt && local.gradedAt && cloudItem.gradedAt > local.gradedAt);
+                const confirmChanged = Boolean(cloudItem.scoreConfirmed) !== Boolean(local.scoreConfirmed)
+                  || toMillis(cloudItem.scoreConfirmedAt) !== toMillis(local.scoreConfirmedAt);
+                if (confirmChanged) {
+                  scoreConfirmChanged = true;
+                }
                 const infoChanged = cloudItem.fullName !== local.fullName
                   || cloudItem.finalScore !== local.finalScore
                   || cloudItem.teacherFeedback !== local.teacherFeedback
@@ -180,7 +190,8 @@
                   || cloudItem.studentId !== local.studentId
                   || cloudItem.examCode !== local.examCode
                   || Boolean(cloudItem.scoreConfirmed) !== Boolean(local.scoreConfirmed)
-                  || toMillis(cloudItem.scoreConfirmedAt) !== toMillis(local.scoreConfirmedAt);
+                  || toMillis(cloudItem.scoreConfirmedAt) !== toMillis(local.scoreConfirmedAt)
+                  || Boolean(cloudItem.confirmedByAdmin) !== Boolean(local.confirmedByAdmin);
 
                 if (cloudHasNewerGrading || infoChanged) {
                   localMap.set(cloudItem.id, { ...local, ...cloudItem });
@@ -195,6 +206,14 @@
               );
               localStorage.setItem('asian_school_submissions_v1', JSON.stringify(merged));
               storage.notify(storage.submissionListeners, merged);
+
+              // Tự động đồng bộ trạng thái xác nhận điểm lên Google Drive (5 Sheets & Backup) khi có cập nhật mới
+              if (scoreConfirmChanged && typeof storage.syncAllToGoogleDrive === 'function') {
+                if (driveConfirmSyncTimer) clearTimeout(driveConfirmSyncTimer);
+                driveConfirmSyncTimer = setTimeout(() => {
+                  storage.syncAllToGoogleDrive().catch(() => {});
+                }, 2000);
+              }
             }
 
             updateStatus({ lastSyncAt: new Date().toISOString() });

@@ -30,7 +30,9 @@ export default function SubmissionsTab() {
     practiceSubs,
     cloudStatus,
     filteredSubmissions,
-    handleSetClassReviewMode
+    handleSetClassReviewMode,
+    handleAdminConfirmScore,
+    handleAdminConfirmBatchScores
   } = useAdmin();
 
   const savedRows = [...(submissions || []), ...(practiceSubs || [])];
@@ -193,9 +195,25 @@ export default function SubmissionsTab() {
               Tìm thấy: <strong className="text-blue-950 font-bold">{filteredSubmissions.length}</strong> bài nộp
             </span>
             {filteredSubmissions.some(s => s.mode === 'exam') && (
-              <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold">
-                🟢 Đã xác nhận điểm: {filteredSubmissions.filter(s => s.mode === 'exam' && s.scoreConfirmed).length} / {filteredSubmissions.filter(s => s.mode === 'exam').length}
-              </span>
+              <>
+                <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold">
+                  🟢 Đã xác nhận điểm: {filteredSubmissions.filter(s => s.mode === 'exam' && s.scoreConfirmed).length} / {filteredSubmissions.filter(s => s.mode === 'exam').length}
+                </span>
+                {filteredSubmissions.some(s => s.mode === 'exam' && !s.scoreConfirmed) && (
+                  <button
+                    type="button"
+                    onClick={() => handleAdminConfirmBatchScores(
+                      filteredSubmissions.filter(s => s.mode === 'exam' && !s.scoreConfirmed),
+                      filterClass !== 'all' ? `Lớp ${filterClass}` : 'danh sách đang lọc'
+                    )}
+                    title="Xác nhận điểm thay cho toàn bộ học sinh chưa bấm xác nhận trong danh sách hiện tại và đồng bộ lên Google Drive"
+                    className="px-3 py-1 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] shadow-sm transition flex items-center space-x-1"
+                  >
+                    <span>✓</span>
+                    <span>Xác nhận thay tất cả ({filteredSubmissions.filter(s => s.mode === 'exam' && !s.scoreConfirmed).length} HS)</span>
+                  </button>
+                )}
+              </>
             )}
           </div>
 
@@ -351,12 +369,22 @@ export default function SubmissionsTab() {
                         {sub.mode === 'exam' ? (
                           sub.scoreConfirmed ? (
                             <span className="inline-block px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black border border-emerald-300">
-                              🟢 Đã xác nhận {confirmedTime ? `(${confirmedTime})` : ''}
+                              🟢 Đã xác nhận {confirmedTime ? `(${confirmedTime})` : ''}{sub.confirmedByAdmin ? ' · GV' : ''}
                             </span>
                           ) : (
-                            <span className="inline-block px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold border border-slate-200">
-                              ⏳ Chưa xác nhận
-                            </span>
+                            <div className="flex flex-col items-center gap-1">
+                              <span className="inline-block px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold border border-slate-200">
+                                ⏳ Chưa xác nhận
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleAdminConfirmScore(sub)}
+                                title="Xác nhận điểm thay cho học sinh này (trường hợp học sinh quên bấm xác nhận)"
+                                className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold shadow-sm transition"
+                              >
+                                ✓ Xác nhận thay
+                              </button>
+                            </div>
                           )
                         ) : (
                           <span className="text-slate-400 text-[10px]">—</span>

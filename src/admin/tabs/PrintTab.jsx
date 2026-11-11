@@ -13,7 +13,9 @@ export default function PrintTab() {
     setPrintPeriod,
     practiceSubs,
     handleClearPracticeClass,
-    handleDeletePracticeSubmission
+    handleDeletePracticeSubmission,
+    handleAdminConfirmScore,
+    handleAdminConfirmBatchScores
   } = useAdmin();
 
   const classRoster = useMemo(() => getStudentsByClass(printClass) || [], [printClass]);
@@ -204,6 +206,20 @@ export default function PrintTab() {
         </div>
 
         <div className="flex items-center space-x-2">
+          {printType === 'exam' && uniqueExamSubs.some(s => !s.scoreConfirmed) && (
+            <button
+              type="button"
+              onClick={() => handleAdminConfirmBatchScores(
+                uniqueExamSubs.filter(s => !s.scoreConfirmed),
+                `Lớp ${printClass}`
+              )}
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow transition flex items-center space-x-1.5"
+              title={`Xác nhận điểm thay cho ${uniqueExamSubs.filter(s => !s.scoreConfirmed).length} học sinh chưa bấm xác nhận của Lớp ${printClass}`}
+            >
+              <span>✓</span>
+              <span>Xác Nhận Thay Cả Lớp ({uniqueExamSubs.filter(s => !s.scoreConfirmed).length} HS)</span>
+            </button>
+          )}
           {printType === 'practice' && (
             <button
               type="button"
@@ -310,7 +326,17 @@ export default function PrintTab() {
                               )}
                             </span>
                           ) : (
-                            <span className="text-slate-400 italic text-[11px]">Chưa xác nhận</span>
+                            <div className="inline-flex flex-col items-center gap-1">
+                              <span className="text-slate-400 italic text-[11px]">Chưa xác nhận</span>
+                              <button
+                                type="button"
+                                onClick={() => handleAdminConfirmScore(sub)}
+                                title="Xác nhận điểm thay cho học sinh này (trường hợp học sinh quên bấm xác nhận)"
+                                className="print:hidden px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] shadow-sm transition"
+                              >
+                                ✓ Xác nhận thay
+                              </button>
+                            </div>
                           )}
                         </td>
                         <td className="py-2 px-3 text-slate-700 italic">

@@ -22,7 +22,8 @@ export default function EssayGradingModal() {
     setIsGeminiGrading,
     aiSuggestions,
     setAiSuggestions,
-    showDialog
+    showDialog,
+    handleAdminConfirmScore
   } = useAdmin();
 
   // Chế độ xem: 'all' (Toàn bộ bài làm từ TN đến TL), 'essay' (Chỉ tự luận & chấm), 'mcq' (Chỉ trắc nghiệm & Đúng/Sai)
@@ -241,9 +242,20 @@ export default function EssayGradingModal() {
                   ✓ Học sinh đã chốt điểm
                 </span>
               ) : (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300">
-                  ⏳ Chưa chốt điểm
-                </span>
+                <div className="inline-flex items-center space-x-1.5">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300">
+                    ⏳ Chưa chốt điểm
+                  </span>
+                  {gradingSubmission.mode === 'exam' && handleAdminConfirmScore && (
+                    <button
+                      type="button"
+                      onClick={() => handleAdminConfirmScore(gradingSubmission)}
+                      className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition"
+                    >
+                      ✓ Xác nhận thay HS
+                    </button>
+                  )}
+                </div>
               )}
             </div>
             <h2 className="text-lg sm:text-xl font-black text-blue-950 mt-1">

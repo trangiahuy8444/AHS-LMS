@@ -369,7 +369,9 @@ export function useAdminController() {
     openGradingModal,
     handleSaveGrading,
     handleStartBatchGrading,
-    handleCancelBatchGrading
+    handleCancelBatchGrading,
+    handleAdminConfirmScore,
+    handleAdminConfirmBatchScores
   } = createGradingActions(s);
   const { handleExportCSV, handleExportJSON, handleImportJSON, handleClearAllData } = createExportActions(s);
   const { handleUploadExamBank, attemptDocRef, describeAttempt, handleLookupAttempt, handleGrantAttempt, handleResetAttempt, handleSaveMaxAttempts, handleToggleExamBankLock, handleToggleExamCode } = createExamBankActions(s);
@@ -658,6 +660,8 @@ export function useAdminController() {
     handleSaveGrading,
     handleStartBatchGrading,
     handleCancelBatchGrading,
+    handleAdminConfirmScore,
+    handleAdminConfirmBatchScores,
     handleExportCSV,
     handleExportJSON,
     handleImportJSON,

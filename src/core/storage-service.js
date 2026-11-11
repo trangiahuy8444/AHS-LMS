@@ -1032,18 +1032,97 @@
       return list.find(s => s.id === id) || null;
     }
 
-    confirmScore(subId) {
+    confirmScore(subId, options = {}) {
+      const targetId = String(subId || '').trim();
       const list = this.getSubmissions();
-      const idx = list.findIndex(s => s.id === subId || s.submissionId === subId);
+      const idx = list.findIndex(s => s.id === targetId || s.submissionId === targetId);
       const now = new Date().toISOString();
       if (idx !== -1) {
-        list[idx].scoreConfirmed = true;
-        list[idx].scoreConfirmedAt = now;
+        const sub = list[idx];
+        sub.scoreConfirmed = true;
+        sub.scoreConfirmedAt = now;
+        if (options.confirmedByAdmin) {
+          sub.confirmedByAdmin = true;
+        }
+        list[idx] = sub;
         localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(list));
         this.notify(this.submissionListeners, list);
-        this.syncRowToGoogleDrive(list[idx]);
+
+        if (options.confirmedByAdmin && typeof window !== 'undefined' && window.firebaseDb && typeof window.firebaseDb.collection === 'function') {
+          try {
+            const docId = sub.id || targetId;
+            const updatePayload = {
+              scoreConfirmed: true,
+              scoreConfirmedAt: now,
+              confirmedByAdmin: true
+            };
+            writeArchivedSource('submissions', docId, updatePayload, { merge: true }, sub)
+              .catch(() => {
+                window.firebaseDb.collection('submissions').doc(docId).set(updatePayload, { merge: true }).catch(() => {});
+              });
+          } catch (e) { /* ignore */ }
+        }
+
+        if (options.confirmedByAdmin) {
+          this.logAudit(
+            'Xác nhận điểm thay học sinh',
+            `${sub.fullName || sub.studentId} (Lớp ${sub.studentClass}): Đã xác nhận điểm ${sub.finalScore !== undefined ? sub.finalScore : (sub.mcqPoints || 0)}đ`
+          );
+        }
+
+        this.syncRowToGoogleDrive(sub);
       }
       return { success: true, confirmedAt: now };
+    }
+
+    confirmBatchScoresByAdmin(subIds = []) {
+      const idSet = new Set((subIds || []).map(id => String(id || '').trim()).filter(Boolean));
+      if (idSet.size === 0) return { success: false, count: 0 };
+
+      const list = this.getSubmissions();
+      const now = new Date().toISOString();
+      const updatedSubs = [];
+
+      list.forEach((sub, idx) => {
+        const key = String(sub.id || sub.submissionId || '').trim();
+        if (idSet.has(key) && !sub.scoreConfirmed) {
+          sub.scoreConfirmed = true;
+          sub.scoreConfirmedAt = now;
+          sub.confirmedByAdmin = true;
+          list[idx] = sub;
+          updatedSubs.push(sub);
+        }
+      });
+
+      if (updatedSubs.length > 0) {
+        localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(list));
+        this.notify(this.submissionListeners, list);
+
+        if (typeof window !== 'undefined' && window.firebaseDb && typeof window.firebaseDb.collection === 'function') {
+          updatedSubs.forEach((sub) => {
+            const docId = sub.id || sub.submissionId;
+            if (!docId) return;
+            const updatePayload = {
+              scoreConfirmed: true,
+              scoreConfirmedAt: now,
+              confirmedByAdmin: true
+            };
+            try {
+              writeArchivedSource('submissions', docId, updatePayload, { merge: true }, sub)
+                .catch(() => {
+                  window.firebaseDb.collection('submissions').doc(docId).set(updatePayload, { merge: true }).catch(() => {});
+                });
+            } catch (e) { /* ignore */ }
+          });
+        }
+
+        this.logAudit(
+          'Xác nhận điểm hàng loạt thay HS',
+          `Đã xác nhận điểm thay cho ${updatedSubs.length} học sinh chưa bấm xác nhận.`
+        );
+      }
+
+      return { success: true, count: updatedSubs.length, confirmedAt: now };
     }
 
     lookupLocalSubmission(grade, studentClass, studentId) {
