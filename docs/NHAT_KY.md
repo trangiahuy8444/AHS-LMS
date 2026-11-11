@@ -1,3 +1,11 @@
+## 11/11/2026 — Đã phát hành và phục hồi bài ôn tập lên máy chủ
+
+- Client `9a7fef3` đã build/deploy thành công qua GitHub Actions. Rules bản có bảo vệ xóa nguồn đầy đủ đã Publish và đọc lại khớp hash.
+- Đã tạo nguồn ôn tập phục hồi cùng archive job nguyên tử, create-only; đọc lại xác minh đủ câu trả lời và điểm gốc. Danh tính, câu trả lời và biên nhận chi tiết chỉ lưu riêng tư ngoài repo.
+- Cấu hình kỳ thi, quyền xem/chốt điểm và collection bài thi chính thức không bị thay đổi. Chưa công nhận điểm hoặc mở chốt cho học sinh.
+- Bổ sung gộp bản tổng hợp cũ với lượt phục hồi khi khớp danh tính, thời gian, điểm và câu trả lời để tránh hiển thị trùng; vẫn giữ các lượt lịch sử độc lập và bản có nội dung khác. Đối chiếu nguồn cứu hộ riêng cho kết quả số bài hiển thị đúng, không ghi lại dữ liệu.
+- Bản hoàn thiện gộp hiển thị đã kiểm:218 Node đạt/3 private bỏ qua,215 Vitest đạt;lint/build/chặn lọt đề đạt. Chỉ sửa cách trình bày dữ liệu trên Admin.
+
 ## 11/11/2026 — Giáo viên yêu cầu phát hành và phục hồi dữ liệu ôn tập
 
 - Giáo viên đã yêu cầu thực hiện bước tiếp theo: cập nhật client/rules và đưa bài cứu hộ vào nguồn ôn tập để quản trị xem; không mở chốt điểm hoặc thay điểm gốc.
