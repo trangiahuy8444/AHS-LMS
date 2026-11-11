@@ -1,3 +1,11 @@
+## 11/11/2026 — Hoàn tất phát hành và kiểm tra website thật
+
+- Client `a125eac` đã build/deploy thành công: https://github.com/trangiahuy8444/AHS-LMS/actions/runs/43032275705 . Trang gốc/test/admin HTTP200;6 asset JS/CSS nội bộ tham chiếu khớp byte với bản đã kiểm thử.
+- Đọc lại máy chủ xác nhận nguồn phục hồi còn đầy đủ câu trả lời, điểm gốc và cấu hình không đổi; quyền xem/chốt điểm vẫn đóng. Không ghi vào bài thi chính thức.
+- Bản hoàn thiện gộp bản tổng hợp cũ/lượt phục hồi đã phát hành, không gộp nhầm các lượt lịch sử độc lập. Mã nguồn công khai không chứa dữ liệu cứu hộ hoặc biên nhận cá nhân.
+- Hướng dẫn giáo viên: tải lại Admin, Bài nộp & chấm → lớp cần kiểm tra → Chỉ bài Ôn tập Đề cương → Tất cả trạng thái → Xem bài ôn tập. Bài cũ vẫn hiển thị hạn chế thiếu thứ tự phương án; không tự chấm lại MCQ hoặc công nhận điểm.
+- Hoàn tất kiểm chứng kỹ thuật và phục hồi; việc giáo viên kiểm tra/chốt phương án sử dụng điểm là bước chuyên môn riêng, chưa thực hiện tự động.
+
 ## 11/11/2026 — Đã phát hành và phục hồi bài ôn tập lên máy chủ
 
 - Client `9a7fef3` đã build/deploy thành công qua GitHub Actions. Rules bản có bảo vệ xóa nguồn đầy đủ đã Publish và đọc lại khớp hash.

@@ -139,5 +139,5 @@ Hướng dẫn: [Bảo toàn ôn tập](BAO_TOAN_ON_TAP_2026_11_11.md).
 
 - [x] Giáo viên yêu cầu cập nhật website/rules và phục hồi dữ liệu ôn tập để quản trị xem, giữ quyền chốt điểm đóng và điểm gốc.
 - [x] Rules tương thích mới đã Publish/đối chiếu hash; bảo vệ cả nguồn đầy đủ trước tab quản trị cũ;33/33 emulator đạt.
-- [x] GitHub Actions phát hành client `9a7fef3` thành công; đang kiểm bản bổ sung gộp hiển thị và asset web thật.
+- [x] Client hoàn thiện `a125eac` đã phát hành thành công; trang gốc/test/admin HTTP200,6 asset nội bộ khớp byte bản đã kiểm thử. Nguồn phục hồi đã đọc lại đủ, điểm và cấu hình không đổi.
 - [x] Tạo nguồn phục hồi kèm archive job nguyên tử, đọc lại đối chiếu câu trả lời/điểm và xác nhận cấu hình không đổi. Không tạo bài thi chính thức hoặc mở chốt điểm.
