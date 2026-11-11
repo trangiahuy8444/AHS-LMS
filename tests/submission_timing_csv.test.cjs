@@ -16,10 +16,12 @@ test('CSV giữ 16 cột cũ, nối trạng thái nộp và số giây trễ, gi
   const csv = storage.exportSubmissionsCSV();
   assert.equal(csv.charCodeAt(0), 0xfeff);
   const [headers, ...result] = csv.slice(1).split('\r\n').map(cells);
-  assert.deepEqual(headers.slice(0,16), ['STT','Mã LMS','Họ và Tên','Lớp','Khối','Chế Độ','Mã Đề','Thời Gian Làm Bài','Điểm TN / Đ-S (Tự động)','Điểm Tự Luận (Chấm)','Ghi Chú Vi Phạm','Tổng Điểm (Thang 10)','Trạng Thái Chấm','Lời Phê Của Giáo Viên','Số Lần Vi Phạm','Thời Gian Nộp']);
-  assert.deepEqual(headers.slice(16), ['Trạng Thái Nộp', 'Số Giây Trễ']);
-  assert.deepEqual(result.map(r => r.slice(16)), [['Nộp muộn','2'],['Đúng hạn','0'],['Chưa đủ dữ liệu',''],['','']]);
-  assert.ok(result.every(r => r[8] === '4.25' && r[9] === '2' && r[11] === '6.25'));
+  assert.deepEqual(headers.slice(0,16), ['STT','Mã LMS','Họ và Tên','Lớp','Khối','Chế Độ','Mã Đề','Thời Gian Làm Bài','Điểm TN / Đ-S (Tự động)','Điểm Tự Luận (Chấm)','Ghi Chú Vi Phạm','Tổng Điểm (Theo thang bài làm)','Trạng Thái Chấm','Lời Phê Của Giáo Viên','Số Lần Vi Phạm','Thời Gian Nộp']);
+  assert.deepEqual(headers.slice(16), ['Trạng Thái Nộp', 'Số Giây Trễ', 'Thang Điểm']);
+  assert.deepEqual(result.map(r => r.slice(16)), [['Nộp muộn','2','10'],['Đúng hạn','0','10'],['Chưa đủ dữ liệu','','10'],['','','7']]);
+  assert.ok(result.every(r => r[9] === '2' && r[11] === '6.25'));
+  assert.ok(result.slice(0, 3).every(r => r[8] === '4.25'));
+  assert.equal(result[3][8], '6.25');
   assert.equal(data.get('asian_school_submissions_v1'), before, 'Xuất không sửa điểm hay dữ liệu gốc');
 });
 test('tự chấm tính overtime theo duration/extra lưu trên bài, không theo config hiện tại và không phạt muộn', () => {

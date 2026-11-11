@@ -15,6 +15,8 @@
 
   const SUBMISSIONS_KEY = 'asian_school_submissions_v1';
   const PRACTICE_SUBMISSIONS_KEY = 'asian_school_practice_submissions_v1';
+  const PRACTICE_ATTEMPTS_KEY = 'asian_school_practice_attempt_details_v1';
+  const PRACTICE_PENDING_KEY = 'asian_school_practice_pending_v1';
   const PRACTICE_QUEUE_LEDGER_KEY = 'asian_school_practice_queue_ledger_v1';
   const LIVE_KEY = 'asian_school_live_sessions_v1';
   // Giao kèo heartbeat với firestore.rules; bỏ trường cũ/lạ trước khi gửi.
@@ -102,6 +104,7 @@
     constructor() {
       this.submissionListeners = [];
       this.practiceSubmissionListeners = [];
+      this.practiceAttemptListeners = [];
       this.liveListeners = [];
       this.configListeners = [];
       this.cmdListeners = [];
@@ -111,6 +114,7 @@
         window.addEventListener('storage', (e) => {
           if (e.key === SUBMISSIONS_KEY) this.notify(this.submissionListeners, this.getSubmissions());
           if (e.key === PRACTICE_SUBMISSIONS_KEY) this.notify(this.practiceSubmissionListeners, this.getPracticeSubmissions());
+          if (e.key === PRACTICE_ATTEMPTS_KEY) this.notify(this.practiceAttemptListeners, this.getPracticeAttempts());
           if (e.key === LIVE_KEY) this.notify(this.liveListeners, this.getLiveSessions());
           if (e.key === CONFIG_KEY) this.notify(this.configListeners, this.getConfig());
           if (e.key === PROCTOR_CMD_KEY) this.notify(this.cmdListeners, this.getProctorCommandsRaw());
@@ -390,12 +394,43 @@
     // --- QUẢN LÝ PHIÊN ÔN TẬP THEO MÃ LMS (SESSION SCOPE - KHÔNG LƯU VĨNH VIỄN) ---
 
     getPracticeAttempts(studentId) {
+      if (arguments.length === 0) {
+        try { const rows = JSON.parse(localStorage.getItem(PRACTICE_ATTEMPTS_KEY) || '[]'); return Array.isArray(rows) ? rows : []; } catch { return []; }
+      }
       const key = (studentId || 'anon').trim().toUpperCase();
       if (typeof sessionStorage !== 'undefined') {
         const val = sessionStorage.getItem('ahs_practice_attempts_' + key);
         return val ? parseInt(val, 10) : 0;
       }
       return this.practiceSessionMap.get(key) || 0;
+    }
+
+    onPracticeAttemptChange(cb) {
+      this.practiceAttemptListeners.push(cb);
+      return () => { this.practiceAttemptListeners = this.practiceAttemptListeners.filter(fn => fn !== cb); };
+    }
+
+    savePracticeAttempt(doc) {
+      if (!doc || !doc.id) return;
+      const rows = this.getPracticeAttempts();
+      const idx = rows.findIndex(row => row.id === doc.id);
+      // A legacy summary can be enriched once with the full cloud attempt. Never overwrite saved answers.
+      if (idx >= 0 && (rows[idx].answers || !doc.answers)) {
+        const old = rows[idx];
+        const sameAttempt = ['grade', 'studentClass', 'studentId', 'submittedAt'].every(k => String(old[k]) === String(doc[k]))
+          && JSON.stringify(old.answers) === JSON.stringify(doc.answers);
+        if (!old.practiceSet && doc.practiceSet && sameAttempt) {
+          rows[idx] = JSON.parse(JSON.stringify({ ...old, practiceSet: doc.practiceSet, ...(old.startedAtMs ? {} : doc.startedAtMs ? { startedAtMs: doc.startedAtMs } : {}) }));
+          localStorage.setItem(PRACTICE_ATTEMPTS_KEY, JSON.stringify(rows));
+          this.notify(this.practiceAttemptListeners, rows);
+        }
+        return;
+      }
+      const copy = JSON.parse(JSON.stringify(doc));
+      if (idx >= 0) rows[idx] = copy; else rows.unshift(copy);
+      // No silent retention cap: an unsuccessful local write must reach the submission screen.
+      localStorage.setItem(PRACTICE_ATTEMPTS_KEY, JSON.stringify(rows));
+      this.notify(this.practiceAttemptListeners, rows);
     }
 
     incrementPracticeAttempt(studentId) {
@@ -455,6 +490,7 @@
 
     savePracticeSubmission(subDoc) {
       if (!subDoc) return null;
+      this.savePracticeAttempt(subDoc);
       const list = this.getPracticeSubmissions();
       const sId = String(subDoc.studentId || '').trim();
       const sClass = subDoc.studentClass;
@@ -1146,38 +1182,88 @@
     }
 
     exportSubmissionsJSON() {
-      const list = this.getSubmissions();
-      return JSON.stringify(list, null, 2);
+      return JSON.stringify({ format: 'ahs-submissions-backup', version: 2,
+        submissions: this.getSubmissions(), practiceSubmissions: this.getPracticeSubmissions(),
+        practiceAttempts: this.getPracticeAttempts() }, null, 2);
     }
 
     importSubmissionsJSON(jsonString) {
       try {
-        const imported = JSON.parse(jsonString);
-        if (!Array.isArray(imported)) throw new Error('Dữ liệu không phải mảng danh sách bài nộp');
-        const current = this.getSubmissions();
-        const map = new Map();
-        current.forEach(item => { if (item.id) map.set(item.id, item); });
-        let addedCount = 0;
-        imported.forEach(item => {
-          const key = item.id || (item.sessionId ? 'sub-' + item.sessionId : 'sub-' + Math.random());
-          if (!map.has(key)) {
-            map.set(key, { ...item, id: key });
-            addedCount++;
+        const input = JSON.parse(jsonString);
+        const legacy = Array.isArray(input);
+        if (!legacy && (!input || input.format !== 'ahs-submissions-backup' || input.version !== 2)) throw new Error('Định dạng sao lưu không được hỗ trợ');
+        if (legacy && input.some(row => !row || typeof row !== 'object' || Array.isArray(row))) throw new Error('Danh sách có bài nộp không hợp lệ');
+        const exam = legacy ? input.filter(row => row && row.mode !== 'practice') : input.submissions;
+        const practice = legacy ? input.filter(row => row && row.mode === 'practice') : input.practiceSubmissions;
+        const attempts = legacy ? practice : input.practiceAttempts;
+        const isMap = value => value && typeof value === 'object' && !Array.isArray(value);
+        const validAnswers = answers => isMap(answers) && ['mcq', 'tf', 'essay'].every(k => isMap(answers[k]))
+          && Object.keys(answers).every(k => ['mcq', 'tf', 'essay'].includes(k))
+          && Object.values(answers.mcq).every(v => Number.isInteger(v) && v >= 0 && v <= 9)
+          && Object.values(answers.tf).every(v => isMap(v) && Object.values(v).every(x => typeof x === 'boolean'))
+          && Object.values(answers.essay).every(v => typeof v === 'string');
+        const valid = row => row && typeof row === 'object' && typeof row.id === 'string' && row.id.length > 0
+          && ['exam', 'practice'].includes(row.mode) && [8, 9, 10].includes(Number(row.grade))
+          && typeof row.studentId === 'string' && typeof row.studentClass === 'string' && typeof row.fullName === 'string'
+          && (!row.answers || validAnswers(row.answers))
+          && (!row.practiceSet || (typeof row.practiceSet === 'object' && !Array.isArray(row.practiceSet)
+            && ['mcqQuestions', 'tfQuestions', 'essayQuestions'].every(k => Array.isArray(row.practiceSet[k]) && row.practiceSet[k].length <= (k === 'mcqQuestions' ? 40 : k === 'tfQuestions' ? 10 : 3)
+              && row.practiceSet[k].every(q => q && typeof q === 'object' && !Array.isArray(q)
+                && (k !== 'mcqQuestions' || (q.id !== undefined && Array.isArray(q.options) && q.options.every(option => typeof option === 'string')))
+                && (k !== 'tfQuestions' || (q.num !== undefined && Array.isArray(q.subQuestions) && q.subQuestions.every(sub => sub && typeof sub === 'object')))
+                && (k !== 'essayQuestions' || q.num !== undefined)))));
+        if (![exam, practice, attempts].every(Array.isArray) || ![...exam, ...practice, ...attempts].every(valid)
+          || exam.some(row => row.mode !== 'exam') || [...practice, ...attempts].some(row => row.mode !== 'practice')) throw new Error('Bản sao có bài nộp không hợp lệ; chưa nhập dữ liệu nào');
+        let added = 0;
+        const merge = (current, incoming) => {
+          const map = new Map(current.map(row => [row.id, row]));
+          for (const row of incoming) {
+            if (!map.has(row.id)) { map.set(row.id, row); added++; }
+            else if (!map.get(row.id).answers && row.answers) map.set(row.id, row);
+            else {
+              const old = map.get(row.id);
+              if (!old.practiceSet && row.practiceSet && ['grade', 'studentClass', 'studentId', 'submittedAt'].every(k => String(old[k]) === String(row[k]))
+                && JSON.stringify(old.answers) === JSON.stringify(row.answers)) map.set(row.id, { ...old, practiceSet: row.practiceSet });
+            }
           }
-        });
-        const merged = Array.from(map.values()).sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0));
-        localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(merged));
-        this.notify(this.submissionListeners, merged);
-        this.logAudit('Hợp nhất CSDL JSON', `Thêm mới ${addedCount} bài, tổng cộng: ${merged.length} bài`);
-        return { success: true, count: merged.length, added: addedCount };
-      } catch (err) {
-        return { success: false, error: err.message };
+          return [...map.values()];
+        };
+        const official = merge(this.getSubmissions(), exam);
+        const detailed = merge(this.getPracticeAttempts(), attempts);
+        const summaries = this.practiceGradebookRows([...this.getPracticeSubmissions(), ...practice, ...detailed]);
+        // Validate and serialize all stores before touching any of them. Roll back on quota failure.
+        const changes = [[SUBMISSIONS_KEY, official], [PRACTICE_SUBMISSIONS_KEY, summaries], [PRACTICE_ATTEMPTS_KEY, detailed]].map(([key, rows]) => [key, JSON.stringify(rows)]);
+        const previous = changes.map(([key]) => [key, localStorage.getItem(key)]);
+        try { for (const [key, value] of changes) localStorage.setItem(key, value); }
+        catch (error) {
+          for (const [key, value] of previous) { try { if (value === null) localStorage.removeItem(key); else localStorage.setItem(key, value); } catch {} }
+          throw error;
+        }
+        this.notify(this.submissionListeners, official);
+        this.notify(this.practiceSubmissionListeners, summaries);
+        this.notify(this.practiceAttemptListeners, detailed);
+        return { success: true, count: official.length + detailed.length, added };
+      } catch (err) { return { success: false, error: err.message }; }
+    }
+
+    practiceGradebookRows(rows) {
+      const best = new Map();
+      for (const row of rows) {
+        if (!row || row.mode !== 'practice') continue;
+        const key = [Number(row.grade), row.studentClass, String(row.studentId || row.studentCode || '').trim()].join(':');
+        const old = best.get(key);
+        const score = item => Number(item.finalScore ?? item.score ?? 0);
+        if (!old || score(row) > score(old) || (score(row) === score(old)
+          && new Date(row.submittedAt || 0).getTime() > new Date(old.submittedAt || 0).getTime())) best.set(key, row);
       }
+      return [...best.values()];
     }
 
     exportSubmissionsCSV() {
       const timingPkg = (typeof window !== 'undefined' && window.AsianSchoolExamTiming) || require('./exam-timing.js');
-      const list = this.getSubmissions();
+      const source = this.getSubmissions();
+      const list = [...source.filter(row => row.mode !== 'practice'), ...this.practiceGradebookRows([...source, ...this.getPracticeSubmissions(), ...this.getPracticeAttempts()])];
+      const hasPractice = list.some(row => row.mode === 'practice');
       const headers = [
         'STT',
         'Mã LMS',
@@ -1190,17 +1276,18 @@
         'Điểm TN / Đ-S (Tự động)',
         'Điểm Tự Luận (Chấm)',
         'Ghi Chú Vi Phạm',
-        'Tổng Điểm (Thang 10)',
+        hasPractice ? 'Tổng Điểm (Theo thang bài làm)' : 'Tổng Điểm (Thang 10)',
         'Trạng Thái Chấm',
         'Lời Phê Của Giáo Viên',
         'Số Lần Vi Phạm',
         'Thời Gian Nộp',
         'Trạng Thái Nộp',
-        'Số Giây Trễ'
+        'Số Giây Trễ',
+        ...(hasPractice ? ['Thang Điểm'] : [])
       ];
 
       const rows = list.map((s, idx) => {
-        const autoScore = s.mcqPoints !== undefined ? s.mcqPoints : (s.score !== undefined ? s.score : '');
+        const autoScore = s.mode === 'practice' ? (s.finalScore ?? s.score ?? '') : (s.mcqPoints !== undefined ? s.mcqPoints : (s.score !== undefined ? s.score : ''));
         const essayScore = s.isGraded ? (s.essayTotal !== undefined ? s.essayTotal : 0) : 'Chưa chấm';
         const finalScore = s.finalScore !== undefined ? s.finalScore : (s.score !== undefined ? s.score : autoScore);
         const gradingStatus = s.isGraded ? 'Đã chấm xong' : (s.mode === 'exam' ? 'Chờ chấm tự luận' : 'Ôn tập');
@@ -1226,7 +1313,8 @@
           s.violations || 0,
           `"${new Date(s.submittedAt || Date.now()).toLocaleString('vi-VN')}"`,
           `"${timingStatus}"`,
-          timing.known ? timing.lateSeconds : ''
+          timing.known ? timing.lateSeconds : '',
+          ...(hasPractice ? [s.mode === 'practice' ? (s.maxScore ?? (Number(s.grade) === 10 ? 7.75 : 7)) : 10] : [])
         ];
       });
 
@@ -1457,7 +1545,7 @@
         const tot = Number(doc.totalQuestions) || (Number(doc.grade) === 10 ? 19 : 28);
         calculatedMcq = Math.round((Number(doc.correctCount) / tot) * 10 * 10) / 10;
       }
-      return {
+      const row = {
         id: text(doc.id, 80),
         mode: 'practice',
         studentId: text(normLms(doc.studentId || doc.studentCode), 30),
@@ -1476,16 +1564,65 @@
         durationFormatted: text(doc.durationFormatted, 40),
         submittedAt: text(doc.submittedAt || new Date().toISOString(), 40)
       };
+      if (doc.answers) row.answers = JSON.parse(JSON.stringify(doc.answers));
+      if (doc.practiceSet) row.practiceSet = JSON.parse(JSON.stringify(doc.practiceSet));
+      if (Number.isFinite(doc.maxScore)) row.maxScore = doc.maxScore;
+      if (doc.sessionId) row.sessionId = text(doc.sessionId, 200);
+      if (Number.isFinite(doc.startedAtMs)) row.startedAtMs = doc.startedAtMs;
+      return row;
+    }
+
+    getPracticePending() {
+      try { const rows = JSON.parse(localStorage.getItem(PRACTICE_PENDING_KEY) || '[]'); return Array.isArray(rows) ? rows : []; } catch { return []; }
     }
 
     queuePracticeResult(doc) {
-      if (typeof window === 'undefined' || !window.firebaseDb || typeof window.firebaseDb.collection !== 'function') return false;
-      const uid = window.AsianSchoolAuth && window.AsianSchoolAuth.uid ? window.AsianSchoolAuth.uid() : null;
-      if (!uid) return false;
-      const row = { ...this.toPracticeQueueRow(doc), uid };
-      writeArchivedSource('practice_results', row.id, row)
-        .catch(e => console.warn('Firestore practice queue err', e));
+      const uid = typeof window !== 'undefined' && window.AsianSchoolAuth?.uid ? window.AsianSchoolAuth.uid() : null;
+      const row = { ...this.toPracticeQueueRow(doc), ...(uid ? { uid } : {}) };
+      const pending = this.getPracticePending();
+      if (!pending.some(item => item.id === row.id)) {
+        pending.push(row);
+        localStorage.setItem(PRACTICE_PENDING_KEY, JSON.stringify(pending));
+      }
+      this.flushPracticePending();
       return true;
+    }
+
+    flushPracticePending() {
+      if (this._practicePendingFlush) return this._practicePendingFlush;
+      this._practicePendingFlush = this._flushPracticePending().finally(() => { this._practicePendingFlush = null; });
+      return this._practicePendingFlush;
+    }
+
+    async _flushPracticePending() {
+      const uid = typeof window !== 'undefined' && window.AsianSchoolAuth?.uid ? window.AsianSchoolAuth.uid() : null;
+      if (!uid || !window.firebaseDb) return { success: false, pending: this.getPracticePending().length };
+      let error = null;
+      const visited = new Set();
+      let saved;
+      while ((saved = this.getPracticePending().find(row => !visited.has(row.id) && (!row.uid || row.uid === uid)))) {
+        visited.add(saved.id);
+        const row = { ...saved, uid };
+        try {
+          await writeArchivedSource('practice_results', row.id, row);
+          localStorage.setItem(PRACTICE_PENDING_KEY, JSON.stringify(this.getPracticePending().filter(item => item.id !== row.id)));
+        } catch (err) {
+          // A previous create may already have reached Firestore before this browser closed.
+          // Only acknowledge an existing document when it is exactly this owner's saved payload.
+          let acknowledged = false;
+          if (err.code === 'permission-denied') {
+            try {
+              const snap = await window.firebaseDb.collection('practice_results').doc(row.id).get({ source: 'server' });
+              const current = snap.exists ? snap.data() : null;
+              const stable = value => JSON.stringify(value, (key, val) => val && typeof val === 'object' && !Array.isArray(val) ? Object.fromEntries(Object.keys(val).sort().map(k => [k, val[k]])) : val);
+              acknowledged = !!current && stable(current) === stable(row);
+            } catch {}
+          }
+          if (acknowledged) localStorage.setItem(PRACTICE_PENDING_KEY, JSON.stringify(this.getPracticePending().filter(item => item.id !== row.id)));
+          else error = err.message || 'Chưa nhận được xác nhận lưu trên máy chủ';
+        }
+      }
+      return { success: !error && !this.getPracticePending().some(row => !row.uid || row.uid === uid), pending: this.getPracticePending().length, error };
     }
 
     // Chỉ lưu ID và cờ xử lý; mọi nguồn còn trong snapshot được giữ bất kể số lượng.
@@ -1522,6 +1659,7 @@
       let pushed = 0;
       for (const row of rows || []) {
         if (!row || !row.id || this._practiceQueueRemoved.has(row.id)) continue;
+        this.savePracticeAttempt({ ...row, mode: 'practice' });
         const processed = ledger.get(row.id) || { merged: false, webhook: false, at: Date.now() };
         if (!processed.merged) {
           if (!known.has(row.id)) {
@@ -1553,7 +1691,8 @@
           if (!alreadyPushed) pushed++;
           if (typeof deleteRow === 'function') {
             const archive = typeof window !== 'undefined' ? window.AsianSchoolDriveArchive : null;
-            let archived = !archive?.enabled() || cfg.driveArchiveEnabled !== true;
+            // Detailed attempts are permanent sources until an explicit, current archive receipt exists.
+            let archived = !row.answers && (!archive?.enabled() || cfg.driveArchiveEnabled !== true);
             if (archive?.enabled() && cfg.driveArchiveEnabled === true) {
               try {
                 const receipt = await window.firebaseDb.collection('drive_archive_jobs').doc('practice_results_' + row.id).get();

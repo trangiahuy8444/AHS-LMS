@@ -212,7 +212,9 @@ test('Cổng học sinh không gửi thẳng lên webhook; rules có hàng chờ
   const rules = fs.readFileSync(path.join(__dirname, '../firestore.rules'), 'utf8');
   const block = rules.slice(rules.indexOf('match /practice_results/'), rules.indexOf('match /live_sessions/'));
   assert.match(block, /allow read: if isTeacher\(\);/);
-  assert.match(block, /allow delete: if isTeacher\(\) && archiveDeleteAllowed\('practice_results', rowId\);/);
+  assert.match(block, /allow delete: if isTeacher\(\)/);
+  assert.match(block, /hasCurrentArchiveReceipt\('practice_results', rowId\)/);
+  assert.match(block, /archiveDeleteAllowed\('practice_results', rowId\)/);
   assert.match(block, /d\.uid == request\.auth\.uid/);
 });
 

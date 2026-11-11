@@ -1,3 +1,20 @@
+## 11/11/2026 — Giáo viên yêu cầu phát hành và phục hồi dữ liệu ôn tập
+
+- Giáo viên đã yêu cầu thực hiện bước tiếp theo: cập nhật client/rules và đưa bài cứu hộ vào nguồn ôn tập để quản trị xem; không mở chốt điểm hoặc thay điểm gốc.
+- Đã sao lưu riêng tư quy tắc/cấu hình hiện hành trước cập nhật. Rules mới đã Publish và đọc lại khớp SHA-256 `867231b09d01387ecd015aeb3aaaa0f69259825512ba6524eb7d53ecc2514097`.
+- Bổ sung ràng buộc máy chủ: bài ôn tập có câu trả lời chỉ được xóa khi biên nhận lưu trữ hiện hành khớp, kể cả công tắc bảo vệ tắt; chặn tab quản trị cũ tự dọn bài vừa phục hồi sau Sheets.
+- Kiểm bản phát hành: 218 Node/208 Vitest đạt,3 gói riêng tư bỏ qua;lint/build/chặn lọt đề đạt;rules emulator riêng33/33 đạt. Mã nguồn/rules/tests đã đối chiếu khớp bản kiểm thử.
+- Đang phát hành client qua GitHub Actions. Dữ liệu thật không đưa vào repo; kế hoạch phục hồi dùng tạo mới có điều kiện cùng archive job trong một commit, không ghi vào collection bài thi chính thức hoặc cấu hình xem/chốt điểm.
+
+## 11/11/2026 — Bảo toàn bài ôn tập và xác nhận mở ca thi (cục bộ)
+
+- Dữ liệu cứu hộ được giữ riêng ngoài repository công khai. Tạo bản xem và JSON dễ đọc; giữ điểm gốc, không suy ra đáp án từ chỉ số phương án đã đảo.
+- Lượt mới giữ nguyên câu trả lời và bộ câu hỏi của lượt, tách khỏi bảng điểm cao nhất. Bổ sung hàng gửi bền/retry và cảnh báo khi chưa có xác nhận máy chủ. Nguồn chi tiết chỉ tự dọn sau biên nhận lưu trữ hợp lệ.
+- Quản trị xem ôn tập chỉ đọc; JSON v2 giữ lịch sử và câu trả lời, CSV tổng hợp đúng thang điểm và không được coi là sao lưu đầy đủ. Kiểm tra dữ liệu lồng nhau và nhập hợp nhất không trùng.
+- Mở/đóng ca thi dùng map mới nhất trong transaction, chỉ báo thành công sau commit. Chưa xác minh cấu hình thật để kết luận nguyên nhân duy nhất của ca thực tế.
+- Kiểm cuối: npm run check đạt — 218 Node đạt, 3 gói riêng tư bỏ qua; 208 Vitest đạt; lint/build/chặn lọt đề đạt. Rules emulator riêng 32/32 đạt. Diễn tập giao diện dữ liệu giả 1366×768 và 390×844 đạt, không kết nối dịch vụ thật. Review độc lập không còn blocker trong phạm vi sửa.
+- Mã đã đồng bộ về checkout Drive. Không commit/push/publish, không sửa Firebase, Sheets hoặc điểm thật. Cần publish rules tương thích trước client và diễn tập sau phát hành. Xem BAO_TOAN_ON_TAP_2026_11_11.md.
+
 ## 09/11/2026 — Giáo viên duyệt commit/push bản giao diện, tìm nhanh và nhắc nhở
 
 - Giáo viên đã yêu cầu commit/push các thay đổi giao diện đang chờ: khung 88%, tìm nhanh Giám sát và nhắc nhở học sinh nổi bật.

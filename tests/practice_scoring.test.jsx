@@ -62,3 +62,19 @@ describe('Điểm ôn tập không tính tự luận', () => {
     expect(result).toBeNull();
   });
 });
+
+it('nộp ôn tập keeps exact shuffled question/options with answers in full saved attempt', () => {
+  run(8, allRight);
+  const saved = window.AsianSchoolStorage.saveSubmission.mock.calls[0][0];
+  expect(saved.practiceSet.mcqQuestions).toEqual(mcq);
+  expect(saved.practiceSet.essayQuestions).toEqual(essays);
+  expect(saved.startedAtMs).toBeGreaterThan(0);
+});
+it('failed local preservation keeps draft and does not show submitted state', () => {
+  const setExamState = vi.fn(), showDialog = vi.fn();
+  window.AsianSchoolStorage.saveSubmission = () => { throw new Error('QuotaExceededError'); };
+  const s = {grade:8,mode:'practice',sessionId:'fake',fullName:'Fixture',studentClass:'8/19',studentId:'999999',setExamState,setShowSubmitModal:vi.fn(),practiceAnswers:allRight,totalViolations:0,setScoreResult:vi.fn(),showDialog,examStartTime:Date.now(),config:{},practiceQuestions:mcq,practiceTfQuestions:[],practiceEssayQuestions:essays};
+  expect(() => createPracticeSubmitActions(s).handleSubmitPractice()).not.toThrow();
+  expect(setExamState).not.toHaveBeenCalled();
+  expect(showDialog).toHaveBeenCalled();
+});

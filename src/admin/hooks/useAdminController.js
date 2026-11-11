@@ -1,3 +1,4 @@
+import { submissionRows } from '../practiceSubmissions.js';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { getStudentsByClass, verifyStudentLms } from '../../core/roster-data.js';
 import { createProctorActions } from '../actions/proctorActions.js';
@@ -65,6 +66,7 @@ export function useAdminController() {
   const [printType, setPrintType] = useState('exam'); // 'exam' | 'practice'
   const [printPeriod, setPrintPeriod] = useState(config.examPeriod || 'midterm'); // 'midterm' | 'final'
   const [practiceSubs, setPracticeSubs] = useState([]);
+  const [practiceAttempts, setPracticeAttempts] = useState([]);
 
   // Danh sách lớp theo khối
   const ALL_CLASSES_BY_GRADE = {
@@ -260,6 +262,8 @@ export function useAdminController() {
     setPrintPeriod,
     practiceSubs,
     setPracticeSubs,
+    practiceAttempts,
+    setPracticeAttempts,
     ALL_CLASSES_BY_GRADE,
     cloudStatus,
     setCloudStatus,
@@ -419,6 +423,10 @@ export function useAdminController() {
       if (window.AsianSchoolStorage.getPracticeSubmissions) {
         setPracticeSubs(window.AsianSchoolStorage.getPracticeSubmissions());
       }
+      if (window.AsianSchoolStorage.getPracticeAttempts) {
+        const attempts = window.AsianSchoolStorage.getPracticeAttempts();
+        setPracticeAttempts(Array.isArray(attempts) ? attempts : []);
+      }
       setConfig(window.AsianSchoolStorage.getConfig());
       setAuditLogs(window.AsianSchoolStorage.getAuditLogs());
     };
@@ -432,6 +440,10 @@ export function useAdminController() {
       ? window.AsianSchoolStorage.onPracticeSubmissionChange(() => setPracticeSubs(window.AsianSchoolStorage.getPracticeSubmissions()))
       : () => {};
 
+    const unsubAttempts = window.AsianSchoolStorage.onPracticeAttemptChange
+      ? window.AsianSchoolStorage.onPracticeAttemptChange(() => setPracticeAttempts(window.AsianSchoolStorage.getPracticeAttempts()))
+      : () => {};
+
     const interval = setInterval(refreshData, 3500);
 
     return () => {
@@ -439,6 +451,7 @@ export function useAdminController() {
       unsubSub();
       unsubCfg();
       unsubPrac();
+      unsubAttempts();
       clearInterval(interval);
     };
   }, [isAuthenticated]);
@@ -469,8 +482,8 @@ export function useAdminController() {
 
   // Filtered submissions
   const filteredSubmissions = useMemo(() => {
-    const list = submissions.filter(s => {
-      if (filterGrade !== 'all' && s.grade !== parseInt(filterGrade)) return false;
+    const list = submissionRows(submissions, practiceSubs, practiceAttempts).filter(s => {
+      if (filterGrade !== 'all' && Number(s.grade) !== parseInt(filterGrade)) return false;
       if (filterClass !== 'all' && s.studentClass !== filterClass) return false;
       if (filterMode !== 'all' && s.mode !== filterMode) return false;
       if (filterGraded === 'graded' && !s.isGraded) return false;
@@ -478,7 +491,7 @@ export function useAdminController() {
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const matchName = (s.fullName || '').toLowerCase().includes(q);
-        const matchLms = (s.studentId || '').toLowerCase().includes(q);
+        const matchLms = String(s.studentId || '').toLowerCase().includes(q);
         if (!matchName && !matchLms) return false;
       }
       return true;
@@ -492,12 +505,12 @@ export function useAdminController() {
         const posA = idxA !== -1 ? idxA : 999;
         const posB = idxB !== -1 ? idxB : 999;
         if (posA !== posB) return posA - posB;
-        return (a.studentId || '').localeCompare(b.studentId || '', undefined, { numeric: true });
+        return String(a.studentId || '').localeCompare(String(b.studentId || ''), undefined, { numeric: true });
       });
     }
 
     return list;
-  }, [submissions, filterGrade, filterClass, filterMode, filterGraded, searchQuery]);
+  }, [submissions, practiceSubs, practiceAttempts, filterGrade, filterClass, filterMode, filterGraded, searchQuery]);
 
   // Dữ liệu cho Master Answer Key
   const currentAnswerData = answerGrade === 8
@@ -598,12 +611,15 @@ export function useAdminController() {
     const practiceMistakeMap = {};
     pSubs.forEach(sub => {
       if (sub.answers?.mcq) {
-        const gradeObj = sub.grade === 8 ? window.EXAM_DATA_G8 : (sub.grade === 9 ? window.EXAM_DATA_G9 : window.EXAM_DATA_G10);
-        const qList = gradeObj?.practiceQuestions || [];
+        const qList = Array.isArray(sub.practiceSet?.mcqQuestions) ? sub.practiceSet.mcqQuestions : [];
         qList.forEach(q => {
-          const userAns = sub.answers.mcq[q.id] || sub.answers.mcq[q.num];
-          if (userAns !== undefined && userAns !== q.correctAnswer) {
-            const key = `K${sub.grade}_C${q.num || q.id}_${(q.question || '').slice(0, 45)}...`;
+          if (!q || typeof q !== 'object' || Array.isArray(q) || typeof q.question !== 'string' || !Array.isArray(q.options) || !q.options.every(option => typeof option === 'string')) return;
+          const validKey = value => typeof value === 'string' || (typeof value === 'number' && Number.isFinite(value));
+          const questionKey = validKey(q.id) ? q.id : (validKey(q.num) ? q.num : null);
+          if (questionKey === null) return;
+          const userAns = sub.answers.mcq[questionKey];
+          if (Number.isInteger(userAns) && userAns >= 0 && userAns < q.options.length && Number.isInteger(q.correctAnswer) && q.correctAnswer >= 0 && q.correctAnswer < q.options.length && userAns !== q.correctAnswer) {
+            const key = `K${sub.grade}_C${questionKey}_${q.question.slice(0, 45)}...`;
             practiceMistakeMap[key] = (practiceMistakeMap[key] || 0) + 1;
           }
         });

@@ -4,8 +4,11 @@ import { ROSTER_BY_CLASS, getStudentsByClass, verifyStudentLms } from '../../cor
 import ClassSubmissionSummary from '../components/ClassSubmissionSummary.jsx';
 import ClassGradingStatusBar from '../components/ClassGradingStatusBar.jsx';
 import '../../core/exam-timing.js';
+import { generateSubmissionReviewHtml } from '../../shared/exportSubmissionHtml.js';
 
 export default function SubmissionsTab() {
+  const [practiceReview, setPracticeReview] = useState(null);
+  const practiceReviewHtml = useMemo(() => practiceReview ? generateSubmissionReviewHtml(practiceReview) : '', [practiceReview]);
   const {
     config,
     filterGrade,
@@ -150,7 +153,7 @@ export default function SubmissionsTab() {
         </section>
 
         {/* BANNER ĐIỀU PHỐI CHỐT ĐIỂM THEO LỚP ĐANG LỌC */}
-        {filterClass !== 'all' && (() => {
+        {filterClass !== 'all' && filterMode !== 'practice' && (() => {
           const isClassReviewOpen = Boolean(config?.allowStudentReviewOfficialExam || config?.classReviewControl?.[filterClass]);
           return (
             <div className="p-3.5 bg-indigo-50/80 border-2 border-indigo-200 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs">
@@ -260,8 +263,10 @@ export default function SubmissionsTab() {
         </div>
       </div>
 
+      <p className="text-xs text-slate-500">CSV là bảng điểm tổng hợp; JSON giữ các lượt và câu trả lời chi tiết đã nhận trên máy quản trị. Cả hai xuất mọi lớp, không giới hạn theo bộ lọc hiện tại.</p>
+
       {/* THANH TRẠNG THÁI TIẾN ĐỘ CHẤM TỰ LUẬN & CHẤM NHANH CẢ LỚP */}
-      <ClassGradingStatusBar />
+      {filterMode !== 'practice' && <ClassGradingStatusBar />}
 
       {/* BẢNG CƠ SỞ DỮ LIỆU BÀI THI */}
       <div className="bg-white rounded-3xl border-2 border-slate-200/80 overflow-hidden shadow-sm">
@@ -300,7 +305,7 @@ export default function SubmissionsTab() {
                   const sttDisplay = (filterClass !== 'all' && matchedRoster) ? matchedRoster.stt : (idx + 1);
                   const confirmedTime = formatConfirmedTime(sub.scoreConfirmedAt);
                   return (
-                    <tr key={sub.id || idx} className="hover:bg-slate-50 transition">
+                    <tr key={`${sub.mode}:${sub.id || idx}`} className="hover:bg-slate-50 transition">
                       <td className="py-3 px-4 font-mono-code text-slate-400 font-bold">{sttDisplay}</td>
                       <td className="py-3 px-4 font-bold text-slate-900">{getCanonicalName(sub)}</td>
                       <td className="py-3 px-4">
@@ -321,13 +326,14 @@ export default function SubmissionsTab() {
                         )}
                       </td>
                       <td className="py-3 px-4 font-mono-code font-bold text-slate-800">
-                        {sub.examCode || '—'}
+                        {sub.mode === 'practice' ? `Lượt ${sub.attemptNumber ?? '—'}` : (sub.examCode || '—')}
+                        {sub.mode === 'practice' && <div className="text-[10px] text-slate-500 font-normal">{sub.practiceSet ? 'Có bộ câu hỏi đã lưu' : 'Bản tổng hợp cũ'}</div>}
                       </td>
                       <td className="py-3 px-4 text-center font-bold text-slate-800">
                         {autoScore}đ
                       </td>
                       <td className="py-3 px-4 text-center font-bold">
-                        {sub.isGraded ? (
+                        {sub.mode === 'practice' ? <span className="text-slate-500">Không tính điểm</span> : sub.isGraded ? (
                           <span className="text-indigo-600 font-bold">+{sub.essayTotal}đ</span>
                         ) : (
                           <span className="text-slate-400 italic">Chưa chấm</span>
@@ -337,7 +343,7 @@ export default function SubmissionsTab() {
                         <span className="text-base font-black text-emerald-600">
                           {finalScore}
                         </span>
-                        <span className="text-[11px] text-slate-400"> / 10đ</span>
+                        <span className="text-[11px] text-slate-400"> / {sub.mode === 'practice' ? (sub.maxScore ?? (Number(sub.grade) === 10 ? 7.75 : 7)) : 10}đ</span>
                         {hasPenalty && (
                           <div className="text-[10px] text-red-600 font-extrabold">
                             ⚠️ Vi phạm {sub.violations} lần
@@ -356,7 +362,7 @@ export default function SubmissionsTab() {
                             )}
                           </div>
                         )}
-                        {sub.isGraded ? (
+                        {sub.mode === 'practice' ? <span className="text-blue-800">Đã lưu ôn tập</span> : sub.isGraded ? (
                           <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 text-[10px] font-bold border border-emerald-200">
                             Đã chấm ✓
                           </span>
@@ -395,12 +401,12 @@ export default function SubmissionsTab() {
                         <div className="flex items-center justify-center space-x-1.5">
                           <button
                             type="button"
-                            onClick={() => openGradingModal(sub)}
-                            title="Xem toàn bộ bài làm (từ trắc nghiệm đến tự luận) & Chấm điểm"
+                            onClick={() => sub.mode === 'practice' ? setPracticeReview(sub) : openGradingModal(sub)}
+                            title={sub.mode === 'practice' ? 'Xem bản ôn tập đã lưu, không chấm hoặc đổi điểm' : 'Xem toàn bộ bài làm (từ trắc nghiệm đến tự luận) & Chấm điểm'}
                             className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-sm flex items-center space-x-1"
                           >
                             <span>✍️</span>
-                            <span>Xem & Chấm</span>
+                            <span>{sub.mode === 'practice' ? 'Xem bài ôn tập' : 'Xem & Chấm'}</span>
                           </button>
                           <button
                             type="button"
@@ -411,7 +417,7 @@ export default function SubmissionsTab() {
                             <span>📄</span>
                             <span>Xuất HTML</span>
                           </button>
-                          <button
+                          {sub.mode === 'exam' && <><button
                             type="button"
                             onClick={() => handleResetStudentAttempt(sub.studentId, sub.grade, sub.studentClass, sub.fullName || sub.studentName)}
                             title="Reset lượt thi để học sinh này có thể vào làm bài lại từ đầu"
@@ -426,7 +432,7 @@ export default function SubmissionsTab() {
                             className="p-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl text-xs font-bold transition flex items-center justify-center"
                           >
                             🗑️
-                          </button>
+                          </button></>}
                         </div>
                       </td>
                     </tr>
@@ -437,6 +443,13 @@ export default function SubmissionsTab() {
           </table>
         </div>
       </div>
+      {practiceReview && <div role="dialog" aria-modal="true" aria-label="Bài ôn tập đã lưu" className="fixed inset-0 z-[100] bg-slate-900/60 p-3 flex flex-col">
+        <div className="flex justify-between items-center bg-white p-3 rounded-t-xl">
+          <h2 className="font-bold text-[#0267B1]">Bài ôn tập đã lưu · Chỉ xem</h2>
+          <button type="button" onClick={() => setPracticeReview(null)} className="px-4 py-2 bg-slate-100 rounded-lg font-bold">Đóng</button>
+        </div>
+        <iframe title="Chi tiết bài ôn tập" sandbox="" srcDoc={practiceReviewHtml} className="w-full flex-1 bg-white rounded-b-xl border-0" />
+      </div>}
     </div>
   );
 }

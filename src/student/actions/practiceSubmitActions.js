@@ -40,11 +40,6 @@ export function createPracticeSubmitActions(s) {
       }
     }
 
-    // Phiên ôn tập kết thúc: lần ôn tập sau không bắt đầu trong trạng thái khóa
-    clearPracticeLock();
-    window.AsianSchoolAntiCheat.setSubmitting(true);
-    window.AsianSchoolAntiCheat.stop();
-    window.AsianSchoolAntiCheat.exitFullscreen();
 
     let correctMcq = 0;
     practiceQuestions.forEach(q => {
@@ -109,7 +104,9 @@ export function createPracticeSubmitActions(s) {
     };
 
     // Lưu vào phiên tạm theo Mã LMS (không lưu vĩnh viễn vào CSDL)
-    const savedPracticeDoc = window.AsianSchoolStorage.saveSubmission({
+    let savedPracticeDoc;
+    try {
+      savedPracticeDoc = window.AsianSchoolStorage.saveSubmission({
       sessionId,
       fullName,
       studentClass,
@@ -126,8 +123,37 @@ export function createPracticeSubmitActions(s) {
       violations: totalViolations,
       durationSeconds: durationSec,
       durationFormatted,
-      answers: practiceAnswers
-    });
+      answers: JSON.parse(JSON.stringify(practiceAnswers)),
+      practiceSet: JSON.parse(JSON.stringify({ mcqQuestions: practiceQuestions, tfQuestions: practiceTfQuestions, essayQuestions: practiceEssayQuestions })),
+      ...(Number.isFinite(examStartTime) ? { startedAtMs: examStartTime } : {})
+      });
+    } catch (error) {
+      showDialog('Chưa lưu được bài ôn tập', 'Giữ nguyên trang và bản nháp. Chưa xác nhận nộp bài vì không lưu được bản sao trên máy: ' + error.message, 'error');
+      return;
+    }
+
+    // Phiên ôn tập kết thúc: lần ôn tập sau không bắt đầu trong trạng thái khóa
+    clearPracticeLock();
+    window.AsianSchoolAntiCheat.setSubmitting(true);
+    window.AsianSchoolAntiCheat.stop();
+    window.AsianSchoolAntiCheat.exitFullscreen();
+
+    // Chỉ báo hoàn thành trên máy sau khi đã lưu nguyên bài. Cloud vẫn cần xác nhận riêng.
+    if (typeof window.AsianSchoolStorage.flushPracticePending === 'function') {
+      const checkCloud = async () => {
+        let timeout;
+        try {
+          const status = await Promise.race([
+            window.AsianSchoolStorage.flushPracticePending(),
+            new Promise(resolve => { timeout = setTimeout(() => resolve({ success: false }), 8000); })
+          ]);
+          if (!status.success) showDialog('Bài đã lưu trên máy, chưa xác nhận máy chủ', 'Không đóng trang hoặc bấm làm lại. Bài làm đầy đủ đang được giữ trên máy và chờ gửi lại khi kết nối được. Báo giáo viên để sao lưu trước khi rời máy.', 'warning');
+        } catch {
+          showDialog('Bài đã lưu trên máy, chưa xác nhận máy chủ', 'Giữ nguyên trang và báo giáo viên để sao lưu bài làm trên máy.', 'warning');
+        } finally { clearTimeout(timeout); }
+      };
+      checkCloud();
+    }
 
     result.attemptNumber = savedPracticeDoc?.attemptNumber || 1;
     setScoreResult(result);

@@ -9,8 +9,8 @@ const live = { sessionId: 'session-owner-tab1', uid: 'owner', grade: 8, studentI
 const db = (uid) => uid ? env.authenticatedContext(uid).firestore() : env.unauthenticatedContext().firestore();
 const teacher = () => env.authenticatedContext('teacher', { email: 'trangiahuy8444@gmail.com', email_verified: true }).firestore();
 before(async () => {
-  if (process.env.FIRESTORE_EMULATOR_HOST !== '127.0.0.1:8080') throw new Error('Rules tests require local emulator 127.0.0.1:8080');
-  env = await initializeTestEnvironment({ projectId, firestore: { host: '127.0.0.1', port: 8080, rules: fs.readFileSync('firestore.rules', 'utf8') } });
+  if (!/^127\.0\.0\.1:[0-9]{2,5}$/.test(process.env.FIRESTORE_EMULATOR_HOST || '')) throw new Error('Rules tests require a local loopback emulator');
+  env = await initializeTestEnvironment({ projectId, firestore: { host: '127.0.0.1', port: Number(process.env.FIRESTORE_EMULATOR_HOST.split(':')[1]), rules: fs.readFileSync('firestore.rules', 'utf8') } });
 });
 after(async () => { if (env) await env.cleanup(); });
 beforeEach(async () => {
@@ -266,4 +266,20 @@ test('guidance merges only the selected mode and students cannot edit it', async
   require('node:assert/strict').equal(saved.studentGuidance.exam.body, 'Nội quy riêng');
   require('node:assert/strict').equal(saved.studentGuidance.practice.body, 'Hoàn thành 3 lần.');
   await assertFails(updateDoc(doc(db('owner'), 'exam_config/global_config'), { 'studentGuidance.practice.body': 'Tự sửa' }));
+});
+
+const fullPractice = { id:'fake-practice-full',uid:'owner',mode:'practice',studentId:'999999',fullName:'Hoc Sinh Gia',studentClass:'8/19',grade:8,attemptNumber:1,score:7,finalScore:7,mcqPoints:7,tfPoints:0,correctCount:28,totalQuestions:28,violations:0,durationSeconds:1200,durationFormatted:'20 phút',submittedAt:'2026-11-11T01:00:00Z',maxScore:7,startedAtMs:1794357600000,sessionId:'fake-session',answers:{mcq:{1:1},tf:{},essay:{1:'Synthetic answer'}},practiceSet:{mcqQuestions:[{id:1,options:['A','B'],correctAnswer:1}],tfQuestions:[],essayQuestions:[]}};
+test('practice full detail: owner creates and checks receipt, teacher reads; other students cannot read or alter it',async()=>{
+ const path='practice_results/'+fullPractice.id;
+ await assertSucceeds(setDoc(doc(db('owner'),path),fullPractice));
+ await assertSucceeds(getDoc(doc(db('owner'),path)));
+ await assertSucceeds(getDoc(doc(teacher(),path)));
+ await assertFails(getDoc(doc(db('other'),path)));
+ await assertFails(updateDoc(doc(db('owner'),path),{answers:{mcq:{1:0},tf:{},essay:{}}}));
+});
+test('practice detail rejects wrong owner, unknown fields, excessive questions and malformed answers',async()=>{
+ const path='practice_results/'+fullPractice.id;
+ for(const patch of [{uid:'other'},{unexpected:'field'},{practiceSet:{...fullPractice.practiceSet,mcqQuestions:Array(41).fill({id:1})}},{answers:[]},{answers:{mcq:{},tf:{},essay:{},secret:'bad'}}]) {
+  await assertFails(setDoc(doc(db('owner'),path),{...fullPractice,...patch}));
+ }
 });

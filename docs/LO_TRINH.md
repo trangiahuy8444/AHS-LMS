@@ -123,3 +123,21 @@ Không upload/thay kho đề hoặc sửa bài nộp/điểm trong lần phát h
 - [ ] Cài/upload worker vào Google Apps Script, bật trigger, nghiệm thu ghi Drive khi admin đóng. Thư mục gốc đã tạo riêng tư, chưa báo lưu tự động hoạt động.
 - [ ] Phát hành lần cập nhật cuối bộ thử: lệnh bị chặn vì hết hạn mức xét duyệt tự động, chưa thực thi; bản phát hành đầu vẫn dùng được.
 - [ ] Chuẩn bị và duyệt phát hành client/rules sản xuất, không đồng nhất với website thử. Không phát hành main hoặc rules thật trong phiên này.
+
+
+### 11/11/2026 — Bảo toàn ôn tập và xác nhận mở ca (cục bộ)
+
+- [x] Đối soát dữ liệu cứu hộ riêng tư, tạo bản xem và JSON dễ đọc; không chấm lại hoặc đổi điểm thật.
+- [x] Mã và kiểm tự động: lịch sử nguyên bài từng lượt, pending/retry, JSON v2/CSV đủ nguồn, quản trị xem ôn tập chỉ đọc và mở ca chờ máy chủ xác nhận.
+- [x] Kiểm cuối: 218 Node đạt/3 private bỏ qua;208 Vitest;32 rules emulator;lint/build/chặn lọt đề đạt. Review độc lập và diễn tập giao diện bằng dữ liệu giả đạt.
+- [ ] Publish rules tương thích trước client, diễn tập nhận đủ bài và mở ca sau phát hành. Chưa cập nhật website/Firebase trong đợt chuẩn bị này.
+- [ ] Xác minh cấu hình/lỗi thật để kết luận nguyên nhân ca bị chặn; lỗi mã đã tái hiện chưa chứng minh nguyên nhân duy nhất.
+
+Hướng dẫn: [Bảo toàn ôn tập](BAO_TOAN_ON_TAP_2026_11_11.md).
+
+### 11/11/2026 — Phát hành theo yêu cầu tiếp theo của giáo viên
+
+- [x] Giáo viên yêu cầu cập nhật website/rules và phục hồi dữ liệu ôn tập để quản trị xem, giữ quyền chốt điểm đóng và điểm gốc.
+- [x] Rules tương thích mới đã Publish/đối chiếu hash; bảo vệ cả nguồn đầy đủ trước tab quản trị cũ;33/33 emulator đạt.
+- [ ] GitHub Actions phát hành client và kiểm asset web thật.
+- [ ] Tạo nguồn phục hồi kèm archive job nguyên tử, đọc lại đối chiếu câu trả lời/điểm và xác nhận cấu hình không đổi. Không tự tạo bài thi chính thức.

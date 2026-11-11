@@ -65,3 +65,8 @@ Các mục lịch sử ghi ngày 30/10/2026 được giữ nguyên để bảo t
 ## Nguồn nghiệm thu hiện tại — xác nhận 30/10/2026
 
 Giáo viên chỉ định bộ Giữa HK1 trong thư mục gửi Ms.Tuyến là chuẩn; CK1 chưa có. Các công cụ mới đã được đối chiếu bộ Giữa HK1, không tự biên soạn hoặc giả định gói CK1 đã duyệt. Xem DOI_CHIEU_GIUA_HK1.md.
+
+
+## Bổ sung bảo toàn ôn tập — 11/11/2026 (mã chưa phát hành)
+
+Theo yêu cầu giáo viên, giữ từng lượt ôn tập gồm câu trả lời và bộ câu hỏi/phương án thực tế, bên cạnh bảng điểm cao nhất. JSON giữ chi tiết; CSV là tổng hợp. Giữ thang7/7.75 và tự luận không tính điểm. Bài cũ thiếu thứ tự phương án không được tự chấm lại từ ngân hàng hiện tại. Việc công nhận điểm do giáo viên quyết định riêng. Client/rules mới đã kiểm cục bộ, chưa thay hệ thống đang chạy.

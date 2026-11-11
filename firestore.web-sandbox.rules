@@ -62,11 +62,16 @@ service cloud.firestore {
       return getAfter(/databases/$(database)/documents/exam_attempts/$(attemptId)).data;
     }
 
-    function archiveDeleteAllowed(collection, sourceId) {
+    function hasCurrentArchiveReceipt(collection, sourceId) {
       let path = /databases/$(database)/documents/drive_archive_jobs/$(collection + '_' + sourceId);
+      return exists(path) && get(path).data.get('pending', true) == false
+        && get(path).data.get('revision', 0) is int && get(path).data.get('revision', 0) > 0
+        && get(path).data.get('archivedRevision', 0) == get(path).data.revision;
+    }
+
+    function archiveDeleteAllowed(collection, sourceId) {
       return cfg().get('driveArchiveProtectDeletes', false) != true
-        || (exists(path) && get(path).data.pending == false
-          && get(path).data.archivedRevision == get(path).data.revision);
+        || hasCurrentArchiveReceipt(collection, sourceId);
     }
 
     // Cấu hình công khai cho cổng học sinh (lớp nào đang mở, phân công mã đề, thời lượng). Không chứa mật khẩu.
@@ -286,13 +291,29 @@ service cloud.firestore {
       allow delete: if isTeacher() && archiveDeleteAllowed('submissions', subId);
     }
 
-    // Hàng chờ điểm ôn tập: học sinh ghi dòng của mình, trang quản trị đẩy lên Google Sheets rồi xóa.
+    // Ôn tập: giữ nguyên mỗi lượt với câu trả lời và bộ câu hỏi; chỉ dọn sau bản lưu trữ đã xác nhận.
     // Không có trường nào của bài thi chính thức; giới hạn kiểu và độ dài để không dùng làm kho chứa tùy ý.
     match /practice_results/{rowId} {
+      function validPracticeAnswers(a) {
+        return a is map && a.keys().hasOnly(['mcq', 'tf', 'essay'])
+          && a.mcq is map && a.mcq.size() <= 40
+          && a.tf is map && a.tf.size() <= 10
+          && a.essay is map && a.essay.keys().hasOnly(['1', '2', '3'])
+          && a.essay.get('1', '') is string && a.essay.get('1', '').size() <= 20000
+          && a.essay.get('2', '') is string && a.essay.get('2', '').size() <= 20000
+          && a.essay.get('3', '') is string && a.essay.get('3', '').size() <= 20000;
+      }
+      function validPracticeSet(s) {
+        return s is map && s.keys().hasOnly(['mcqQuestions', 'tfQuestions', 'essayQuestions'])
+          && s.mcqQuestions is list && s.mcqQuestions.size() <= 40
+          && s.tfQuestions is list && s.tfQuestions.size() <= 10
+          && s.essayQuestions is list && s.essayQuestions.size() <= 3;
+      }
       function validPracticeRow(d) {
         return d.keys().hasOnly(['id', 'uid', 'mode', 'studentId', 'fullName', 'studentClass', 'grade', 'attemptNumber',
                                  'score', 'finalScore', 'mcqPoints', 'tfPoints', 'correctCount', 'totalQuestions',
-                                 'violations', 'durationSeconds', 'durationFormatted', 'submittedAt'])
+                                 'violations', 'durationSeconds', 'durationFormatted', 'submittedAt',
+                                 'answers', 'practiceSet', 'maxScore', 'sessionId', 'startedAtMs'])
           && d.id == rowId && rowId.size() <= 80
           && d.uid == request.auth.uid
           && d.mode == 'practice'
@@ -303,11 +324,23 @@ service cloud.firestore {
           && d.score is number && d.score >= 0 && d.score <= 10
           && d.finalScore is number && d.finalScore >= 0 && d.finalScore <= 10
           && d.durationFormatted is string && d.durationFormatted.size() <= 40
-          && d.submittedAt is string && d.submittedAt.size() <= 40;
+          && d.submittedAt is string && d.submittedAt.size() <= 40
+          && (!('answers' in d) || validPracticeAnswers(d.answers))
+          && (!('practiceSet' in d) || (('answers' in d) && validPracticeSet(d.practiceSet)))
+          && (!('maxScore' in d) || (d.maxScore is number && d.maxScore in [7, 7.75]))
+          && (!('sessionId' in d) || (d.sessionId is string && d.sessionId.size() <= 200))
+          && (!('startedAtMs' in d) || (d.startedAtMs is number && d.startedAtMs > 0));
       }
       allow create: if signedIn() && validPracticeRow(request.resource.data);
       allow read: if isTeacher();
-      allow delete: if isTeacher() && archiveDeleteAllowed('practice_results', rowId);
+      // Owners can check one exact ID after a retry; never list or inspect another student's rows.
+      allow get: if signedIn() && resource.data.uid == request.auth.uid;
+      // Older admin tabs still delete queue rows after Sheets sync. Full answers always
+      // require a current worker archive receipt, even when the optional delete switch is off.
+      allow delete: if isTeacher()
+        && (('answers' in resource.data)
+          ? hasCurrentArchiveReceipt('practice_results', rowId)
+          : archiveDeleteAllowed('practice_results', rowId));
     }
 
     // Phiên giám sát trực tiếp

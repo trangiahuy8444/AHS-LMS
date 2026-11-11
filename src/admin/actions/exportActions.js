@@ -3,7 +3,7 @@ import { exportStudentSubmissionHtml } from '../../shared/exportSubmissionHtml.j
 // Xuất CSV, sao lưu và hợp nhất dữ liệu
 // s: state của Cổng Quản Trị (xem hooks/useAdminController.js)
 export function createExportActions(s) {
-  const { setLiveSessions, submissions, setSubmissions, setPracticeSubs, setHasDownloadedBackup, showToast,
+  const { setLiveSessions, submissions, setSubmissions, setPracticeSubs, setPracticeAttempts, setHasDownloadedBackup, showToast,
     showDialog } = s;
 
   // --- XUẤT CSV & SAO LƯU ---
@@ -27,7 +27,10 @@ export function createExportActions(s) {
   };
 
   const handleExportCSV = () => {
-    if (submissions.length === 0) {
+    const storage = window.AsianSchoolStorage;
+    const practice = storage.getPracticeSubmissions?.() || s.practiceSubs || [];
+    const attempts = storage.getPracticeAttempts?.();
+    if (submissions.length === 0 && practice.length === 0 && (!Array.isArray(attempts) || attempts.length === 0)) {
       showDialog('Chưa Có Bài Nộp', 'Chưa có bài nộp nào trong hệ thống để xuất tệp CSV.', 'warning');
       return;
     }
@@ -39,12 +42,23 @@ export function createExportActions(s) {
     link.download = `BangDiem_TinHoc_AsianSchool_${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-    setHasDownloadedBackup(true);
     showToast('Đã tải xuống tệp bảng điểm CSV thành công!', 'success', 'Xuất File CSV');
   };
 
   const handleExportJSON = () => {
-    const jsonContent = window.AsianSchoolStorage.exportSubmissionsJSON();
+    let jsonContent;
+    try {
+      jsonContent = window.AsianSchoolStorage.exportSubmissionsJSON();
+      const data = JSON.parse(jsonContent);
+      const count = Array.isArray(data) ? data.length : ['submissions', 'practiceSubmissions', 'practiceAttempts'].reduce((sum, key) => sum + (Array.isArray(data?.[key]) ? data[key].length : 0), 0);
+      if (!count) {
+        showDialog('Chưa Có Bài Nộp', 'Chưa có dữ liệu bài thi hoặc ôn tập để sao lưu.', 'warning');
+        return;
+      }
+    } catch (error) {
+      showDialog('Chưa Sao Lưu Được', error.message || 'Không đọc được dữ liệu sao lưu.', 'error');
+      return;
+    }
     const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -64,6 +78,8 @@ export function createExportActions(s) {
       const res = window.AsianSchoolStorage.importSubmissionsJSON(event.target.result);
       if (res.success) {
         setSubmissions(window.AsianSchoolStorage.getSubmissions());
+        if (setPracticeSubs) setPracticeSubs(window.AsianSchoolStorage.getPracticeSubmissions());
+        if (setPracticeAttempts && window.AsianSchoolStorage.getPracticeAttempts) setPracticeAttempts(window.AsianSchoolStorage.getPracticeAttempts());
         showDialog('✅ Hợp Nhất Dữ Liệu Thành Công', `Đã thêm mới ${res.added} bài nộp vào hệ thống.\nTổng số bài hiện tại: ${res.count} bài.`, 'success');
       } else {
         showDialog('❌ Lỗi Khi Nhập Tệp', res.error, 'error');
@@ -95,6 +111,7 @@ export function createExportActions(s) {
           setSubmissions([]);
           setLiveSessions([]);
           if (setPracticeSubs) setPracticeSubs([]);
+          if (setPracticeAttempts) setPracticeAttempts([]);
           showToast('Đã xóa trắng toàn bộ dữ liệu bài làm, lượt thi và giám sát trên máy và Cloud Firestore.', 'success', 'Xóa Dữ Liệu');
         } catch (err) {
           showDialog('Lỗi Xóa Dữ Liệu', err.message || 'Không thể xóa dữ liệu.', 'error');

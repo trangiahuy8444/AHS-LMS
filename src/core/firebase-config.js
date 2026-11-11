@@ -121,6 +121,10 @@
     const storage = window.AsianSchoolStorage;
     const pathname = (window.location && window.location.pathname) || '';
     const isStudentPortal = pathname.includes('/test');
+    if (isStudentPortal && typeof storage.flushPracticePending === 'function') {
+      storage.flushPracticePending();
+      window.addEventListener('online', () => storage.flushPracticePending());
+    }
 
     // 1. Đồng bộ Submissions từ Firestore (CHỈ DÀNH CHO ADMIN)
     // Học sinh TUYỆT ĐỐI KHÔNG lắng nghe để bảo mật dữ liệu bài thi và tránh quá tải đọc quota Firestore

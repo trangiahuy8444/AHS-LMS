@@ -9,9 +9,9 @@ const teacher=(e=env,email=teacherEmail,verified=true)=>e.authenticatedContext('
 const student=()=>env.authenticatedContext('owner').firestore();
 function job(extra={}) {return {sourceCollection:'submissions',sourceId:'fake-source',grade:9,studentClass:'9/19',revision:increment(1),pending:true,requestedAt:serverTimestamp(),...extra};}
 before(async()=>{
-  if(process.env.FIRESTORE_EMULATOR_HOST!=='127.0.0.1:8080') throw new Error('Requires local Firestore emulator');
-  env=await initializeTestEnvironment({projectId:'demo-ahs-archive',firestore:{host:'127.0.0.1',port:8080,rules:fs.readFileSync('firestore.rules','utf8')}});
-  sandbox=await initializeTestEnvironment({projectId:'demo-ahs-archive-sandbox',firestore:{host:'127.0.0.1',port:8080,rules:fs.readFileSync('firestore.web-sandbox.rules','utf8')}});
+  if(!/^127\.0\.0\.1:[0-9]{2,5}$/.test(process.env.FIRESTORE_EMULATOR_HOST||'')) throw new Error('Requires local loopback Firestore emulator');
+  env=await initializeTestEnvironment({projectId:'demo-ahs-archive',firestore:{host:'127.0.0.1',port:Number(process.env.FIRESTORE_EMULATOR_HOST.split(':')[1]),rules:fs.readFileSync('firestore.rules','utf8')}});
+  sandbox=await initializeTestEnvironment({projectId:'demo-ahs-archive-sandbox',firestore:{host:'127.0.0.1',port:Number(process.env.FIRESTORE_EMULATOR_HOST.split(':')[1]),rules:fs.readFileSync('firestore.web-sandbox.rules','utf8')}});
 });
 after(async()=>{if(env)await env.cleanup();if(sandbox)await sandbox.cleanup();});
 beforeEach(async()=>{
@@ -82,4 +82,24 @@ test('archive protection permits legacy deletion while disabled and requires cur
   }
   await env.withSecurityRulesDisabled(ctx=>setDoc(doc(ctx.firestore(),'drive_archive_jobs/submissions_fake-source'),{revision:2,archivedRevision:2,pending:false}));
   await assertSucceeds(deleteDoc(doc(d,'submissions/fake-source')));
+});
+
+test('full practice answers cannot be deleted by old admins while protection is disabled without a current archive receipt',async()=>{
+  for (const [e,email] of [[env,teacherEmail],[sandbox,fakeEmail]]) {
+    const d=teacher(e,email),path='practice_results/fake-full-practice';
+    await e.withSecurityRulesDisabled(async ctx=>{
+      const admin=ctx.firestore();
+      await setDoc(doc(admin,'exam_config/global_config'),{driveArchiveEnabled:false,driveArchiveProtectDeletes:false});
+      await setDoc(doc(admin,path),{id:'fake-full-practice',uid:'owner',mode:'practice',grade:8,studentClass:'8/19',answers:{mcq:{1:0},tf:{},essay:{1:'Synthetic original answer'}}});
+      await setDoc(doc(admin,'practice_results/fake-legacy-summary'),{id:'fake-legacy-summary',uid:'owner',mode:'practice',grade:8,studentClass:'8/19',score:7});
+    });
+    await assertSucceeds(deleteDoc(doc(d,'practice_results/fake-legacy-summary')));
+    await assertFails(deleteDoc(doc(d,path)));
+    for (const receipt of [{revision:2,archivedRevision:1,pending:false},{revision:2,archivedRevision:2,pending:true},{revision:0,archivedRevision:0,pending:false}]) {
+      await e.withSecurityRulesDisabled(ctx=>setDoc(doc(ctx.firestore(),'drive_archive_jobs/practice_results_fake-full-practice'),receipt));
+      await assertFails(deleteDoc(doc(d,path)));
+    }
+    await e.withSecurityRulesDisabled(ctx=>setDoc(doc(ctx.firestore(),'drive_archive_jobs/practice_results_fake-full-practice'),{revision:2,archivedRevision:2,pending:false}));
+    await assertSucceeds(deleteDoc(doc(d,path)));
+  }
 });
