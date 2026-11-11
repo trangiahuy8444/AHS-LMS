@@ -373,7 +373,7 @@ export function useAdminController() {
     handleAdminConfirmScore,
     handleAdminConfirmBatchScores
   } = createGradingActions(s);
-  const { handleExportCSV, handleExportJSON, handleImportJSON, handleClearAllData } = createExportActions(s);
+  const { handleExportCSV, handleExportJSON, handleImportJSON, handleClearAllData, handleExportStudentHtml } = createExportActions(s);
   const { handleUploadExamBank, attemptDocRef, describeAttempt, handleLookupAttempt, handleGrantAttempt, handleResetAttempt, handleSaveMaxAttempts, handleToggleExamBankLock, handleToggleExamCode } = createExamBankActions(s);
   const { handleSaveExamConfig, handleSaveGoogleDriveUrl, handleTestGoogleDrive, handleSyncAllGoogleDrive, handlePurgeExamData } = createSettingsActions(s);
 
@@ -666,6 +666,7 @@ export function useAdminController() {
     handleExportJSON,
     handleImportJSON,
     handleClearAllData,
+    handleExportStudentHtml,
     handleUploadExamBank,
     attemptDocRef,
     describeAttempt,

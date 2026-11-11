@@ -32,7 +32,8 @@ export default function SubmissionsTab() {
     filteredSubmissions,
     handleSetClassReviewMode,
     handleAdminConfirmScore,
-    handleAdminConfirmBatchScores
+    handleAdminConfirmBatchScores,
+    handleExportStudentHtml
   } = useAdmin();
 
   const savedRows = [...(submissions || []), ...(practiceSubs || [])];
@@ -400,6 +401,15 @@ export default function SubmissionsTab() {
                           >
                             <span>✍️</span>
                             <span>Xem & Chấm</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleExportStudentHtml(sub)}
+                            title="Xuất riêng bài làm của học sinh này (giao diện chốt điểm) ra file HTML để gửi đi"
+                            className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-xl text-xs font-bold transition flex items-center space-x-1"
+                          >
+                            <span>📄</span>
+                            <span>Xuất HTML</span>
                           </button>
                           <button
                             type="button"

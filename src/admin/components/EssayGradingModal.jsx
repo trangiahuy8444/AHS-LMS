@@ -23,7 +23,8 @@ export default function EssayGradingModal() {
     aiSuggestions,
     setAiSuggestions,
     showDialog,
-    handleAdminConfirmScore
+    handleAdminConfirmScore,
+    handleExportStudentHtml
   } = useAdmin();
 
   // Chế độ xem: 'all' (Toàn bộ bài làm từ TN đến TL), 'essay' (Chỉ tự luận & chấm), 'mcq' (Chỉ trắc nghiệm & Đúng/Sai)
@@ -265,13 +266,26 @@ export default function EssayGradingModal() {
               Mã LMS: <strong className="text-blue-700 font-mono-code">{gradingSubmission.studentId || 'Chưa nhập'}</strong> • Mã đề: <strong className="text-amber-700 font-mono-code">{gradingSubmission.examCode || '101'}</strong> • Chế độ: {gradingSubmission.mode === 'exam' ? 'Thi Giữa HK1' : 'Ôn tập'}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setGradingSubmission(null)}
-            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm transition"
-          >
-            ✕
-          </button>
+          <div className="flex items-center space-x-2">
+            {handleExportStudentHtml && (
+              <button
+                type="button"
+                onClick={() => handleExportStudentHtml(gradingSubmission, { fullExam, tempEssayScores, tempFeedback })}
+                title="Xuất bài làm của học sinh này (giống giao diện chốt điểm) ra file HTML để gửi đi"
+                className="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 font-bold text-xs transition flex items-center space-x-1"
+              >
+                <span>📄</span>
+                <span>Xuất File HTML</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setGradingSubmission(null)}
+              className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm transition"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         {/* Tóm tắt điểm số & thời gian làm bài */}
@@ -877,14 +891,26 @@ export default function EssayGradingModal() {
         </div>
 
         {/* Nút lưu & Duyệt kết quả */}
-        <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-          <button
-            type="button"
-            onClick={() => setGradingSubmission(null)}
-            className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition"
-          >
-            Đóng Hộp Thoại
-          </button>
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-4 border-t border-slate-100">
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={() => setGradingSubmission(null)}
+              className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition"
+            >
+              Đóng Hộp Thoại
+            </button>
+            {handleExportStudentHtml && (
+              <button
+                type="button"
+                onClick={() => handleExportStudentHtml(gradingSubmission, { fullExam, tempEssayScores, tempFeedback })}
+                className="px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-bold text-xs rounded-xl border border-indigo-200 transition flex items-center space-x-1.5"
+              >
+                <span>📄</span>
+                <span>Xuất File HTML (Giao diện chốt điểm)</span>
+              </button>
+            )}
+          </div>
 
           <button
             type="button"

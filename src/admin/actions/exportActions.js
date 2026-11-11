@@ -1,3 +1,5 @@
+import { exportStudentSubmissionHtml } from '../../shared/exportSubmissionHtml.js';
+
 // Xuất CSV, sao lưu và hợp nhất dữ liệu
 // s: state của Cổng Quản Trị (xem hooks/useAdminController.js)
 export function createExportActions(s) {
@@ -5,6 +7,24 @@ export function createExportActions(s) {
     showDialog } = s;
 
   // --- XUẤT CSV & SAO LƯU ---
+
+  const handleExportStudentHtml = async (sub, options = {}) => {
+    if (!sub) return;
+    try {
+      const res = await exportStudentSubmissionHtml(sub, options);
+      if (res && showToast) {
+        showToast(
+          `Đã xuất file HTML bài làm của học sinh ${res.canonicalName} (${res.fileName})`,
+          'success',
+          'Xuất File HTML Chốt Điểm'
+        );
+      }
+    } catch (err) {
+      if (showDialog) {
+        showDialog('Lỗi Xuất File HTML', err.message || 'Không thể xuất file HTML cho bài làm này.', 'error');
+      }
+    }
+  };
 
   const handleExportCSV = () => {
     if (submissions.length === 0) {
@@ -83,5 +103,5 @@ export function createExportActions(s) {
     );
   };
 
-  return { handleExportCSV, handleExportJSON, handleImportJSON, handleClearAllData };
+  return { handleExportCSV, handleExportJSON, handleImportJSON, handleClearAllData, handleExportStudentHtml };
 }

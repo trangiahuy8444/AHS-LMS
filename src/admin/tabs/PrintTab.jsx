@@ -15,7 +15,8 @@ export default function PrintTab() {
     handleClearPracticeClass,
     handleDeletePracticeSubmission,
     handleAdminConfirmScore,
-    handleAdminConfirmBatchScores
+    handleAdminConfirmBatchScores,
+    handleExportStudentHtml
   } = useAdmin();
 
   const classRoster = useMemo(() => getStudentsByClass(printClass) || [], [printClass]);
@@ -310,7 +311,21 @@ export default function PrintTab() {
                       <tr key={idx} className="text-slate-900">
                         <td className="py-2 px-3 border-r border-slate-300 text-center font-mono-code font-bold">{sttDisplay}</td>
                         <td className="py-2 px-3 border-r border-slate-300 font-mono-code font-bold text-blue-900">{sub.studentId || '—'}</td>
-                        <td className="py-2 px-3 border-r border-slate-300 font-bold">{getCanonicalName(sub)}</td>
+                        <td className="py-2 px-3 border-r border-slate-300 font-bold">
+                          <div className="flex items-center justify-between gap-1.5">
+                            <span>{getCanonicalName(sub)}</span>
+                            {handleExportStudentHtml && (
+                              <button
+                                type="button"
+                                onClick={() => handleExportStudentHtml(sub)}
+                                title="Xuất bài làm của học sinh này (giao diện chốt điểm) ra file HTML để gửi đi"
+                                className="print:hidden no-print px-1.5 py-0.5 rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 font-bold text-[10px] shrink-0 transition"
+                              >
+                                📄 HTML
+                              </button>
+                            )}
+                          </div>
+                        </td>
                         <td className="py-2 px-3 border-r border-slate-300 text-center font-mono-code">{sub.examCode || '101'}</td>
                         <td className="py-2 px-3 border-r border-slate-300 text-center">{autoScore}</td>
                         <td className="py-2 px-3 border-r border-slate-300 text-center">{sub.isGraded ? essayScore : '—'}</td>
@@ -411,7 +426,21 @@ export default function PrintTab() {
                       <tr key={idx} className="text-slate-900">
                         <td className="py-2 px-3 border-r border-slate-300 text-center font-mono-code font-bold">{sttDisplay}</td>
                         <td className="py-2 px-3 border-r border-slate-300 font-mono-code font-bold text-blue-900">{sub.studentId || '—'}</td>
-                        <td className="py-2 px-3 border-r border-slate-300 font-bold">{getCanonicalName(sub)}</td>
+                        <td className="py-2 px-3 border-r border-slate-300 font-bold">
+                          <div className="flex items-center justify-between gap-1.5">
+                            <span>{getCanonicalName(sub)}</span>
+                            {handleExportStudentHtml && (
+                              <button
+                                type="button"
+                                onClick={() => handleExportStudentHtml(sub)}
+                                title="Xuất bài làm của học sinh này (giao diện chốt điểm) ra file HTML để gửi đi"
+                                className="print:hidden no-print px-1.5 py-0.5 rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 font-bold text-[10px] shrink-0 transition"
+                              >
+                                📄 HTML
+                              </button>
+                            )}
+                          </div>
+                        </td>
                         <td className="py-2 px-3 border-r border-slate-300 text-center font-mono-code font-bold text-amber-900">
                           {attempts} lượt
                         </td>
