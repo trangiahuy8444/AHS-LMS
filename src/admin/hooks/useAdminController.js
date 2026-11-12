@@ -444,7 +444,7 @@ export function useAdminController() {
       ? window.AsianSchoolStorage.onPracticeAttemptChange(() => setPracticeAttempts(window.AsianSchoolStorage.getPracticeAttempts()))
       : () => {};
 
-    const interval = setInterval(refreshData, 3500);
+    const interval = setInterval(() => setAuditLogs(window.AsianSchoolStorage.getAuditLogs()), 10000);
 
     return () => {
       unsubLive();

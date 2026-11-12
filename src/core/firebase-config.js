@@ -114,6 +114,13 @@
     });
   }
 
+  function saveLocalSafe(storage, key, value) {
+    if (storage && typeof storage.safeSetLocal === 'function') {
+      return storage.safeSetLocal(key, value);
+    }
+    try { localStorage.setItem(key, value); } catch { /* bộ nhớ cục bộ đầy */ }
+  }
+
   // Kết nối lắng nghe dữ liệu hai chiều giữa Firestore và AsianSchoolStorage
   function attachCloudListeners() {
     if (!db || typeof window === 'undefined' || !window.AsianSchoolStorage) return;
@@ -208,7 +215,7 @@
               const merged = Array.from(localMap.values()).sort(
                 (a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0)
               );
-              localStorage.setItem('asian_school_submissions_v1', JSON.stringify(merged));
+              saveLocalSafe(storage, 'asian_school_submissions_v1', JSON.stringify(merged));
               storage.notify(storage.submissionListeners, merged);
 
               // Tự động đồng bộ trạng thái xác nhận điểm lên Google Drive (5 Sheets & Backup) khi có cập nhật mới
@@ -264,7 +271,7 @@
             cloudSessions.forEach((s) => { sMap.set(s.sessionId, s); });
 
             const mergedSessions = Array.from(sMap.values());
-            localStorage.setItem('asian_school_live_sessions_v1', JSON.stringify(mergedSessions));
+            saveLocalSafe(storage, 'asian_school_live_sessions_v1', JSON.stringify(mergedSessions));
             storage.notify(storage.liveListeners, mergedSessions);
           },
           (error) => {
@@ -297,7 +304,7 @@
           cloudCmds.forEach((c) => { cMap.set(c.cmdId, c); });
 
           const mergedCmds = Array.from(cMap.values()).slice(-50);
-          localStorage.setItem('asian_school_proctor_commands_v1', JSON.stringify(mergedCmds));
+          saveLocalSafe(storage, 'asian_school_proctor_commands_v1', JSON.stringify(mergedCmds));
           storage.notify(storage.cmdListeners, mergedCmds);
         },
         (error) => {
@@ -316,7 +323,7 @@
           const cloudConfig = doc.data();
           const currentConfig = storage.getConfig();
           const merged = { ...currentConfig, ...cloudConfig };
-          localStorage.setItem('asian_school_exam_config_v1', JSON.stringify(merged));
+          saveLocalSafe(storage, 'asian_school_exam_config_v1', JSON.stringify(merged));
           storage.notify(storage.configListeners, merged);
         },
         (error) => {
@@ -374,7 +381,7 @@
       (doc) => {
         if (!doc || !doc.exists || !storage) return;
         const merged = { ...storage.getConfig(), examPassword: doc.data().examPassword || '' };
-        localStorage.setItem('asian_school_exam_config_v1', JSON.stringify(merged));
+        saveLocalSafe(storage, 'asian_school_exam_config_v1', JSON.stringify(merged));
         storage.notify(storage.configListeners, merged);
       },
       (error) => console.warn('[Firestore] Lắng nghe exam_secrets thất bại:', error.message)
@@ -390,7 +397,7 @@
           googleDriveWebhookUrl: d.googleDriveWebhookUrl || '',
           googleDriveWebhookToken: d.googleDriveWebhookToken || ''
         };
-        localStorage.setItem('asian_school_exam_config_v1', JSON.stringify(merged));
+        saveLocalSafe(storage, 'asian_school_exam_config_v1', JSON.stringify(merged));
         storage.notify(storage.configListeners, merged);
       },
       (error) => console.warn('[Firestore] Lắng nghe exam_secrets/drive thất bại:', error.message)
@@ -904,7 +911,7 @@
           console.warn('[Cloud Draft] Lỗi lưu bản nháp lên Firestore:', err.message);
           resolve(false);
         }
-      }, 600);
+      }, 5000);
     });
   }
 
@@ -1113,6 +1120,16 @@
     const legacyId = legacyAttemptIdFor(grade, key);
     let attemptId = scopedId;
     let attemptRef = db.collection('exam_attempts').doc(attemptId);
+    if (draftSyncTimer) {
+      clearTimeout(draftSyncTimer);
+      draftSyncTimer = null;
+      pendingDraftData = null;
+    }
+    if (typeof db.waitForPendingWrites === 'function') {
+      try {
+        await withTimeout(db.waitForPendingWrites(), 5000, 'pending-writes-timeout');
+      } catch { /* tiếp tục đọc server để kiểm tra trạng thái thực tế */ }
+    }
     let snap;
     try {
       snap = await attemptRef.get({ source: 'server' });

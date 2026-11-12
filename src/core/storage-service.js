@@ -142,9 +142,12 @@
       this.configListeners = [];
       this.cmdListeners = [];
       this.practiceSessionMap = new Map(); // Bộ nhớ phiên ôn tập tạm theo mã LMS (fallback khi không có sessionStorage)
+      this._memStore = new Map();
+      this._memFailedKeys = new Set();
 
       if (typeof window !== 'undefined') {
         window.addEventListener('storage', (e) => {
+          if (e.key) this._memFailedKeys.delete(e.key);
           if (e.key === SUBMISSIONS_KEY) this.notify(this.submissionListeners, this.getSubmissions());
           if (e.key === PRACTICE_SUBMISSIONS_KEY) this.notify(this.practiceSubmissionListeners, this.getPracticeSubmissions());
           if (e.key === PRACTICE_ATTEMPTS_KEY) this.notify(this.practiceAttemptListeners, this.getPracticeAttempts());
@@ -152,6 +155,30 @@
           if (e.key === CONFIG_KEY) this.notify(this.configListeners, this.getConfig());
           if (e.key === PROCTOR_CMD_KEY) this.notify(this.cmdListeners, this.getProctorCommandsRaw());
         });
+      }
+    }
+
+    safeGetLocal(key) {
+      if (this._memFailedKeys && this._memFailedKeys.has(key) && this._memStore.has(key)) {
+        return this._memStore.get(key);
+      }
+      try {
+        return localStorage.getItem(key);
+      } catch {
+        return this._memStore ? (this._memStore.get(key) ?? null) : null;
+      }
+    }
+
+    safeSetLocal(key, value) {
+      if (this._memStore) this._memStore.set(key, value);
+      try {
+        localStorage.setItem(key, value);
+        if (this._memFailedKeys) this._memFailedKeys.delete(key);
+        return true;
+      } catch (err) {
+        if (this._memFailedKeys) this._memFailedKeys.add(key);
+        console.warn(`[Storage] Bộ nhớ cục bộ đầy hoặc bị chặn khi lưu "${key}", chuyển sang bộ nhớ phiên tạm:`, err?.message || err);
+        return false;
       }
     }
 
@@ -171,9 +198,9 @@
 
     getConfig() {
       try {
-        const raw = localStorage.getItem(CONFIG_KEY);
+        const raw = this.safeGetLocal(CONFIG_KEY);
         if (!raw) {
-          localStorage.setItem(CONFIG_KEY, JSON.stringify(DEFAULT_CONFIG));
+          this.safeSetLocal(CONFIG_KEY, JSON.stringify(DEFAULT_CONFIG));
           return DEFAULT_CONFIG;
         }
         return { ...DEFAULT_CONFIG, ...JSON.parse(raw) };
@@ -184,7 +211,7 @@
 
     saveConfig(newConfig) {
       const merged = { ...this.getConfig(), ...newConfig };
-      localStorage.setItem(CONFIG_KEY, JSON.stringify(merged));
+      this.safeSetLocal(CONFIG_KEY, JSON.stringify(merged));
       this.notify(this.configListeners, merged);
 
       if (typeof window !== 'undefined' && window.firebaseDb) {
@@ -428,7 +455,7 @@
 
     getPracticeAttempts(studentId) {
       if (arguments.length === 0) {
-        try { const rows = JSON.parse(localStorage.getItem(PRACTICE_ATTEMPTS_KEY) || '[]'); return Array.isArray(rows) ? rows : []; } catch { return []; }
+        try { const rows = JSON.parse(this.safeGetLocal(PRACTICE_ATTEMPTS_KEY) || '[]'); return Array.isArray(rows) ? rows : []; } catch { return []; }
       }
       const key = (studentId || 'anon').trim().toUpperCase();
       if (typeof sessionStorage !== 'undefined') {
@@ -454,15 +481,14 @@
           && JSON.stringify(old.answers) === JSON.stringify(doc.answers);
         if (!old.practiceSet && doc.practiceSet && sameAttempt) {
           rows[idx] = JSON.parse(JSON.stringify({ ...old, practiceSet: doc.practiceSet, ...(old.startedAtMs ? {} : doc.startedAtMs ? { startedAtMs: doc.startedAtMs } : {}) }));
-          localStorage.setItem(PRACTICE_ATTEMPTS_KEY, JSON.stringify(rows));
+          this.safeSetLocal(PRACTICE_ATTEMPTS_KEY, JSON.stringify(rows));
           this.notify(this.practiceAttemptListeners, rows);
         }
         return;
       }
       const copy = JSON.parse(JSON.stringify(doc));
       if (idx >= 0) rows[idx] = copy; else rows.unshift(copy);
-      // No silent retention cap: an unsuccessful local write must reach the submission screen.
-      localStorage.setItem(PRACTICE_ATTEMPTS_KEY, JSON.stringify(rows));
+      this.safeSetLocal(PRACTICE_ATTEMPTS_KEY, JSON.stringify(rows));
       this.notify(this.practiceAttemptListeners, rows);
     }
 
@@ -1874,7 +1900,7 @@
 
     getLiveSessions() {
       try {
-        const raw = JSON.parse(localStorage.getItem(LIVE_KEY) || '[]');
+        const raw = JSON.parse(this.safeGetLocal(LIVE_KEY) || '[]');
         const now = Date.now();
         return raw.filter(s => (now - (s.lastPing || 0)) < 90 * 60 * 1000);
       } catch {
@@ -1900,7 +1926,7 @@
       } else {
         list.unshift(updated);
       }
-      localStorage.setItem(LIVE_KEY, JSON.stringify(list));
+      this.safeSetLocal(LIVE_KEY, JSON.stringify(list));
       this.notify(this.liveListeners, list);
 
       if (typeof window !== 'undefined' && window.firebaseDb) {
@@ -1923,7 +1949,7 @@
     removeLiveSession(sessionId) {
       let list = this.getLiveSessions();
       list = list.filter(s => s.sessionId !== sessionId);
-      localStorage.setItem(LIVE_KEY, JSON.stringify(list));
+      this.safeSetLocal(LIVE_KEY, JSON.stringify(list));
       this.notify(this.liveListeners, list);
 
       if (typeof window !== 'undefined' && window.firebaseDb) {
@@ -1946,7 +1972,7 @@
       let list = this.getLiveSessions();
       const targetSessions = list.filter(s => s.studentClass === studentClass);
       list = list.filter(s => s.studentClass !== studentClass);
-      localStorage.setItem(LIVE_KEY, JSON.stringify(list));
+      this.safeSetLocal(LIVE_KEY, JSON.stringify(list));
       this.notify(this.liveListeners, list);
 
       if (typeof window !== 'undefined' && window.firebaseDb) {
@@ -1972,7 +1998,7 @@
       const cutoff = Date.now() - (maxAgeMinutes * 60 * 1000);
       const staleOrDone = list.filter(s => s.status === 'submitted' || (s.lastPing && s.lastPing < cutoff));
       list = list.filter(s => s.status !== 'submitted' && (!s.lastPing || s.lastPing >= cutoff));
-      localStorage.setItem(LIVE_KEY, JSON.stringify(list));
+      this.safeSetLocal(LIVE_KEY, JSON.stringify(list));
       this.notify(this.liveListeners, list);
 
       if (typeof window !== 'undefined' && window.firebaseDb) {
@@ -2004,7 +2030,7 @@
 
     getProctorCommandsRaw() {
       try {
-        return JSON.parse(localStorage.getItem(PROCTOR_CMD_KEY) || '[]');
+        return JSON.parse(this.safeGetLocal(PROCTOR_CMD_KEY) || '[]');
       } catch {
         return [];
       }
@@ -2028,7 +2054,7 @@
       list.push(cmdObj);
       // Giữ lại 50 lệnh gần nhất
       const trimmed = list.slice(-50);
-      localStorage.setItem(PROCTOR_CMD_KEY, JSON.stringify(trimmed));
+      this.safeSetLocal(PROCTOR_CMD_KEY, JSON.stringify(trimmed));
       this.notify(this.cmdListeners, trimmed);
 
       if (typeof window !== 'undefined' && window.firebaseDb) {
