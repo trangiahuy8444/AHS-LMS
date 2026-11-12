@@ -500,6 +500,12 @@
     return `${mins} phút ${secs < 10 ? '0' : ''}${secs} giây`;
   }
 
+  function isRecovered821Assessment(sub) {
+    return sub && Number(sub.grade) === 8 && sub.studentClass === '8/21'
+      && sub.examCode === 'RECOVERY821' && sub.recoveryAssessment?.kind === 'practice-821-20261111'
+      && Number.isFinite(sub.recoveryAssessment.mcqScore) && sub.recoveryAssessment.mcqScore >= 0 && sub.recoveryAssessment.mcqScore <= 7;
+  }
+
   function classKey(studentClass) {
     return String(studentClass || '').trim().replace(/[^a-zA-Z0-9]/g, '_');
   }
@@ -1236,6 +1242,29 @@
       scoreConfirmedAt: FieldValue.serverTimestamp()
     };
 
+    // Recovered results need the displayed teacher-approved revision, checked atomically.
+    const initial = await ref.get({ source: 'server' });
+    if (initial.exists && initial.data()?.examCode === 'RECOVERY821') {
+      if (!isRecovered821Assessment(initial.data())) throw new Error('Bài phục hồi không hợp lệ. Em báo giáo viên kiểm tra.');
+      await db.runTransaction(async transaction => {
+        const current = await transaction.get(ref);
+        const cfgSnap = await transaction.get(db.collection('exam_config').doc('global_config'));
+        const source = current.exists ? current.data() : null;
+        const cfg = cfgSnap.exists ? cfgSnap.data() : {};
+        if (!isRecovered821Assessment(source) || source.isGraded !== true || typeof source.teacherApprovedAt !== 'string' || !source.teacherApprovedAt.trim()
+          || cfg.classReviewControl?.['8/21'] !== true || source.aiEssayProposal != null) {
+          throw new Error('Bài đang chờ thầy duyệt hoặc lớp chưa mở xác nhận điểm.');
+        }
+        if (!Number.isInteger(opts?.expectedGradeRevision) || opts.expectedGradeRevision < 1
+          || source.gradeRevision !== opts.expectedGradeRevision) {
+          throw new Error('Điểm đã được cập nhật. Em tải lại bài làm trước khi xác nhận.');
+        }
+        transaction.update(ref, updatePayload);
+        archiveWrite(transaction, 'submissions', targetId, source);
+      });
+      return true;
+    }
+
     if (window.AsianSchoolDriveArchive) {
       let source = null;
       try {
@@ -1295,6 +1324,9 @@
       throw new Error(`Chức năng xem lại bài làm và chốt điểm${classInfo} hiện chưa được mở. Em vui lòng chờ Thầy Trần Gia Huy thông báo sau khi hoàn tất chấm bài nhé!`);
     }
 
+    const matchesReviewIdentity = sub => sub && Number(sub.grade) === grade
+      && lmsKey(sub.studentId) === key && (!data.studentClass || sub.studentClass === data.studentClass);
+
     const scopedId = attemptIdFor(grade, data.studentClass, key);
     const legacyId = legacyAttemptIdFor(grade, key);
     let subDoc = null;
@@ -1307,7 +1339,8 @@
       `g${grade}_${String(data.studentClass || '').replace(/[^a-zA-Z0-9]/g, '-')}_${key}_1`,
       `g${grade}_${String(data.studentClass || '').replace(/[^a-zA-Z0-9]/g, '-')}_${key}_2`,
       `${legacyId}_1`,
-      `${legacyId}_2`
+      `${legacyId}_2`,
+      ...(grade === 8 && data.studentClass === '8/21' ? [`recovery821_${key}`] : [])
     ];
 
     // Thêm các lớp thường gặp trong khối nếu học sinh chọn nhầm lớp
@@ -1328,6 +1361,7 @@
         const snap = await db.collection('submissions').doc(candId).get();
         if (snap.exists) {
           const d = snap.data();
+          if (!matchesReviewIdentity(d)) continue;
           subDoc = d;
           subId = candId;
           break;
@@ -1351,6 +1385,7 @@
           const aSnap = await db.collection('exam_attempts').doc(attId).get();
           if (aSnap.exists) {
             const att = aSnap.data();
+            if (!matchesReviewIdentity(att)) continue;
             const attClass = att.studentClass || data.studentClass;
             const extraCandSubIds = [
               `${attemptIdFor(grade, attClass, key)}_${att.attemptsUsed || 1}`,
@@ -1361,7 +1396,7 @@
             for (const sId of extraCandSubIds) {
               try {
                 const subSnap = await db.collection('submissions').doc(sId).get();
-                if (subSnap.exists) {
+                if (subSnap.exists && matchesReviewIdentity(subSnap.data())) {
                   subDoc = subSnap.data();
                   subId = sId;
                   break;
@@ -1412,8 +1447,8 @@
         if (!querySnap.empty) {
           const matchDoc = querySnap.docs.find(d => {
             const dataDoc = d.data();
-            return !data.studentClass || dataDoc.studentClass === data.studentClass;
-          }) || querySnap.docs[0];
+            return matchesReviewIdentity(dataDoc);
+          });
           if (matchDoc) {
             subDoc = matchDoc.data();
             subId = matchDoc.id;
@@ -1423,10 +1458,40 @@
     }
 
     if (!subDoc) {
+      if (grade === 8 && data.studentClass === '8/21') {
+        throw new Error('Chưa tải được bài đánh giá lớp 8/21. Bài có thể đang chờ thầy kiểm tra và duyệt điểm; em kiểm tra đúng mã LMS rồi chờ thông báo của giáo viên.');
+      }
       throw new Error(`Không tìm thấy bài thi chính thức của Mã LMS ${key} thuộc Lớp ${data.studentClass || 'đã chọn'}. Em vui lòng kiểm tra lại đúng Khối, Lớp và Mã LMS.`);
     }
     if (subDoc.scoreConfirmedAt && typeof subDoc.scoreConfirmedAt.toDate === 'function') {
       subDoc.scoreConfirmedAt = subDoc.scoreConfirmedAt.toDate().toISOString();
+    }
+
+    if (subDoc.examCode === 'RECOVERY821') {
+      // Cached permission, AI proposals and a previously approved revision are not a review grant.
+      const [freshSubmission, freshConfig] = await Promise.all([
+        db.collection('submissions').doc(subId).get({ source: 'server' }),
+        db.collection('exam_config').doc('global_config').get({ source: 'server' })
+      ]);
+      if (!freshSubmission.exists || !freshConfig.exists
+        || freshSubmission.metadata?.fromCache || freshSubmission.metadata?.hasPendingWrites
+        || freshConfig.metadata?.fromCache || freshConfig.metadata?.hasPendingWrites) {
+        throw new Error('Chưa xác minh được bài phục hồi từ máy chủ. Em kiểm tra kết nối và thử lại.');
+      }
+      subDoc = freshSubmission.data();
+      const currentConfig = freshConfig.data();
+      if (!matchesReviewIdentity(subDoc) || !isRecovered821Assessment(subDoc) || data.studentClass !== '8/21'
+        || currentConfig.classReviewControl?.['8/21'] !== true || subDoc.isGraded !== true
+        || typeof subDoc.teacherApprovedAt !== 'string' || !subDoc.teacherApprovedAt.trim() || subDoc.aiEssayProposal != null) {
+        throw new Error('Bản bài phục hồi đang chờ thầy duyệt hoặc lớp chưa được mở xem điểm.');
+      }
+      if (subDoc.scoreConfirmedAt && typeof subDoc.scoreConfirmedAt.toDate === 'function') subDoc.scoreConfirmedAt = subDoc.scoreConfirmedAt.toDate().toISOString();
+      return {
+        submission: subDoc, subId,
+        exam: { code: 'RECOVERY821', grade: 8, totalPoints: 10,
+          title: 'Bài đánh giá phục hồi lớp 8/21', mcqQuestions: [], part1_mcq: [], part2_tf: [],
+          essayQuestions: subDoc.recoveryAssessment.essayQuestions || [], part3_essay: subDoc.recoveryAssessment.essayQuestions || [] }
+      };
     }
 
     let examData = null;

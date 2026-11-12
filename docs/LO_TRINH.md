@@ -141,3 +141,12 @@ Hướng dẫn: [Bảo toàn ôn tập](BAO_TOAN_ON_TAP_2026_11_11.md).
 - [x] Rules tương thích mới đã Publish/đối chiếu hash; bảo vệ cả nguồn đầy đủ trước tab quản trị cũ;33/33 emulator đạt.
 - [x] Client hoàn thiện `a125eac` đã phát hành thành công; trang gốc/test/admin HTTP200,6 asset nội bộ khớp byte bản đã kiểm thử. Nguồn phục hồi đã đọc lại đủ, điểm và cấu hình không đổi.
 - [x] Tạo nguồn phục hồi kèm archive job nguyên tử, đọc lại đối chiếu câu trả lời/điểm và xác nhận cấu hình không đổi. Không tạo bài thi chính thức hoặc mở chốt điểm.
+
+### 12/11/2026 — Bài đánh giá phục hồi riêng lớp 8/21
+
+- [x] Giáo viên chọn AI đề xuất điểm, kiểm tra và duyệt; giữTN/7,3câuTL mỗi câu1, tổng10.
+- [x] Mã/kiểm cục bộ: khóaMCQ,AIproposal riêng, duyệt cóserverack/revision, xem/xác nhận chỉ sau duyệt, không101fallback/cache.237Node/239UI/42rules đạt,3gói private bỏ qua;review độc lập đạt.
+- [x] Rules mới đã Publish và đối chiếu hash trước dữ liệu đánh giá.
+- [ ] Phát hành client hoàn thiện và đối chiếu web thật.
+- [ ] Tạo nguồn đánh giá và đề xuất có điều kiện, bật xem riêng lớp; đọc lại chứng minh chưa có điểm được tự duyệt, nguồn ôn tập giữ nguyên.
+- [ ] Giáo viên kiểm tra, điều chỉnh và duyệt từng bài; học sinh đối soát và xác nhận sau duyệt.

@@ -1,3 +1,4 @@
+import { isRecoveredAssessment } from '../../shared/recoveredAssessment.js';
 import React, { useState } from 'react';
 import { useAdmin } from '../AdminContext.js';
 
@@ -24,7 +25,10 @@ export default function ClassGradingStatusBar() {
   });
 
   const totalSubs = examSubmissions.length;
-  const gradedSubs = examSubmissions.filter(s => Boolean(s.isGraded)).length;
+  const recoveredRows = examSubmissions.filter(isRecoveredAssessment);
+  const recoveryClass = filterClass === '8/21' && recoveredRows.length > 0;
+  const proposalCount = recoveredRows.filter(row => row.aiEssayProposal).length;
+  const gradedSubs = examSubmissions.filter(s => Boolean(s.isGraded) && (!isRecoveredAssessment(s) || Boolean(s.teacherApprovedAt))).length;
   const pendingSubs = totalSubs - gradedSubs;
   const progressPercent = totalSubs > 0 ? Math.round((gradedSubs / totalSubs) * 100) : 100;
 
@@ -61,11 +65,11 @@ export default function ClassGradingStatusBar() {
                     ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
                     : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
                 }`}>
-                  {totalSubs === 0 ? 'Chưa có bài thi' : (pendingSubs === 0 ? '✓ ĐÃ CHẤM XONG 100%' : `⏳ CÒN ${pendingSubs} BÀI CHỜ CHẤM`)}
+                  {totalSubs === 0 ? 'Chưa có bài thi' : (pendingSubs === 0 ? (recoveryClass ? '✓ THẦY ĐÃ DUYỆT ĐỦ' : '✓ ĐÃ CHẤM XONG 100%') : `⏳ CÒN ${pendingSubs} BÀI ${recoveryClass ? 'CHỜ THẦY DUYỆT' : 'CHỜ CHẤM'}`)}
                 </span>
               </div>
               <p className="text-[11px] text-slate-300 font-medium mt-0.5">
-                Trợ lý Gemini chấm điểm 100% bám sát barem hướng dẫn chính thức Asian School
+                {recoveryClass ? `AI đã đề xuất: ${proposalCount} bài. Thầy kiểm tra và duyệt từng bài trước khi công nhận điểm.` : 'Trợ lý Gemini chấm điểm theo barem hướng dẫn Asian School'}
               </p>
             </div>
           </div>
@@ -81,7 +85,7 @@ export default function ClassGradingStatusBar() {
                   disabled={isRunning}
                   className="rounded text-indigo-600 focus:ring-0"
                 />
-                <span className="font-semibold text-[11px]">Chỉ bài chưa chấm</span>
+                <span className="font-semibold text-[11px]">{recoveryClass ? 'Chỉ bài chờ thầy duyệt' : 'Chỉ bài chưa chấm'}</span>
               </label>
             )}
 
@@ -102,12 +106,12 @@ export default function ClassGradingStatusBar() {
               <span>{isRunning ? '⏳' : '⚡'}</span>
               <span>
                 {isRunning
-                  ? 'Đang Chấm Cả Lớp...'
+                  ? (recoveryClass ? 'Đang tạo đề xuất AI...' : 'Đang Chấm Cả Lớp...')
                   : filterClass === 'all'
                   ? '⚡ Chấm Nhanh (Chọn Lớp)'
                   : (onlyPending && pendingSubs === 0)
-                  ? '✓ Lớp Đã Chấm Xong'
-                  : `⚡ Chấm Nhanh Cả Lớp ${filterClass} (${onlyPending ? pendingSubs : totalSubs} bài)`}
+                  ? (recoveryClass ? '✓ Thầy đã duyệt đủ' : '✓ Lớp Đã Chấm Xong')
+                  : (recoveryClass ? `Tạo đề xuất AI lớp ${filterClass} (${onlyPending ? pendingSubs : totalSubs} bài)` : `⚡ Chấm Nhanh Cả Lớp ${filterClass} (${onlyPending ? pendingSubs : totalSubs} bài)`)}
               </span>
             </button>
           </div>
@@ -117,7 +121,7 @@ export default function ClassGradingStatusBar() {
         <div className="space-y-1.5 pt-1">
           <div className="flex justify-between items-center text-xs font-bold">
             <span className="text-slate-300">
-              Đã chấm: <strong className="text-white">{gradedSubs}</strong> / <strong className="text-white">{totalSubs}</strong> bài nộp
+              {recoveryClass ? 'Thầy đã duyệt:' : 'Đã chấm:'} <strong className="text-white">{gradedSubs}</strong> / <strong className="text-white">{totalSubs}</strong> bài nộp
             </span>
             <span className="font-mono text-emerald-400 font-black">
               {progressPercent}%
@@ -140,7 +144,7 @@ export default function ClassGradingStatusBar() {
             <div className="flex items-center space-x-2">
               <span className="inline-block w-3 h-3 bg-emerald-400 rounded-full animate-ping" />
               <h4 className="font-black text-xs uppercase tracking-wide text-indigo-100">
-                Đang Tự Động Chấm Điểm Gemini AI — Lớp {batchGradingState.targetClass}
+                {recoveryClass ? 'Đang tạo đề xuất Gemini AI — chưa công nhận điểm' : 'Đang Tự Động Chấm Điểm Gemini AI'} — Lớp {batchGradingState.targetClass}
               </h4>
             </div>
 
@@ -195,7 +199,7 @@ export default function ClassGradingStatusBar() {
           {/* Thống kê nhanh */}
           <div className="flex flex-wrap items-center gap-3 text-xs pt-1">
             <span className="px-2.5 py-1 rounded-lg bg-emerald-900/60 text-emerald-300 border border-emerald-700/60 font-bold">
-              ✓ Hoàn tất: {batchGradingState.completedCount}
+              {recoveryClass ? '✓ Đã tạo đề xuất:' : '✓ Hoàn tất:'} {batchGradingState.completedCount}
             </span>
             <span className="px-2.5 py-1 rounded-lg bg-slate-800/80 text-slate-300 border border-slate-700 font-bold">
               ⚪ Bỏ trống: {batchGradingState.skippedBlankCount}

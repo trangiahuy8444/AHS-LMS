@@ -1,3 +1,4 @@
+import { isRecoveredAssessment } from '../../shared/recoveredAssessment.js';
 import { sanitizeStudentFeedback } from '../../shared/studentFeedback.js';
 import {
   getGeminiApiKey,
@@ -32,26 +33,36 @@ export function createGradingActions(s) {
 
   const openGradingModal = (sub) => {
     setGradingSubmission(sub);
-    setTempEssayScores(sub.essayScores || {});
-    setTempFeedback(sanitizeStudentFeedback(sub.teacherFeedback));
+    const proposal = isRecoveredAssessment(sub) && !sub.isGraded && !sub.teacherApprovedAt && sub.aiEssayProposal?.pending ? sub.aiEssayProposal : null;
+    setTempEssayScores(proposal?.essayScores || sub.essayScores || {});
+    setTempFeedback(sanitizeStudentFeedback(proposal?.teacherFeedback ?? sub.teacherFeedback));
     if (setAiSuggestions) setAiSuggestions({});
     setGradingSuccessAlert(false);
   };
 
   const handleSaveGrading = () => {
     if (!gradingSubmission) return;
-    const res = window.AsianSchoolStorage.gradeEssaySubmission(gradingSubmission.id, tempEssayScores, sanitizeStudentFeedback(tempFeedback));
-    if (res.success) {
-      setSubmissions(window.AsianSchoolStorage.getSubmissions());
-      if (setPracticeSubs && typeof window.AsianSchoolStorage.getPracticeSubmissions === 'function') {
-        setPracticeSubs(window.AsianSchoolStorage.getPracticeSubmissions());
-      }
-      setGradingSuccessAlert(false);
-      setGradingSubmission(null);
-      showToast('Đã lưu điểm chấm và cập nhật tổng điểm.', 'success', 'Chấm bài');
-    } else {
-      showDialog('Lỗi Chấm Điểm', res.error, 'error');
+    const finish = res => {
+      if (res?.success) {
+        setSubmissions(window.AsianSchoolStorage.getSubmissions());
+        if (setPracticeSubs && typeof window.AsianSchoolStorage.getPracticeSubmissions === 'function') setPracticeSubs(window.AsianSchoolStorage.getPracticeSubmissions());
+        setGradingSuccessAlert(false);
+        setGradingSubmission(null);
+        showToast('Đã lưu điểm chấm và cập nhật tổng điểm.', 'success', 'Chấm bài');
+      } else showDialog('Lỗi Chấm Điểm', res?.error || 'Chưa xác nhận lưu điểm.', 'error');
+    };
+    if (isRecoveredAssessment(gradingSubmission)) {
+      return (async () => {
+        try {
+          const res = await window.AsianSchoolStorage.gradeEssaySubmission(gradingSubmission.id, tempEssayScores, sanitizeStudentFeedback(tempFeedback), {
+            expectedGradeRevision: gradingSubmission.gradeRevision || 0,
+            expectedProposalVersion: gradingSubmission.aiEssayProposal?.version || 0
+          });
+          finish(res);
+        } catch (error) { showDialog('Lỗi Chấm Điểm', error.message || 'Chưa xác nhận lưu điểm trên máy chủ.', 'error'); }
+      })();
     }
+    finish(window.AsianSchoolStorage.gradeEssaySubmission(gradingSubmission.id, tempEssayScores, sanitizeStudentFeedback(tempFeedback)));
   };
 
   // --- CHẤM NHANH CẢ LỚP BẰNG GEMINI AI ---
@@ -78,7 +89,8 @@ export function createGradingActions(s) {
 
     const allSubs = window.AsianSchoolStorage.getSubmissions() || [];
     const classSubs = allSubs.filter(sub => String(sub.studentClass || '').trim() === String(targetClass || '').trim() && sub.mode === 'exam');
-    const candidates = onlyPending ? classSubs.filter(sub => !sub.isGraded) : classSubs;
+    const eligible = classSubs.filter(sub => !isRecoveredAssessment(sub) || (!sub.isGraded && !sub.teacherApprovedAt && !sub.scoreConfirmed));
+    const candidates = onlyPending ? eligible.filter(sub => !sub.isGraded) : eligible;
 
     if (candidates.length === 0) {
       showDialog(
@@ -181,17 +193,18 @@ export function createGradingActions(s) {
         });
 
         if (!gradeRes.success) throw new Error(gradeRes.error || 'AI chưa chấm hợp lệ đủ các câu; chưa lưu điểm bài này.');
-        const saveRes = window.AsianSchoolStorage.gradeEssaySubmission(
-          sub.id,
-          gradeRes.essayScores,
-          sanitizeStudentFeedback(gradeRes.teacherFeedback)
-        );
+        const recovered = isRecoveredAssessment(sub);
+        const saveRes = recovered
+          ? await window.AsianSchoolStorage.saveRecoveredEssayProposal(sub.id, { ...gradeRes, teacherFeedback: sanitizeStudentFeedback(gradeRes.teacherFeedback) })
+          : await window.AsianSchoolStorage.gradeEssaySubmission(sub.id, gradeRes.essayScores, sanitizeStudentFeedback(gradeRes.teacherFeedback));
 
         if (saveRes.success) {
           completed++;
           const finalScore = saveRes.submission.finalScore;
           const essayScore = saveRes.submission.essayTotal;
-          const logText = `✓ [${idx + 1}/${candidates.length}] ${sName}: Tự luận +${essayScore}đ -> Tổng ${finalScore}/10đ${!hasAnyAnswer ? ' (Bỏ trống)' : ''}`;
+          const logText = recovered
+            ? `✓ [${idx + 1}/${candidates.length}] ${sName}: Đã lưu đề xuất AI cho ba câu tự luận; chờ thầy mở bài và duyệt điểm.`
+            : `✓ [${idx + 1}/${candidates.length}] ${sName}: Tự luận +${essayScore}đ -> Tổng ${finalScore}/10đ${!hasAnyAnswer ? ' (Bỏ trống)' : ''}`;
           activityLogs.unshift(`[${new Date().toLocaleTimeString('vi-VN')}] ${logText}`);
         } else {
           errors++;
@@ -224,7 +237,10 @@ export function createGradingActions(s) {
     }
 
     if (showToast) {
-      showToast(`✓ Đã hoàn tất chấm tự luận cho ${completed}/${candidates.length} bài của Lớp ${targetClass}!`, 'success');
+      const hasRecovered = candidates.some(isRecoveredAssessment);
+      showToast(hasRecovered
+        ? `Đã xử lý ${completed}/${candidates.length} bài lớp ${targetClass}. Đề xuất AI của bài phục hồi cần thầy mở bài và duyệt.`
+        : `✓ Đã hoàn tất chấm tự luận cho ${completed}/${candidates.length} bài của Lớp ${targetClass}!`, 'success');
     }
   };
 
@@ -248,6 +264,10 @@ export function createGradingActions(s) {
   const handleAdminConfirmScore = (sub) => {
     const targetId = sub?.id || sub?.submissionId;
     if (!targetId) return;
+    if (isRecoveredAssessment(sub) && (!sub.isGraded || !sub.teacherApprovedAt)) {
+      showDialog('Chưa thể xác nhận điểm', 'Thầy cần duyệt đủ ba câu tự luận của bài phục hồi trước.', 'warning');
+      return;
+    }
     const res = window.AsianSchoolStorage.confirmScore(targetId, { confirmedByAdmin: true });
     if (res && res.success) {
       setSubmissions(window.AsianSchoolStorage.getSubmissions());
@@ -271,7 +291,7 @@ export function createGradingActions(s) {
   };
 
   const handleAdminConfirmBatchScores = (subList = [], scopeLabel = '') => {
-    const targets = (subList || []).filter(s => s && s.mode === 'exam' && !s.scoreConfirmed && (s.id || s.submissionId));
+    const targets = (subList || []).filter(s => s && s.mode === 'exam' && !s.scoreConfirmed && (s.id || s.submissionId) && (!isRecoveredAssessment(s) || (s.isGraded && s.teacherApprovedAt)));
     if (targets.length === 0) {
       if (showToast) {
         showToast('Tất cả học sinh trong danh sách này đã được xác nhận điểm!', 'info', 'Xác nhận điểm');

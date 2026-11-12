@@ -96,8 +96,9 @@ test('firestore.rules: học sinh không đọc được đề kèm đáp án, k
   assert.match(block('exam_secrets'), /allow read, write: if isTeacher\(\);/);
   const sub = block('submissions');
   assert.match(sub, /allow create: if signedIn\(\) && validSubmission\(request\.resource\.data\);/);
+  const studentCreate = sub.slice(sub.indexOf('function validSubmission'), sub.indexOf('allow read:'));
   ['mcqPoints', 'finalScore', 'penaltyPoints', 'autoGradedAt'].forEach(field => {
-    assert.ok(!sub.includes(`'${field}'`), `Bài nộp của học sinh không được chứa trường ${field}`);
+    assert.ok(!studentCreate.includes(`'${field}'`), `Bài nộp của học sinh không được chứa trường ${field}`);
   });
   assert.match(block('exam_attempts'), /roomPasswordOk\(\)/);
   assert.match(block('exam_public'), /allow list: if isTeacher\(\);\s*allow write: if bankWriteAllowed\(\);/);

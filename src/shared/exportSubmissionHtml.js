@@ -1,3 +1,4 @@
+import { isRecoveredAssessment, getRecoveredExam } from './recoveredAssessment.js';
 import { generatePracticeReviewHtml } from './practiceSubmissionHtml.js';
 import { getStudentsByClass, verifyStudentLms } from '../core/roster-data.js';
 import { getEssayQuestionsForSubmission } from '../core/gemini-grading-service.js';
@@ -57,6 +58,7 @@ function formatTimeVi(val) {
 
 export async function resolveFullExamForSubmission(sub) {
   if (!sub) return null;
+  if (isRecoveredAssessment(sub)) return getRecoveredExam(sub);
   const subGrade = Number(sub.grade || (sub.studentClass ? String(sub.studentClass).split('/')[0] : 8)) || 8;
   const subCode = String(sub.examCode || '101').trim();
 
@@ -92,7 +94,7 @@ export async function resolveFullExamForSubmission(sub) {
 }
 
 export function generateSubmissionReviewHtml(sub, options = {}) {
-  if (sub?.mode === 'practice') return generatePracticeReviewHtml(sub, getCanonicalStudentName(sub));
+  if (sub?.mode === 'practice' || isRecoveredAssessment(sub)) return generatePracticeReviewHtml(sub, getCanonicalStudentName(sub), options);
   const practice = sub?.mode === 'practice';
   const subGrade = Number(sub?.grade || (sub?.studentClass ? String(sub.studentClass).split('/')[0] : 8)) || 8;
   const subCode = String(sub?.examCode || '101').trim();
@@ -1337,7 +1339,7 @@ export function generateSubmissionReviewHtml(sub, options = {}) {
 
 export async function exportStudentSubmissionHtml(sub, options = {}) {
   if (!sub) return null;
-  const fullExam = sub.mode === 'practice' ? null : (options.fullExam || await resolveFullExamForSubmission(sub));
+  const fullExam = sub.mode === 'practice' || isRecoveredAssessment(sub) ? null : (options.fullExam || await resolveFullExamForSubmission(sub));
   const htmlContent = generateSubmissionReviewHtml(sub, { ...options, fullExam });
 
   const canonicalName = getCanonicalStudentName(sub);

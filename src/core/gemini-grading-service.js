@@ -1,3 +1,4 @@
+import { isRecoveredAssessment, getRecoveredEssayQuestions } from '../shared/recoveredAssessment.js';
 import { essayRubricParts, validateEssayGrade } from '../shared/essayGradingPolicy.js';
 import { essayIssueFeedback } from '../shared/studentFeedback.js';
 /**
@@ -488,6 +489,7 @@ export async function gradeSingleEssayWithGemini({
  */
 export function getEssayQuestionsForSubmission(sub, examDataByGrade) {
   if (!sub) return [];
+  if (isRecoveredAssessment(sub)) return getRecoveredEssayQuestions(sub);
   const grade = Number(sub.grade || (sub.studentClass ? String(sub.studentClass).split('/')[0] : 8)) || 8;
   const gradeObj = examDataByGrade
     ? examDataByGrade[grade]

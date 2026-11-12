@@ -100,6 +100,39 @@
     }
   };
 
+  function isRecoveredAssessmentRecord(sub) {
+    return !!sub && sub.mode === 'exam' && Number(sub.grade) === 8 && sub.studentClass === '8/21'
+      && sub.examCode === 'RECOVERY821' && sub.recoveryAssessment?.kind === 'practice-821-20261111';
+  }
+
+  function validateRecoveredAssessment(sub) {
+    if (!isRecoveredAssessmentRecord(sub)) throw new Error('Bài nộp không thuộc đợt phục hồi lớp 8/21.');
+    const source = sub.recoveryAssessment;
+    if (typeof source.mcqScore !== 'number' || !Number.isFinite(source.mcqScore) || source.mcqScore < 0 || source.mcqScore > 7
+      || Math.abs(source.mcqScore * 4 - Math.round(source.mcqScore * 4)) > 1e-8
+      || sub.mcqPoints !== source.mcqScore || sub.score !== source.mcqScore || (sub.tfPoints !== undefined && sub.tfPoints !== 0)
+      || typeof source.sourcePracticeId !== 'string' || !source.sourcePracticeId || source.missingMcqOrder !== true
+      || !Array.isArray(source.essayQuestions) || source.essayQuestions.length !== 3
+      || source.essayQuestions.some((q, i) => !q || Number(q.num) !== i + 1 || Number(q.points) !== 1)) {
+      throw new Error('Nguồn điểm trắc nghiệm hoặc bộ tự luận đã thay đổi; chưa lưu điểm.');
+    }
+    return source;
+  }
+
+  function recoveredEssayScores(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)
+      || Object.keys(value).sort().join(',') !== '1,2,3') throw new Error('Cần đủ điểm ba câu tự luận 1, 2, 3, mỗi câu tối đa 1 điểm.');
+    const scores = {};
+    for (const key of ['1', '2', '3']) {
+      const raw = value[key];
+      if ((typeof raw !== 'number' && typeof raw !== 'string') || (typeof raw === 'string' && !raw.trim())) throw new Error('Phải nhập đủ điểm ba câu tự luận.');
+      const number = Number(raw);
+      if (!Number.isFinite(number) || number < 0 || number > 1 || Math.abs(number * 4 - Math.round(number * 4)) > 1e-8) throw new Error('Mỗi câu tự luận nhận 0–1 điểm theo bước 0,25.');
+      scores[key] = number;
+    }
+    return { scores, total: Math.round(Object.values(scores).reduce((sum, point) => sum + point, 0) * 100) / 100 };
+  }
+
   class StorageService {
     constructor() {
       this.submissionListeners = [];
@@ -852,7 +885,7 @@
       return newDoc;
     }
 
-    gradeEssaySubmission(subId, essayScores, teacherFeedback) {
+    gradeEssaySubmission(subId, essayScores, teacherFeedback, options = {}) {
       const targetId = String(subId || '').trim();
       let list = this.getSubmissions();
       let idx = list.findIndex(s => String(s.id).trim() === targetId || String(s.sessionId).trim() === targetId);
@@ -870,6 +903,7 @@
       }
 
       const sub = list[idx];
+      if (isRecoveredAssessmentRecord(sub)) return this.approveRecoveredEssayGrade(sub, essayScores, teacherFeedback, options);
       for (const [questionNum,value] of Object.entries(essayScores || {})) {
         const number = value === '' ? 0 : Number(value);
         const max = Number(sub.grade || String(sub.studentClass || '').split('/')[0]) === 10 ? 0.75 : 1;
@@ -936,6 +970,79 @@
       this.syncRowToGoogleDrive(sub);
 
       return { success: true, submission: sub };
+    }
+
+    async writeRecoveredAssessment(sub, makeUpdate, options = {}) {
+      try {
+        const localSource = validateRecoveredAssessment(sub);
+        const db = typeof window !== 'undefined' ? window.firebaseDb : null;
+        if (!db || typeof db.runTransaction !== 'function') throw new Error('Chưa kết nối được máy chủ; chưa xác nhận lưu điểm.');
+        const ref = db.collection('submissions').doc(sub.id);
+        let saved;
+        await db.runTransaction(async transaction => {
+          const snap = await transaction.get(ref);
+          if (!snap || !snap.exists) throw new Error('Không tìm thấy bài phục hồi trên máy chủ.');
+          const latest = { ...snap.data(), id: sub.id };
+          const remoteSource = validateRecoveredAssessment(latest);
+          const stable = value => JSON.stringify(value, (key, val) => val && typeof val === 'object' && !Array.isArray(val) ? Object.fromEntries(Object.keys(val).sort().map(k => [k, val[k]])) : val);
+          if (stable(remoteSource) !== stable(localSource) || latest.studentId !== sub.studentId
+            || latest.uid !== sub.uid || stable(latest.answers) !== stable(sub.answers)) throw new Error('Nguồn bài làm đã thay đổi; hãy mở lại bài trước khi chấm.');
+          const expectedRevision = options.expectedGradeRevision ?? (sub.gradeRevision || 0);
+          if ((latest.gradeRevision || 0) !== expectedRevision) throw new Error('Điểm đã được cập nhật ở phiên khác; hãy mở lại bài để kiểm tra.');
+          if (options.expectedProposalVersion !== undefined && (latest.aiEssayProposal?.version || 0) !== options.expectedProposalVersion) throw new Error('Đề xuất AI đã thay đổi; hãy mở lại bài trước khi duyệt.');
+          const update = makeUpdate(latest);
+          saved = { ...latest, ...update };
+          transaction.set(ref, update, { merge: true });
+          const archive = window.AsianSchoolDriveArchive;
+          if (archive?.enabled()) archive.addArchiveWrite(transaction, 'submissions', sub.id, saved);
+        });
+        // Never announce success or replace a local grade before the server commit acknowledges it.
+        const list = this.getSubmissions();
+        const idx = list.findIndex(row => row.id === sub.id);
+        if (idx >= 0) list[idx] = saved; else list.unshift(saved);
+        localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(list));
+        this.notify(this.submissionListeners, list);
+        return { success: true, submission: saved };
+      } catch (error) { return { success: false, error: error.message || 'Chưa xác nhận lưu trên máy chủ.' }; }
+    }
+
+    async saveRecoveredEssayProposal(subId, gradeRes) {
+      try {
+        const sub = this.getSubmissions().find(row => row.id === subId);
+        validateRecoveredAssessment(sub);
+        if (!gradeRes || gradeRes.success !== true) throw new Error('AI chưa đề xuất hợp lệ đủ ba câu.');
+        const { scores, total } = recoveredEssayScores(gradeRes.essayScores);
+        if (gradeRes.essayTotal !== undefined && Number(gradeRes.essayTotal) !== total) throw new Error('Tổng điểm AI không khớp ba câu tự luận.');
+        return this.writeRecoveredAssessment(sub, latest => {
+          if (latest.isGraded || latest.teacherApprovedAt || latest.scoreConfirmed) throw new Error('Bài đã được thầy duyệt; AI không được ghi đè.');
+          return { aiEssayProposal: {
+            essayScores: scores, essayTotal: total,
+            teacherFeedback: String(gradeRes.teacherFeedback || '').trim(),
+            usedModels: Array.isArray(gradeRes.usedModels) ? gradeRes.usedModels.filter(model => typeof model === 'string') : [],
+            proposedAt: new Date().toISOString(), baseGradeRevision: latest.gradeRevision || 0,
+            version: (Number(latest.aiEssayProposal?.version) || 0) + 1, pending: true
+          } };
+        });
+      } catch (error) { return { success: false, error: error.message }; }
+    }
+
+    async approveRecoveredEssayGrade(sub, essayScores, teacherFeedback, options = {}) {
+      try {
+        validateRecoveredAssessment(sub);
+        const { scores, total } = recoveredEssayScores(essayScores);
+        return this.writeRecoveredAssessment(sub, latest => {
+          const at = new Date().toISOString();
+          const finalScore = Math.round((latest.recoveryAssessment.mcqScore + total) * 100) / 100;
+          return { essayScores: scores, essayTotal: total, finalScore,
+            teacherFeedback: String(teacherFeedback || '').trim(), penaltyPoints: 0,
+            isGraded: true, gradedAt: at, teacherApprovedAt: at,
+            gradeRevision: (Number(latest.gradeRevision) || 0) + 1,
+            scoreConfirmed: false, scoreConfirmedAt: null, confirmedByAdmin: false, scoreConfirmedRevision: null,
+            // Approved sources become student-readable: retain only the teacher's approved grade and feedback.
+            aiEssayProposal: null
+          };
+        }, options);
+      } catch (error) { return { success: false, error: error.message }; }
     }
 
     // Admin duyệt và cập nhật lại mã LMS (và họ tên nếu có) cho bài nộp chưa khớp vào CSDL
@@ -1013,7 +1120,7 @@
       const graded = [];
 
       list.forEach((sub, idx) => {
-        if (sub.mode !== 'exam' || sub.autoGradedAt || !sub.answers) return;
+        if (isRecoveredAssessmentRecord(sub) || sub.mode !== 'exam' || sub.autoGradedAt || !sub.answers) return;
         const exam = ((examsByGrade || {})[sub.grade] || {})[sub.examCode];
         if (!exam) return;
         const r = pkg.gradeExam(exam, sub.answers, { tfScoringPolicy: cfg.tfScoringPolicy });
@@ -1075,6 +1182,7 @@
       const now = new Date().toISOString();
       if (idx !== -1) {
         const sub = list[idx];
+        if (isRecoveredAssessmentRecord(sub) && (!sub.isGraded || !sub.teacherApprovedAt)) return { success: false, error: 'Bài phục hồi cần thầy duyệt đủ ba câu tự luận trước khi xác nhận điểm.' };
         sub.scoreConfirmed = true;
         sub.scoreConfirmedAt = now;
         if (options.confirmedByAdmin) {
@@ -1121,7 +1229,7 @@
 
       list.forEach((sub, idx) => {
         const key = String(sub.id || sub.submissionId || '').trim();
-        if (idSet.has(key) && !sub.scoreConfirmed) {
+        if (idSet.has(key) && !sub.scoreConfirmed && (!isRecoveredAssessmentRecord(sub) || (sub.isGraded && sub.teacherApprovedAt))) {
           sub.scoreConfirmed = true;
           sub.scoreConfirmedAt = now;
           sub.confirmedByAdmin = true;

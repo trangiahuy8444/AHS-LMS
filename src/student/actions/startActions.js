@@ -1,3 +1,4 @@
+import { isRecoveredAssessment, getRecoveredExam } from '../../shared/recoveredAssessment.js';
 import { readPracticeDraft } from './practiceDraft.js';
 import { createExamDraftIdentity, readExamDraft, readExamDraftPosition, findRecoverableExamDraft, saveExamDraft } from './examDraft.js';
 import { getStudentsByClass, verifyStudentLms } from '../../core/roster-data.js';
@@ -485,11 +486,24 @@ export function createStartActions(s) {
         const local = window.AsianSchoolStorage.lookupLocalSubmission(grade, studentClass, studentId)
           || window.AsianSchoolStorage.lookupLocalSubmission(grade, null, studentId);
         if (local) {
+          if (local.examCode === 'RECOVERY821' || local.recoveryAssessment?.kind === 'practice-821-20261111') {
+            throw new Error('Bài phục hồi chỉ được mở sau khi máy chủ xác nhận thầy đã duyệt. Không dùng bản lưu cũ khi mất kết nối hoặc chưa có quyền xem.');
+          }
           result = { submission: local, exam: null, subId: local.id };
         }
       }
 
-      if (result && !result.exam && result.submission) {
+      if (result?.submission?.examCode === 'RECOVERY821' && !isRecoveredAssessment(result.submission)) throw new Error('Bản bài phục hồi không hợp lệ. Em báo giáo viên kiểm tra.');
+      if (result?.submission && isRecoveredAssessment(result.submission)) {
+        const recovered = result.submission;
+        if (Number(recovered.grade) !== Number(grade) || recovered.studentClass !== studentClass || String(recovered.studentId) !== studentId
+          || recovered.isGraded !== true || typeof recovered.teacherApprovedAt !== 'string' || !recovered.teacherApprovedAt.trim() || recovered.aiEssayProposal != null) {
+          throw new Error('Bài phục hồi chưa được thầy duyệt hoặc không khớp thông tin học sinh.');
+        }
+        result.exam = getRecoveredExam(recovered);
+      }
+
+      if (result && !result.exam && result.submission && !isRecoveredAssessment(result.submission)) {
         const sub = result.submission;
         let cached = null;
         if (typeof window !== 'undefined' && window.localStorage) {
@@ -525,6 +539,7 @@ export function createStartActions(s) {
       const reviewScore = {
         mode: 'exam',
         isOfficialReview: true,
+        ...(isRecoveredAssessment(sub) ? { recoveryAssessment: sub.recoveryAssessment, maxScore: 10, gradeRevision: sub.gradeRevision || 0, teacherApprovedAt: sub.teacherApprovedAt || null, aiEssayProposal: sub.aiEssayProposal || null } : {}),
         submissionId: result.subId || sub.id,
         id: result.subId || sub.id,
         examCode: sub.examCode || '101',

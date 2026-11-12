@@ -1,3 +1,5 @@
+import { isRecoveredAssessment, getRecoveredEssayQuestions, getRecoveredExam } from '../../shared/recoveredAssessment.js';
+import { generatePracticeReviewHtml } from '../../shared/practiceSubmissionHtml.js';
 import { sanitizeStudentFeedback, essayIssueFeedback, setEssayQuestionFeedback } from '../../shared/studentFeedback.js';
 import { isValidEssayScore } from '../../shared/essayGradingPolicy.js';
 import React, { useState } from 'react';
@@ -34,12 +36,16 @@ export default function EssayGradingModal() {
   const [loadingQuestions, setLoadingQuestions] = useState({});
   const [singleProgress, setSingleProgress] = useState({ current: 0, total: 0 });
   const [cloudExam, setCloudExam] = useState(null);
+  const [savingApproval, setSavingApproval] = useState(false);
+  const recovered = isRecoveredAssessment(gradingSubmission);
+  const teacherApproved = recovered && gradingSubmission.isGraded === true && Boolean(gradingSubmission.teacherApprovedAt);
+  const recoveredHtml = React.useMemo(() => recovered ? generatePracticeReviewHtml(gradingSubmission, gradingSubmission.fullName) : '', [recovered, gradingSubmission]);
 
   const subGrade = Number(gradingSubmission?.grade || (gradingSubmission?.studentClass ? String(gradingSubmission.studentClass).split('/')[0] : 8)) || 8;
   const subCode = String(gradingSubmission?.examCode || '101').trim();
 
   // Nạp kho đề đầy đủ để hiển thị nội dung câu hỏi và đáp án đối chiếu
-  const memoryExam = (typeof window !== 'undefined' && window.AsianSchoolLatestExamBank?.[subGrade]?.[subCode])
+  const memoryExam = recovered ? getRecoveredExam(gradingSubmission) : (typeof window !== 'undefined' && window.AsianSchoolLatestExamBank?.[subGrade]?.[subCode])
     || (typeof window !== 'undefined' && window['EXAM_DATA_G' + subGrade]?.officialExams?.[subCode])
     || (typeof window !== 'undefined' && window.AsianSchoolLatestExamBank?.[subGrade]?.['101'])
     || (typeof window !== 'undefined' && window['EXAM_DATA_G' + subGrade]?.officialExams?.['101'])
@@ -49,7 +55,7 @@ export default function EssayGradingModal() {
 
   // Tự động tải từ Firestore (exam_bank hoặc exam_public) nếu fullExam chưa có sẵn trong bộ nhớ
   React.useEffect(() => {
-    if (!gradingSubmission || memoryExam) return;
+    if (!gradingSubmission || recovered || memoryExam) return;
     if (typeof window !== 'undefined' && window.firebaseDb) {
       const docId = `g${subGrade}_${subCode}`;
       window.firebaseDb.collection('exam_bank').doc(docId).get()
@@ -64,19 +70,19 @@ export default function EssayGradingModal() {
         })
         .catch(err => console.warn('[EssayGradingModal] Đọc đề từ Firestore:', err.message));
     }
-  }, [gradingSubmission, subGrade, subCode, memoryExam]);
+  }, [gradingSubmission, recovered, subGrade, subCode, memoryExam]);
 
   if (!gradingSubmission) return null;
 
   // Danh sách câu hỏi tự luận
-  const essayQuestions = getEssayQuestionsForSubmission(gradingSubmission);
+  const essayQuestions = recovered ? getRecoveredEssayQuestions(gradingSubmission) : getEssayQuestionsForSubmission(gradingSubmission);
 
   // Danh sách câu hỏi trắc nghiệm
   const rawMcq = subGrade === 10
     ? (fullExam?.part1_mcq || fullExam?.mcqQuestions || [])
     : (fullExam?.mcqQuestions || fullExam?.part1_mcq || []);
 
-  const mcqList = rawMcq.length > 0 ? rawMcq : (
+  const mcqList = recovered ? [] : rawMcq.length > 0 ? rawMcq : (
     Object.keys({ ...(gradingSubmission.mcqResults || {}), ...(gradingSubmission.answers?.mcq || {}) })
       .map(Number)
       .sort((a, b) => a - b)
@@ -104,6 +110,14 @@ export default function EssayGradingModal() {
         }))
     ) : []
   );
+
+  const approveAndSave = async () => {
+    if (savingApproval) return;
+    setSavingApproval(true);
+    try { await handleSaveGrading(); }
+    catch (error) { showDialog('Chưa lưu được điểm', error.message || 'Thầy thử lại sau khi kiểm tra kết nối.', 'error'); }
+    finally { setSavingApproval(false); }
+  };
 
   // Chấm điểm 1 câu cụ thể bằng Gemini AI
   const handleGradeSingleWithAI = async (q) => {
@@ -247,7 +261,7 @@ export default function EssayGradingModal() {
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300">
                     ⏳ Chưa chốt điểm
                   </span>
-                  {gradingSubmission.mode === 'exam' && handleAdminConfirmScore && (
+                  {gradingSubmission.mode === 'exam' && !recovered && handleAdminConfirmScore && (
                     <button
                       type="button"
                       onClick={() => handleAdminConfirmScore(gradingSubmission)}
@@ -263,7 +277,7 @@ export default function EssayGradingModal() {
               {gradingSubmission.fullName} — Lớp {gradingSubmission.studentClass}
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Mã LMS: <strong className="text-blue-700 font-mono-code">{gradingSubmission.studentId || 'Chưa nhập'}</strong> • Mã đề: <strong className="text-amber-700 font-mono-code">{gradingSubmission.examCode || '101'}</strong> • Chế độ: {gradingSubmission.mode === 'exam' ? 'Thi Giữa HK1' : 'Ôn tập'}
+              Mã LMS: <strong className="text-blue-700 font-mono-code">{gradingSubmission.studentId || 'Chưa nhập'}</strong> • Mã đề: <strong className="text-amber-700 font-mono-code">{gradingSubmission.examCode || '101'}</strong> • Chế độ: {recovered ? 'Đánh giá từ bài ôn tập 8/21' : gradingSubmission.mode === 'exam' ? 'Thi Giữa HK1' : 'Ôn tập'}
             </p>
           </div>
           <div className="flex items-center space-x-2">
@@ -288,30 +302,41 @@ export default function EssayGradingModal() {
           </div>
         </div>
 
+        {recovered && <div className="p-4 rounded-xl border border-amber-300 bg-amber-50 text-amber-950 space-y-2" role="status">
+          <p className="font-bold">{teacherApproved ? 'Thầy đã duyệt điểm bài phục hồi' : gradingSubmission.aiEssayProposal ? 'AI đề xuất — chờ thầy duyệt' : 'Bài phục hồi — chờ thầy duyệt'}</p>
+          <p className="text-sm">Giữ nguyên điểm trắc nghiệm gốc trên thang 7; tự luận tối đa 3 điểm. Chưa có thứ tự phương án trắc nghiệm của lượt làm, nên không suy ra đáp án đúng/sai từ chỉ số đã lưu.</p>
+          {!teacherApproved && <p className="text-sm">Điểm trong ô nhập là bản nháp để thầy kiểm tra. Chỉ khi bấm Duyệt và lưu điểm mới công nhận tổng điểm thang 10 và cho riêng học sinh này xem, xác nhận bài đã duyệt.</p>}
+          {!teacherApproved && Array.isArray(gradingSubmission.aiEssayProposal?.reviewNotes) && <ul className="text-sm list-disc pl-5">{gradingSubmission.aiEssayProposal.reviewNotes.filter(note=>typeof note==='string').map((note,index)=><li key={index}>{note}</li>)}</ul>}
+          {!teacherApproved && gradingSubmission.aiEssayProposal?.rubricBreakdown && <details className="text-sm">
+            <summary className="cursor-pointer font-semibold">Căn cứ đề xuất theo từng ý của barem</summary>
+            {Object.entries(gradingSubmission.aiEssayProposal.rubricBreakdown).map(([num,info])=><div key={num} className="mt-2"><strong>Câu {num}</strong>{Array.isArray(info?.parts) && info.parts.filter(part=>part&&typeof part==='object').map((part,index)=><p key={index}>{typeof part.label==='string'?part.label:''}) {typeof part.score==='number'?part.score:'?'} / {typeof part.maxScore==='number'?part.maxScore:'?'} — {typeof part.reason==='string'?part.reason:''}</p>)}</div>)}
+          </details>}
+        </div>}
+
         {/* Tóm tắt điểm số & thời gian làm bài */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 bg-slate-50 p-3.5 rounded-2xl border border-slate-200 text-xs text-center">
           <div>
             <span className="text-slate-500 font-medium">Thời Gian Làm Bài:</span>
             <p className="text-base sm:text-lg font-black text-amber-700 mt-0.5">
-              {gradingSubmission.durationFormatted || '45 phút'}
+              {gradingSubmission.durationFormatted || (recovered ? 'Chưa đủ dữ liệu' : '45 phút')}
             </p>
           </div>
           <div>
             <span className="text-slate-500 font-medium">Điểm TN / Đ-S:</span>
             <p className="text-lg sm:text-xl font-black text-blue-900 mt-0.5">
-              {gradingSubmission.mcqPoints !== undefined ? gradingSubmission.mcqPoints : (gradingSubmission.score || 0)}đ
+              {recovered ? gradingSubmission.recoveryAssessment.mcqScore : gradingSubmission.mcqPoints !== undefined ? gradingSubmission.mcqPoints : (gradingSubmission.score || 0)}đ
             </p>
           </div>
           <div>
-            <span className="text-slate-500 font-medium">Điểm Tự Luận:</span>
+            <span className="text-slate-500 font-medium">{recovered && !teacherApproved ? 'Tự luận dự kiến:' : 'Điểm Tự Luận:'}</span>
             <p className="text-lg sm:text-xl font-black text-indigo-700 mt-0.5">
               +{(Object.values(tempEssayScores).reduce((a, b) => a + (parseFloat(b) || 0), 0)).toFixed(2)}đ
             </p>
           </div>
           <div>
-            <span className="text-slate-500 font-medium">TỔNG ĐIỂM (THANG 10):</span>
+            <span className="text-slate-500 font-medium">{recovered && !teacherApproved ? 'TỔNG ĐỀ XUẤT (THANG 10):' : 'TỔNG ĐIỂM (THANG 10):'}</span>
             {(() => {
-              const auto = gradingSubmission.mcqPoints !== undefined ? parseFloat(gradingSubmission.mcqPoints) : (parseFloat(gradingSubmission.score) || 0);
+              const auto = recovered ? gradingSubmission.recoveryAssessment.mcqScore : gradingSubmission.mcqPoints !== undefined ? parseFloat(gradingSubmission.mcqPoints) : (parseFloat(gradingSubmission.score) || 0);
               const essay = Object.values(tempEssayScores).reduce((a, b) => a + (parseFloat(b) || 0), 0);
               const calc = Math.max(0, Math.min(10, Math.round((auto + essay) * 100) / 100));
               return (
@@ -376,9 +401,10 @@ export default function EssayGradingModal() {
         )}
 
         {/* ======================================================== */}
+        {recovered && (viewMode === 'all' || viewMode === 'mcq') && <iframe title="Bài làm phục hồi và lựa chọn gốc" sandbox="" srcDoc={recoveredHtml} className="w-full h-[520px] rounded-xl border border-slate-200 bg-white" />}
         {/* PHẦN I: TRẮC NGHIỆM (HIỂN THỊ KHI viewMode !== 'essay') */}
         {/* ======================================================== */}
-        {(viewMode === 'all' || viewMode === 'mcq') && (
+        {!recovered && (viewMode === 'all' || viewMode === 'mcq') && (
           <div className="space-y-4 pt-2">
             <div className="flex items-center justify-between border-b border-blue-200 pb-2">
               <h3 className="font-black text-sm text-blue-950 flex items-center space-x-2 uppercase">
@@ -386,7 +412,7 @@ export default function EssayGradingModal() {
                 <span>PHẦN I: CHI TIẾT CÂU HỎI TRẮC NGHIỆM ({mcqList.length} CÂU)</span>
               </h3>
               <span className="text-xs text-slate-500 font-semibold">
-                Điểm TN: <strong className="text-blue-900">{gradingSubmission.mcqPoints !== undefined ? gradingSubmission.mcqPoints : (gradingSubmission.score || 0)}đ</strong>
+                Điểm TN: <strong className="text-blue-900">{recovered ? gradingSubmission.recoveryAssessment.mcqScore : gradingSubmission.mcqPoints !== undefined ? gradingSubmission.mcqPoints : (gradingSubmission.score || 0)}đ</strong>
               </span>
             </div>
 
@@ -494,7 +520,7 @@ export default function EssayGradingModal() {
         {/* ======================================================== */}
         {/* PHẦN II: ĐÚNG / SAI (KHỐI 10, KHI viewMode !== 'essay') */}
         {/* ======================================================== */}
-        {(viewMode === 'all' || viewMode === 'mcq') && subGrade === 10 && tfList.length > 0 && (
+        {!recovered && (viewMode === 'all' || viewMode === 'mcq') && subGrade === 10 && tfList.length > 0 && (
           <div className="space-y-4 pt-3">
             <div className="flex items-center justify-between border-b border-purple-200 pb-2">
               <h3 className="font-black text-sm text-purple-950 flex items-center space-x-2 uppercase">
@@ -611,7 +637,7 @@ export default function EssayGradingModal() {
                     title="Áp dụng toàn bộ điểm đề xuất của Gemini cho các câu"
                   >
                     <span>✓</span>
-                    <span>Duyệt Áp Dụng Cả {totalAiSuggested} Câu</span>
+                    <span>{recovered ? `Áp dụng vào bản nháp ${totalAiSuggested} câu` : `Duyệt Áp Dụng Cả ${totalAiSuggested} Câu`}</span>
                   </button>
                 )}
 
@@ -782,7 +808,7 @@ export default function EssayGradingModal() {
                                   className="px-3 py-1.5 bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-[11px] rounded-lg shadow transition flex items-center space-x-1"
                                 >
                                   <span>✓</span>
-                                  <span>Duyệt Điểm Này ({aiSug.score}đ)</span>
+                                  <span>{recovered ? `Áp dụng vào bản nháp (${aiSug.score}đ)` : `Duyệt Điểm Này (${aiSug.score}đ)`}</span>
                                 </button>
                               </div>
                             </div>
@@ -914,11 +940,12 @@ export default function EssayGradingModal() {
 
           <button
             type="button"
-            onClick={handleSaveGrading}
+            onClick={recovered ? approveAndSave : handleSaveGrading}
+            disabled={recovered && (savingApproval || isGeminiGrading)}
             className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow transition flex items-center space-x-1.5"
           >
             <span>💾</span>
-            <span>LƯU ĐIỂM CHẤM & CẬP NHẬT TỔNG ĐIỂM</span>
+            <span>{recovered ? (savingApproval ? 'Đang lưu điểm đã duyệt…' : 'Duyệt và lưu điểm') : 'LƯU ĐIỂM CHẤM & CẬP NHẬT TỔNG ĐIỂM'}</span>
           </button>
         </div>
 

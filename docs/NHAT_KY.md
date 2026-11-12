@@ -1,3 +1,12 @@
+## 12/11/2026 — Bài đánh giá phục hồi riêng lớp 8/21: AI đề xuất, giáo viên duyệt
+
+- Theo yêu cầu giáo viên, bổ sung luồng chuyển nguồn cứu hộ riêng lớp này thành bài đánh giá để chấm tự luận và học sinh xác nhận sau duyệt. Giữ điểm trắc nghiệm gốc/thang7,3câu tự luận mỗi câu1điểm, tổng10; không tự chấm lại MCQ thiếu permutation.
+- AI đề xuất riêng và chưa công nhận điểm. Giáo viên xem điểm từng ý/lý do/lưu ý, bấm Duyệt và lưu điểm; giao dịch kiểm nguồn/phiên bản và đợi máy chủ xác nhận. Duyệt lại xóa xác nhận cũ; xóa đề xuất riêng tư trước khi học sinh được đọc bản đã duyệt.
+- Học sinh chỉ đọc bản phục hồi đã duyệt với dữ liệu máy chủ mới nhất; không dùng cache/local thay thế. Xác nhận kiểm đúng phiên bản điểm và cờ riêng lớp, không giả thành công khi lưu lỗi. Các nút giáo viên xác nhận thay/xóa/đặt lại lượt không áp dụng nguồn phục hồi.
+- Kiểm bản cuối:237Node đạt/3private bỏ qua;239Vitest đạt;lint/build/chặn lọt đề đạt;42rules emulator đạt. Review độc lập không còn blocker; đã đối chiếu riêng tư các đề xuất theo barem, vẫn chờ giáo viên quyết định điểm.
+- Đã Publish rules SHA256 `faf3c0bb18c5b3890ff031ae5bccadb334986caaa5fbe698786fef4df665a54b`. Chuẩn bị phát hành client trước khi tạo nguồn đánh giá mới cùng archivejob nguyên tử. Dùng ID riêng, không ghi exam_attempts/exam_sessions; nguồn ôn tập gốc giữ nguyên.
+- Tệp dữ liệu thật/đề xuất/biên nhận chỉ ở vùng riêng ngoài repository. Xem PHUC_HOI_DANH_GIA_8_21.md.
+
 ## 11/11/2026 — Hoàn tất phát hành và kiểm tra website thật
 
 - Client `a125eac` đã build/deploy thành công: https://github.com/trangiahuy8444/AHS-LMS/actions/runs/43032275705 . Trang gốc/test/admin HTTP200;6 asset JS/CSS nội bộ tham chiếu khớp byte với bản đã kiểm thử.

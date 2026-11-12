@@ -1,5 +1,7 @@
 import { sanitizeStudentFeedback, getEssayFeedbackForQuestion } from '../../shared/studentFeedback.js';
 import React from 'react';
+import { isRecoveredAssessment } from '../../shared/recoveredAssessment.js';
+import { generatePracticeReviewHtml } from '../../shared/practiceSubmissionHtml.js';
 import { useStudent } from '../StudentContext.js';
 import { essayPresentation } from '../../shared/essayPresentation.js';
 import { useStudentLanguage } from '../StudentLanguage.jsx';
@@ -9,7 +11,22 @@ import { questionForLanguage } from '../../shared/questionLanguage.js';
 export default function AnswerReview() {
   const { t, language } = useStudentLanguage();
   const { grade, mode, practiceAnswers, examAnswers, practiceQuestions, practiceTfQuestions,
-    practiceEssayQuestions, currentOfficialExam, scoreResult, handleConfirmScore } = useStudent();
+    practiceEssayQuestions, currentOfficialExam, scoreResult, handleConfirmScore, config, fullName } = useStudent();
+
+  if (isRecoveredAssessment(scoreResult)) {
+    const classOpen = config?.classReviewControl?.['8/21'] === true;
+    const approved = scoreResult.isGraded === true && typeof scoreResult.teacherApprovedAt === 'string' && Boolean(scoreResult.teacherApprovedAt.trim())
+      && Number.isInteger(scoreResult.gradeRevision) && scoreResult.gradeRevision > 0 && scoreResult.aiEssayProposal == null;
+    if (!approved || !classOpen) return <p className="rounded-xl bg-slate-100 p-4 text-sm text-slate-700">Bài đánh giá đang chờ thầy kiểm tra, duyệt và mở quyền xem điểm. Không hiển thị đề xuất AI hoặc bản lưu cũ.</p>;
+    const html = generatePracticeReviewHtml(scoreResult, scoreResult.fullName || fullName || 'Học sinh');
+    return <div className="space-y-4">
+      <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">Bài đánh giá phục hồi riêng lớp 8/21. Giữ nguyên điểm trắc nghiệm đã lưu; thiếu thứ tự phương án gốc nên không suy ra lại đúng/sai.</p>
+      <iframe title="Bài đánh giá phục hồi" sandbox="" srcDoc={html} className="w-full rounded-xl border border-slate-200 bg-white" style={{minHeight:'70vh'}} />
+      {scoreResult.scoreConfirmed ? <p className="rounded-xl bg-emerald-50 p-4 font-bold text-emerald-800">EM ĐÃ XÁC NHẬN ĐIỂM SỐ CHÍNH XÁC · ĐÃ CHỐT ĐIỂM THÀNH CÔNG</p>
+        : approved && classOpen ? <button type="button" onClick={handleConfirmScore} className="w-full rounded-xl bg-[#0267B1] px-5 py-4 font-bold text-white">XÁC NHẬN ĐIỂM SỐ CHÍNH XÁC</button>
+          : <p className="rounded-xl bg-slate-100 p-4 text-sm text-slate-700">{approved ? 'Chờ giáo viên mở xác nhận điểm cho lớp 8/21.' : 'AI chỉ đề xuất điểm. Bài đang chờ thầy kiểm tra và duyệt; chưa thể xác nhận điểm.'}</p>}
+    </div>;
+  }
 
   // Gom câu trả lời từ cả examAnswers và scoreResult.answers (đảm bảo không bị mất khi tải lại trang)
   const answers = mode === 'practice'

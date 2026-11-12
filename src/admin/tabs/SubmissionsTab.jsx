@@ -1,3 +1,4 @@
+import { isRecoveredAssessment } from '../../shared/recoveredAssessment.js';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAdmin } from '../AdminContext.js';
 import { ROSTER_BY_CLASS, getStudentsByClass, verifyStudentLms } from '../../core/roster-data.js';
@@ -203,18 +204,18 @@ export default function SubmissionsTab() {
                 <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold">
                   🟢 Đã xác nhận điểm: {filteredSubmissions.filter(s => s.mode === 'exam' && s.scoreConfirmed).length} / {filteredSubmissions.filter(s => s.mode === 'exam').length}
                 </span>
-                {filteredSubmissions.some(s => s.mode === 'exam' && !s.scoreConfirmed) && (
+                {filteredSubmissions.some(s => s.mode === 'exam' && !s.scoreConfirmed && !isRecoveredAssessment(s)) && (
                   <button
                     type="button"
                     onClick={() => handleAdminConfirmBatchScores(
-                      filteredSubmissions.filter(s => s.mode === 'exam' && !s.scoreConfirmed),
+                      filteredSubmissions.filter(s => s.mode === 'exam' && !s.scoreConfirmed && !isRecoveredAssessment(s)),
                       filterClass !== 'all' ? `Lớp ${filterClass}` : 'danh sách đang lọc'
                     )}
                     title="Xác nhận điểm thay cho toàn bộ học sinh chưa bấm xác nhận trong danh sách hiện tại và đồng bộ lên Google Drive"
                     className="px-3 py-1 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] shadow-sm transition flex items-center space-x-1"
                   >
                     <span>✓</span>
-                    <span>Xác nhận thay tất cả ({filteredSubmissions.filter(s => s.mode === 'exam' && !s.scoreConfirmed).length} HS)</span>
+                    <span>Xác nhận thay tất cả ({filteredSubmissions.filter(s => s.mode === 'exam' && !s.scoreConfirmed && !isRecoveredAssessment(s)).length} HS)</span>
                   </button>
                 )}
               </>
@@ -297,7 +298,9 @@ export default function SubmissionsTab() {
                 </tr>
               ) : (
                 filteredSubmissions.map((sub, idx) => {
-                  const autoScore = sub.mcqPoints !== undefined ? sub.mcqPoints : (sub.score !== undefined ? sub.score : 0);
+                  const recovered = isRecoveredAssessment(sub);
+                  const teacherApproved = !recovered || (sub.isGraded === true && Boolean(sub.teacherApprovedAt));
+                  const autoScore = recovered ? sub.recoveryAssessment.mcqScore : sub.mcqPoints !== undefined ? sub.mcqPoints : (sub.score !== undefined ? sub.score : 0);
                   const finalScore = sub.finalScore !== undefined ? sub.finalScore : autoScore;
                   const hasPenalty = sub.violations >= 3;
                   const timing = window.AsianSchoolExamTiming.getSubmissionTiming(sub);
@@ -317,7 +320,7 @@ export default function SubmissionsTab() {
                       <td className="py-3 px-4">
                         {sub.mode === 'exam' ? (
                           <span className="px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-200 font-bold">
-                            Thi Giữa HK1
+                            {isRecoveredAssessment(sub) ? 'Đánh giá từ ôn tập 8/21' : 'Thi Giữa HK1'}
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-bold">
@@ -333,10 +336,10 @@ export default function SubmissionsTab() {
                         {autoScore}đ
                       </td>
                       <td className="py-3 px-4 text-center font-bold">
-                        {sub.mode === 'practice' ? <span className="text-slate-500">Không tính điểm</span> : sub.isGraded ? (
+                        {sub.mode === 'practice' ? <span className="text-slate-500">Không tính điểm</span> : sub.isGraded && teacherApproved ? (
                           <span className="text-indigo-600 font-bold">+{sub.essayTotal}đ</span>
                         ) : (
-                          <span className="text-slate-400 italic">Chưa chấm</span>
+                          <span className="text-slate-400 italic">{isRecoveredAssessment(sub) && sub.aiEssayProposal ? 'AI đề xuất · chờ duyệt' : 'Chưa chấm'}</span>
                         )}
                       </td>
                       <td className="py-3 px-4 text-center">
@@ -351,7 +354,7 @@ export default function SubmissionsTab() {
                         )}
                       </td>
                       <td className="py-3 px-4 text-center">
-                        {sub.mode === 'exam' && (
+                        {sub.mode === 'exam' && !isRecoveredAssessment(sub) && (
                           <div className="mb-1" title="Theo thời gian máy chủ. Giáo viên xem xét; hệ thống không tự trừ điểm.">
                             {timing.known ? (
                               <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${timing.isLate ? 'bg-red-50 text-red-800 border-red-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
@@ -362,18 +365,20 @@ export default function SubmissionsTab() {
                             )}
                           </div>
                         )}
-                        {sub.mode === 'practice' ? <span className="text-blue-800">Đã lưu ôn tập</span> : sub.isGraded ? (
+                        {sub.mode === 'practice' ? <span className="text-blue-800">Đã lưu ôn tập</span> : sub.isGraded && teacherApproved ? (
                           <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 text-[10px] font-bold border border-emerald-200">
                             Đã chấm ✓
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 text-[10px] font-bold border border-amber-200">
-                            Chờ chấm ⏳
+                            {isRecoveredAssessment(sub) ? 'Chờ thầy duyệt ⏳' : 'Chờ chấm ⏳'}
                           </span>
                         )}
                       </td>
                       <td className="py-3 px-4 text-center">
-                        {sub.mode === 'exam' ? (
+                        {recovered ? (
+                          <span className="text-slate-500 text-[10px]">{sub.scoreConfirmed ? 'Học sinh đã xác nhận' : teacherApproved ? 'Chờ học sinh xác nhận' : 'Chờ thầy duyệt'}</span>
+                        ) : sub.mode === 'exam' ? (
                           sub.scoreConfirmed ? (
                             <span className="inline-block px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black border border-emerald-300">
                               🟢 Đã xác nhận {confirmedTime ? `(${confirmedTime})` : ''}{sub.confirmedByAdmin ? ' · GV' : ''}
@@ -417,7 +422,7 @@ export default function SubmissionsTab() {
                             <span>📄</span>
                             <span>Xuất HTML</span>
                           </button>
-                          {sub.mode === 'exam' && <><button
+                          {sub.mode === 'exam' && !isRecoveredAssessment(sub) && <><button
                             type="button"
                             onClick={() => handleResetStudentAttempt(sub.studentId, sub.grade, sub.studentClass, sub.fullName || sub.studentName)}
                             title="Reset lượt thi để học sinh này có thể vào làm bài lại từ đầu"

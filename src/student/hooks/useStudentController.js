@@ -1,3 +1,4 @@
+import { isRecoveredAssessment } from '../../shared/recoveredAssessment.js';
 import { savePracticeDraft } from '../actions/practiceDraft.js';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useBlockDevtools } from './useBlockDevtools.js';
@@ -101,6 +102,11 @@ export function useStudentController() {
   const handleConfirmScore = () => {
     const subId = scoreResult?.submissionId || scoreResult?.id;
     if (!subId) return;
+    const recovered = isRecoveredAssessment(scoreResult);
+    if (recovered && (!scoreResult.isGraded || typeof scoreResult.teacherApprovedAt !== 'string' || !scoreResult.teacherApprovedAt.trim() || scoreResult.aiEssayProposal != null || config?.classReviewControl?.['8/21'] !== true)) {
+      showDialog('Chưa thể xác nhận điểm', 'Bài đang chờ thầy duyệt hoặc lớp chưa được mở xác nhận điểm.', 'warning');
+      return;
+    }
     const currentScore = scoreResult?.finalScore !== undefined ? scoreResult.finalScore : (scoreResult?.mcqPoints !== undefined ? scoreResult.mcqPoints : scoreResult?.score);
     showDialog(
       'Xác Nhận Điểm Số Chính Xác ✅',
@@ -109,17 +115,25 @@ export function useStudentController() {
       async () => {
         try {
           if (window.AsianSchoolCloud && window.AsianSchoolCloud.confirmSubmissionScore) {
-            await window.AsianSchoolCloud.confirmSubmissionScore({
+            const acknowledged = await window.AsianSchoolCloud.confirmSubmissionScore({
               submissionId: subId,
               grade: scoreResult?.grade || grade,
               studentClass: scoreResult?.studentClass || studentClass,
-              studentId: scoreResult?.studentId || studentId
+              studentId: scoreResult?.studentId || studentId,
+              ...(recovered ? { expectedGradeRevision: scoreResult.gradeRevision } : {})
             });
+            if (recovered && acknowledged !== true) throw new Error('Máy chủ chưa xác nhận lưu điểm.');
+          } else if (recovered) {
+            throw new Error('Chưa kết nối máy chủ để xác nhận điểm.');
           }
         } catch (e) {
+          if (recovered) {
+            showDialog('Chưa xác nhận được điểm', e.message || 'Máy chủ chưa nhận xác nhận. Em giữ nguyên trang và thử lại.', 'error');
+            return;
+          }
           console.warn('Firestore confirm error:', e);
         }
-        if (window.AsianSchoolStorage && window.AsianSchoolStorage.confirmScore) {
+        if (!recovered && window.AsianSchoolStorage && window.AsianSchoolStorage.confirmScore) {
           window.AsianSchoolStorage.confirmScore(subId);
         }
         const now = new Date().toISOString();

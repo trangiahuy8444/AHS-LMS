@@ -234,6 +234,44 @@ service cloud.firestore {
 
     // Bài nộp chính thức: học sinh chỉ gửi bài làm, không có trường điểm; giáo viên chấm
     match /submissions/{subId} {
+      function isRecovered821(d) {
+        return d.get('mode', '') == 'exam' && d.get('grade', 0) == 8
+          && d.get('studentClass', '') == '8/21' && d.get('examCode', '') == 'RECOVERY821'
+          && d.get('recoveryAssessment', {}) is map
+          && d.get('recoveryAssessment', {}).get('kind', '') == 'practice-821-20261111';
+      }
+      function recoveredReviewReady() {
+        return signedIn() && cfg().get('classReviewControl', {}).get('8/21', false) == true
+          && resource.data.get('isGraded', false) == true
+          && resource.data.get('teacherApprovedAt', null) is string
+          && resource.data.teacherApprovedAt.size() > 0
+          && resource.data.get('aiEssayProposal', null) == null;
+      }
+      function validRecoveredScores(d) {
+        let e = d.get('essayScores', {});
+        return e is map && e.keys().hasOnly(['1', '2', '3']) && e.keys().hasAll(['1', '2', '3'])
+          && e['1'] in [0, 0.25, 0.5, 0.75, 1] && e['2'] in [0, 0.25, 0.5, 0.75, 1]
+          && e['3'] in [0, 0.25, 0.5, 0.75, 1]
+          && d.essayTotal == e['1'] + e['2'] + e['3'];
+      }
+      function validRecoveredTeacherUpdate() {
+        let d = request.resource.data;
+        let o = resource.data;
+        let changed = d.diff(o).affectedKeys();
+        let gradeChanged = changed.hasAny(['essayScores', 'essayTotal', 'finalScore', 'teacherFeedback', 'isGraded', 'teacherApprovedAt', 'gradedAt']);
+        return changed.hasOnly(['aiEssayProposal', 'essayScores', 'essayTotal', 'finalScore', 'teacherFeedback',
+          'isGraded', 'gradedAt', 'teacherApprovedAt', 'gradeRevision', 'scoreConfirmed', 'scoreConfirmedAt',
+          'confirmedByAdmin', 'scoreConfirmedRevision', 'penaltyPoints'])
+          && d.mcqPoints == o.recoveryAssessment.mcqScore && d.score == o.recoveryAssessment.mcqScore
+          && d.get('gradeRevision', 0) is int
+          && d.gradeRevision == o.get('gradeRevision', 0) + (gradeChanged ? 1 : 0)
+          && (d.isGraded == true
+            ? (validRecoveredScores(d) && d.teacherApprovedAt is string && d.teacherApprovedAt.size() > 0
+              && d.get('aiEssayProposal', null) == null && d.finalScore == o.recoveryAssessment.mcqScore + d.essayTotal)
+            : (d.isGraded == false && d.essayScores == {} && d.essayTotal == 0 && d.finalScore == o.recoveryAssessment.mcqScore))
+          && (!gradeChanged || (d.get('scoreConfirmed', false) == false && d.get('scoreConfirmedAt', null) == null))
+          && (d.get('scoreConfirmed', false) != true || (d.isGraded == true && d.teacherApprovedAt is string));
+      }
       function canStudentReview() {
         let c = cfg();
         return signedIn() && (
@@ -279,11 +317,13 @@ service cloud.firestore {
           && d.sessionId is string && d.submittedAt is string
           && d.isGraded == false && d.essayScores == {} && d.essayTotal == 0 && d.teacherFeedback == '';
       }
-      allow read: if isTeacher() || (signedIn() && (resource.data.uid == request.auth.uid || isAttemptOwner())) || canStudentReview();
+      allow read: if isTeacher() || (isRecovered821(resource.data)
+        ? recoveredReviewReady()
+        : ((signedIn() && (resource.data.uid == request.auth.uid || isAttemptOwner())) || canStudentReview()));
       allow create: if signedIn() && validSubmission(request.resource.data);
-      allow update: if isTeacher() || (
+      allow update: if (isTeacher() && (!isRecovered821(resource.data) || validRecoveredTeacherUpdate())) || (
         signedIn()
-        && (resource.data.uid == request.auth.uid || isAttemptOwner() || canStudentReview())
+        && (isRecovered821(resource.data) ? recoveredReviewReady() : (resource.data.uid == request.auth.uid || isAttemptOwner() || canStudentReview()))
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['scoreConfirmed', 'scoreConfirmedAt'])
         && request.resource.data.scoreConfirmed == true
         && request.resource.data.scoreConfirmedAt == request.time
