@@ -12,7 +12,7 @@
 - Theo điều chỉnh của giáo viên, Chấm nhanh cả lớp lưu điểm hoàn chỉnh ngay sau Gemini, bỏ bước mở bài duyệt riêng. Gọi đúng barem phục hồi, giữTN gốc và câu trả lời; không chuyển đề xuất Codex cũ thành điểm khi phát hành.
 - Dùng giao dịch lưu đã có với phiên bản điểm/đề xuất chụp trước lúc gọi AI, chờ máy chủ; lỗi không tính hoàn tất. Mặc định chỉ bài chưa chấm, chủ động bỏ chọn để chấm lại; xóa xác nhận cũ khi đổi điểm. Học sinh xem/xác nhận theo quyền hiện hành sau khi lưu.
 - Đồng nhất thanh tiến độ và nhãn chờ chấm; giữ sửa điểm thủ công. Không đổi rules/cấu hình/dữ liệu thật trong thay đổi này.
-- Kiểm237Node/242Vitest đạt,3private bỏ qua;lint/build/chặn lọt đề đạt;review độc lập không thấy P1/P2. Chờ phát hành và đối chiếu asset thật.
+- Kiểm237Node/242Vitest đạt,3private bỏ qua;lint/build/chặn lọt đề đạt;review độc lập không thấy P1/P2. Đã phát hành `c9530a0`, [Actions43139434529](https://github.com/trangiahuy8444/AHS-LMS/actions/runs/43139434529) thành công gồm rules emulator.3trang HTTP200/6asset khớp byte build; đọc lại đủ câu trả lời và điểmTN. Cờ xem lớp hiện đóng theo cấu hình trên máy chủ; không tự thay đổi.
 
 
 ## 12/11/2026 — Bài đánh giá phục hồi riêng lớp 8/21: AI đề xuất, giáo viên duyệt

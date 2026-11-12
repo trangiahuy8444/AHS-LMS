@@ -30,3 +30,5 @@ Học sinh vào cổng học sinh, nhập đúng Khối/Lớp/Mã LMS và chọn
 ## Kiểm thay đổi chấm nhanh12/11/2026
 
 237Node đạt/3private bỏ qua;242Vitest đạt;lint/build/chặn lọt đề đạt. Review độc lập không thấy P1/P2. Không đổi rules hoặc tự ghi điểm học sinh khi phát hành; thao tác Chấm nhanh của giáo viên mới chạy Gemini và lưu điểm.
+
+Bản `c9530a0` đã phát hành qua Actions43139434529;3trang HTTP200,6asset nội bộ khớp build. Khi quyền xem/chốt điểm của lớp đang khóa, giáo viên bấm Mở chốt điểm sau khi hoàn tất chấm như các lớp khác. Không tự bật cờ cấu hình khi phát hành.
