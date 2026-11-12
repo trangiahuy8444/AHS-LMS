@@ -147,6 +147,6 @@ Hướng dẫn: [Bảo toàn ôn tập](BAO_TOAN_ON_TAP_2026_11_11.md).
 - [x] Giáo viên chọn AI đề xuất điểm, kiểm tra và duyệt; giữTN/7,3câuTL mỗi câu1, tổng10.
 - [x] Mã/kiểm cục bộ: khóaMCQ,AIproposal riêng, duyệt cóserverack/revision, xem/xác nhận chỉ sau duyệt, không101fallback/cache.237Node/239UI/42rules đạt,3gói private bỏ qua;review độc lập đạt.
 - [x] Rules mới đã Publish và đối chiếu hash trước dữ liệu đánh giá.
-- [ ] Phát hành client hoàn thiện và đối chiếu web thật.
-- [ ] Tạo nguồn đánh giá và đề xuất có điều kiện, bật xem riêng lớp; đọc lại chứng minh chưa có điểm được tự duyệt, nguồn ôn tập giữ nguyên.
+- [x] Client `2e973a2` đã phát hành và đối chiếu web thật:3 trang HTTP200,6asset nội bộ khớp byte.
+- [x] Tạo19 nguồn đánh giá/19 đề xuất AI có điều kiện, bật xem riêng lớp; đọc lại chứng minh0bài tự duyệt/0xác nhận, điểmTN và nguồn ôn tập giữ nguyên, cấu hình khác không đổi.
 - [ ] Giáo viên kiểm tra, điều chỉnh và duyệt từng bài; học sinh đối soát và xác nhận sau duyệt.

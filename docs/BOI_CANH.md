@@ -70,3 +70,10 @@ Giáo viên chỉ định bộ Giữa HK1 trong thư mục gửi Ms.Tuyến là 
 ## Bổ sung bảo toàn ôn tập — 11/11/2026 (đã phát hành)
 
 Theo yêu cầu giáo viên, giữ từng lượt ôn tập gồm câu trả lời và bộ câu hỏi/phương án thực tế, bên cạnh bảng điểm cao nhất. JSON giữ chi tiết; CSV là tổng hợp. Giữ thang7/7.75 và tự luận không tính điểm. Bài cũ thiếu thứ tự phương án không được tự chấm lại từ ngân hàng hiện tại. Việc công nhận điểm do giáo viên quyết định riêng. Client `a125eac` và rules tương thích đã phát hành, kiểm web thật khớp bản build. Dữ liệu phục hồi đã đọc lại trên máy chủ; chưa mở quyền xem/chốt điểm hoặc công nhận điểm thay giáo viên.
+
+
+## Ngoại lệ hồ sơ phục hồi lớp8/21 — xác nhận12/11/2026
+
+Giáo viên yêu cầu tạo bản đánh giá từ19 nguồn ôn tập cứu hộ, chọn AI đề xuất rồi giáo viên kiểm tra/duyệt. Bản đánh giá modeexam/mãRECOVERY821 dùng ID riêng, điểmTN gốc/7 được khóa;3câuTL mỗi câu1, tổng10. Bản ôn tập gốc giữ nguyên chính sách không tính điểmTL; không áp dụng ngoại lệ này cho lớp khác hoặc ôn tập thông thường.
+
+Client `2e973a2` và rules tương ứng đã phát hành/đối chiếu.19đề xuất đã có,0bản được tự duyệt. Cờ xem riêng lớp đã bật nhưng học sinh chỉ đọc/xác nhận từng bản sau khi giáo viên duyệt; dùng dữ liệu máy chủ mới nhất và kiểm phiên bản điểm. Xem PHUC_HOI_DANH_GIA_8_21.md.

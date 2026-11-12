@@ -1,3 +1,12 @@
+## 12/11/2026 — Hoàn tất chuyển bản đánh giá phục hồi và đề xuất chờ duyệt
+
+- Client `2e973a2` đã phát hành thành công: https://github.com/trangiahuy8444/AHS-LMS/actions/runs/43127143415 . Trang gốc/test/admin HTTP200;6 asset nội bộ tham chiếu khớp byte bản đã kiểm thử. Rules đang chạy khớp hash bản đã kiểm42/42 emulator.
+- Đã tạo19 bản đánh giá từ nguồn ôn tập phục hồi, kèm19 bộ đề xuất AI. Đọc lại19 bản và nguồn gốc chứng minh câu trả lời/điểmTN không đổi, nguồn ôn tập vẫn còn, không ghi lượt thi hoặc phiên thi.
+- Cả19 bản ở trạng thái chờ giáo viên duyệt;0 bản đã duyệt và0 học sinh xác nhận. Chỉ cờ xem riêng lớp8/21 được bật; dữ liệu từng bài vẫn bị chặn đối với học sinh cho tới khi giáo viên duyệt. Cấu hình khác không đổi.
+- Đề xuất được trợ lý Codex đối chiếu theo barem đề cương đã lưu, có điểm từng ý/lý do/lưu ý diễn đạt để giáo viên kiểm tra; không khẳng định đã gọi Gemini. Chưa công nhận điểm thay giáo viên. Các lần tạo đề xuất mới trên giao diện dùng dịch vụ AI giáo viên cấu hình.
+- Giáo viên tải lại Admin → Bài nộp & chấm → Khối8/Lớp8/21 → Chỉ bài thi → Tất cả trạng thái → Xem & Chấm. Điểm/nhận xét đề xuất điền sẵn; kiểm tra/chỉnh rồi Duyệt và lưu điểm. Học sinh xem/xác nhận sau khi bản tương ứng đã duyệt.
+- Toàn bộ dữ liệu thật/đề xuất/biên nhận và bản khôi phục quy tắc chỉ lưu riêng tư ngoài repository. Bản ghi ôn tập gốc không bị xóa.
+
 ## 12/11/2026 — Bài đánh giá phục hồi riêng lớp 8/21: AI đề xuất, giáo viên duyệt
 
 - Theo yêu cầu giáo viên, bổ sung luồng chuyển nguồn cứu hộ riêng lớp này thành bài đánh giá để chấm tự luận và học sinh xác nhận sau duyệt. Giữ điểm trắc nghiệm gốc/thang7,3câu tự luận mỗi câu1điểm, tổng10; không tự chấm lại MCQ thiếu permutation.
