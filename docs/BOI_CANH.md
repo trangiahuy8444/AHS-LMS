@@ -77,3 +77,8 @@ Theo yêu cầu giáo viên, giữ từng lượt ôn tập gồm câu trả l�
 Giáo viên yêu cầu tạo bản đánh giá từ19 nguồn ôn tập cứu hộ, chọn AI đề xuất rồi giáo viên kiểm tra/duyệt. Bản đánh giá modeexam/mãRECOVERY821 dùng ID riêng, điểmTN gốc/7 được khóa;3câuTL mỗi câu1, tổng10. Bản ôn tập gốc giữ nguyên chính sách không tính điểmTL; không áp dụng ngoại lệ này cho lớp khác hoặc ôn tập thông thường.
 
 Client `2e973a2` và rules tương ứng đã phát hành/đối chiếu.19đề xuất đã có,0bản được tự duyệt. Cờ xem riêng lớp đã bật nhưng học sinh chỉ đọc/xác nhận từng bản sau khi giáo viên duyệt; dùng dữ liệu máy chủ mới nhất và kiểm phiên bản điểm. Xem PHUC_HOI_DANH_GIA_8_21.md.
+
+
+## Điều chỉnh cách chấm lớp8/21 —12/11/2026
+
+Giáo viên yêu cầu lớp8/21 dùng Chấm nhanh Gemini và lưu điểm hoàn chỉnh như các lớp khác, thay cho bước duyệt riêng từng bài. GiữTN gốc và3câuTL/3điểm, bảo toàn câu trả lời/nguồn ôn tập; đủ điểm và serverack mới công nhận. Sau lưu thành công, học sinh được xem/xác nhận theo cờ riêng lớp hiện hành. Không tự công nhận các đề xuất Codex cũ khi phát hành.

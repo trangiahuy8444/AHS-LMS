@@ -339,7 +339,7 @@ export default function SubmissionsTab() {
                         {sub.mode === 'practice' ? <span className="text-slate-500">Không tính điểm</span> : sub.isGraded && teacherApproved ? (
                           <span className="text-indigo-600 font-bold">+{sub.essayTotal}đ</span>
                         ) : (
-                          <span className="text-slate-400 italic">{isRecoveredAssessment(sub) && sub.aiEssayProposal ? 'AI đề xuất · chờ duyệt' : 'Chưa chấm'}</span>
+                          <span className="text-slate-400 italic">{isRecoveredAssessment(sub) && sub.aiEssayProposal ? 'Chưa chấm Gemini' : 'Chưa chấm'}</span>
                         )}
                       </td>
                       <td className="py-3 px-4 text-center">
@@ -371,13 +371,13 @@ export default function SubmissionsTab() {
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 text-[10px] font-bold border border-amber-200">
-                            {isRecoveredAssessment(sub) ? 'Chờ thầy duyệt ⏳' : 'Chờ chấm ⏳'}
+                            Chờ chấm ⏳
                           </span>
                         )}
                       </td>
                       <td className="py-3 px-4 text-center">
                         {recovered ? (
-                          <span className="text-slate-500 text-[10px]">{sub.scoreConfirmed ? 'Học sinh đã xác nhận' : teacherApproved ? 'Chờ học sinh xác nhận' : 'Chờ thầy duyệt'}</span>
+                          <span className="text-slate-500 text-[10px]">{sub.scoreConfirmed ? 'Học sinh đã xác nhận' : teacherApproved ? 'Chờ học sinh xác nhận' : 'Chờ chấm tự luận'}</span>
                         ) : sub.mode === 'exam' ? (
                           sub.scoreConfirmed ? (
                             <span className="inline-block px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black border border-emerald-300">

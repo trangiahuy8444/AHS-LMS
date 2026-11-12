@@ -89,8 +89,7 @@ export function createGradingActions(s) {
 
     const allSubs = window.AsianSchoolStorage.getSubmissions() || [];
     const classSubs = allSubs.filter(sub => String(sub.studentClass || '').trim() === String(targetClass || '').trim() && sub.mode === 'exam');
-    const eligible = classSubs.filter(sub => !isRecoveredAssessment(sub) || (!sub.isGraded && !sub.teacherApprovedAt && !sub.scoreConfirmed));
-    const candidates = onlyPending ? eligible.filter(sub => !sub.isGraded) : eligible;
+    const candidates = onlyPending ? classSubs.filter(sub => !sub.isGraded) : classSubs;
 
     if (candidates.length === 0) {
       showDialog(
@@ -135,6 +134,11 @@ export function createGradingActions(s) {
       }
 
       const sub = candidates[idx];
+      // Capture the grade/proposal version before the AI call; reject stale results after another tab edits.
+      const recoverySaveOptions = isRecoveredAssessment(sub) ? {
+        expectedGradeRevision: sub.gradeRevision || 0,
+        expectedProposalVersion: sub.aiEssayProposal?.version || 0
+      } : null;
       const sName = sub.fullName || sub.studentId || `Học sinh #${idx + 1}`;
       const sId = sub.studentId || '';
 
@@ -193,18 +197,15 @@ export function createGradingActions(s) {
         });
 
         if (!gradeRes.success) throw new Error(gradeRes.error || 'AI chưa chấm hợp lệ đủ các câu; chưa lưu điểm bài này.');
-        const recovered = isRecoveredAssessment(sub);
-        const saveRes = recovered
-          ? await window.AsianSchoolStorage.saveRecoveredEssayProposal(sub.id, { ...gradeRes, teacherFeedback: sanitizeStudentFeedback(gradeRes.teacherFeedback) })
+        const saveRes = recoverySaveOptions
+          ? await window.AsianSchoolStorage.gradeEssaySubmission(sub.id, gradeRes.essayScores, sanitizeStudentFeedback(gradeRes.teacherFeedback), recoverySaveOptions)
           : await window.AsianSchoolStorage.gradeEssaySubmission(sub.id, gradeRes.essayScores, sanitizeStudentFeedback(gradeRes.teacherFeedback));
 
         if (saveRes.success) {
           completed++;
           const finalScore = saveRes.submission.finalScore;
           const essayScore = saveRes.submission.essayTotal;
-          const logText = recovered
-            ? `✓ [${idx + 1}/${candidates.length}] ${sName}: Đã lưu đề xuất AI cho ba câu tự luận; chờ thầy mở bài và duyệt điểm.`
-            : `✓ [${idx + 1}/${candidates.length}] ${sName}: Tự luận +${essayScore}đ -> Tổng ${finalScore}/10đ${!hasAnyAnswer ? ' (Bỏ trống)' : ''}`;
+          const logText = `✓ [${idx + 1}/${candidates.length}] ${sName}: Tự luận +${essayScore}đ -> Tổng ${finalScore}/10đ${!hasAnyAnswer ? ' (Bỏ trống)' : ''}`;
           activityLogs.unshift(`[${new Date().toLocaleTimeString('vi-VN')}] ${logText}`);
         } else {
           errors++;
@@ -237,10 +238,7 @@ export function createGradingActions(s) {
     }
 
     if (showToast) {
-      const hasRecovered = candidates.some(isRecoveredAssessment);
-      showToast(hasRecovered
-        ? `Đã xử lý ${completed}/${candidates.length} bài lớp ${targetClass}. Đề xuất AI của bài phục hồi cần thầy mở bài và duyệt.`
-        : `✓ Đã hoàn tất chấm tự luận cho ${completed}/${candidates.length} bài của Lớp ${targetClass}!`, 'success');
+      showToast(`Đã chấm và lưu điểm ${completed}/${candidates.length} bài của Lớp ${targetClass}.${errors ? ` Có ${errors} bài lỗi; thầy có thể chấm lại các bài còn chờ.` : ''}`, errors || completed < candidates.length ? 'warning' : 'success');
     }
   };
 

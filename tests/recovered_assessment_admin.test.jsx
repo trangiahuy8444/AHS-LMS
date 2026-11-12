@@ -20,14 +20,14 @@ it('reviews recovered assessments using stored essays and a safe raw-MCQ iframe,
  render(<AdminContext.Provider value={context}><EssayGradingModal/></AdminContext.Provider>);
  expect(screen.queryByText('Wrong official essay')).toBeNull();expect(screen.queryByText('Unrelated official bank101')).toBeNull();
  expect(screen.getByText('Recovered fixture essay 1')).toBeTruthy();expect(screen.getByText('Saved subpart 1')).toBeTruthy();
- expect(screen.getByText('AI đề xuất — chờ thầy duyệt')).toBeTruthy();
+ expect(screen.getByText('Chưa chấm tự luận')).toBeTruthy();expect(screen.queryByText(/Chỉ khi bấm Duyệt và lưu điểm/)).toBeNull();
  const frame=screen.getByTitle('Bài làm phục hồi và lựa chọn gốc');expect(frame.getAttribute('sandbox')).toBe('');expect(frame.getAttribute('srcdoc')).not.toContain('Wrongly inferred option');
  expect(get).not.toHaveBeenCalled();expect(screen.queryByRole('button',{name:/Xác nhận thay HS/})).toBeNull();
 });
-it('requires the explicit approve-and-save click and waits for acknowledgement',async()=>{
+it('manual grade edits still require save and wait for acknowledgement',async()=>{
  let finish;context.handleSaveGrading=vi.fn(()=>new Promise(resolve=>{finish=resolve;}));
  render(<AdminContext.Provider value={context}><EssayGradingModal/></AdminContext.Provider>);
- const save=screen.getByRole('button',{name:/Duyệt và lưu điểm/});expect(context.handleSaveGrading).not.toHaveBeenCalled();
+ const save=screen.getByRole('button',{name:/LƯU ĐIỂM CHẤM & CẬP NHẬT TỔNG ĐIỂM/});expect(context.handleSaveGrading).not.toHaveBeenCalled();
  fireEvent.click(save);expect(context.handleSaveGrading).toHaveBeenCalledTimes(1);expect(save.disabled).toBe(true);
  await act(async()=>finish());expect(save.disabled).toBe(false);
 });
@@ -44,9 +44,9 @@ it('hides all teacher confirmation, reset and delete actions on recovered pendin
  view.rerender(<AdminContext.Provider value={{...props,filteredSubmissions:[approved],submissions:[approved]}}><SubmissionsTab/></AdminContext.Provider>);
  expect(screen.queryByRole('button',{name:/Xác nhận thay/})).toBeNull();expect(screen.getByText('Chờ học sinh xác nhận')).toBeTruthy();expect(screen.queryByTitle('Reset lượt thi để học sinh này có thể vào làm bài lại từ đầu')).toBeNull();
 });
-it('counts AI proposals separately from teacher approvals in the recovered class grading status',()=>{
+it('offers the same Gemini batch grading workflow for recovered classes',()=>{
  render(<AdminContext.Provider value={{submissions:[recovered],filterClass:'8/21',filterGrade:'8',batchGradingState:{isRunning:false},handleStartBatchGrading:vi.fn()}}><ClassGradingStatusBar/></AdminContext.Provider>);
- expect(screen.getByText(/AI đã đề xuất: 1/)).toBeTruthy();expect(screen.getByText(/Thầy đã duyệt:/)).toBeTruthy();expect(screen.queryByText(/ĐÃ CHẤM XONG 100%/)).toBeNull();expect(screen.getByRole('button',{name:/Tạo đề xuất AI/})).toBeTruthy();
+ expect(screen.getByText(/Trợ lý Gemini/)).toBeTruthy();expect(screen.getByText(/Đã chấm:/)).toBeTruthy();expect(screen.queryByText(/ĐÃ CHẤM XONG 100%/)).toBeNull();expect(screen.getByRole('button',{name:/Chấm Nhanh Cả Lớp 8\/21/})).toBeTruthy();
 });
 
 it('keeps teacher confirmation for ordinary exams while excluding every recovered assessment from bulk confirmation',()=>{

@@ -7,6 +7,14 @@
 - Giáo viên tải lại Admin → Bài nộp & chấm → Khối8/Lớp8/21 → Chỉ bài thi → Tất cả trạng thái → Xem & Chấm. Điểm/nhận xét đề xuất điền sẵn; kiểm tra/chỉnh rồi Duyệt và lưu điểm. Học sinh xem/xác nhận sau khi bản tương ứng đã duyệt.
 - Toàn bộ dữ liệu thật/đề xuất/biên nhận và bản khôi phục quy tắc chỉ lưu riêng tư ngoài repository. Bản ghi ôn tập gốc không bị xóa.
 
+## 12/11/2026 — Đồng nhất chấm nhanh Gemini cho lớp8/21
+
+- Theo điều chỉnh của giáo viên, Chấm nhanh cả lớp lưu điểm hoàn chỉnh ngay sau Gemini, bỏ bước mở bài duyệt riêng. Gọi đúng barem phục hồi, giữTN gốc và câu trả lời; không chuyển đề xuất Codex cũ thành điểm khi phát hành.
+- Dùng giao dịch lưu đã có với phiên bản điểm/đề xuất chụp trước lúc gọi AI, chờ máy chủ; lỗi không tính hoàn tất. Mặc định chỉ bài chưa chấm, chủ động bỏ chọn để chấm lại; xóa xác nhận cũ khi đổi điểm. Học sinh xem/xác nhận theo quyền hiện hành sau khi lưu.
+- Đồng nhất thanh tiến độ và nhãn chờ chấm; giữ sửa điểm thủ công. Không đổi rules/cấu hình/dữ liệu thật trong thay đổi này.
+- Kiểm237Node/242Vitest đạt,3private bỏ qua;lint/build/chặn lọt đề đạt;review độc lập không thấy P1/P2. Chờ phát hành và đối chiếu asset thật.
+
+
 ## 12/11/2026 — Bài đánh giá phục hồi riêng lớp 8/21: AI đề xuất, giáo viên duyệt
 
 - Theo yêu cầu giáo viên, bổ sung luồng chuyển nguồn cứu hộ riêng lớp này thành bài đánh giá để chấm tự luận và học sinh xác nhận sau duyệt. Giữ điểm trắc nghiệm gốc/thang7,3câu tự luận mỗi câu1điểm, tổng10; không tự chấm lại MCQ thiếu permutation.

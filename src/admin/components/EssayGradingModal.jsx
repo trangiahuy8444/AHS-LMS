@@ -303,9 +303,9 @@ export default function EssayGradingModal() {
         </div>
 
         {recovered && <div className="p-4 rounded-xl border border-amber-300 bg-amber-50 text-amber-950 space-y-2" role="status">
-          <p className="font-bold">{teacherApproved ? 'Thầy đã duyệt điểm bài phục hồi' : gradingSubmission.aiEssayProposal ? 'AI đề xuất — chờ thầy duyệt' : 'Bài phục hồi — chờ thầy duyệt'}</p>
+          <p className="font-bold">{teacherApproved ? 'Đã chấm tự luận' : 'Chưa chấm tự luận'}</p>
           <p className="text-sm">Giữ nguyên điểm trắc nghiệm gốc trên thang 7; tự luận tối đa 3 điểm. Chưa có thứ tự phương án trắc nghiệm của lượt làm, nên không suy ra đáp án đúng/sai từ chỉ số đã lưu.</p>
-          {!teacherApproved && <p className="text-sm">Điểm trong ô nhập là bản nháp để thầy kiểm tra. Chỉ khi bấm Duyệt và lưu điểm mới công nhận tổng điểm thang 10 và cho riêng học sinh này xem, xác nhận bài đã duyệt.</p>}
+          {!teacherApproved && <p className="text-sm">Thầy có thể dùng Chấm nhanh cả lớp để Gemini chấm và tự lưu điểm như các lớp khác. Nếu sửa điểm tại đây, bấm Lưu điểm chấm để cập nhật. Điểm trong ô nhập chưa được lưu.</p>}
           {!teacherApproved && Array.isArray(gradingSubmission.aiEssayProposal?.reviewNotes) && <ul className="text-sm list-disc pl-5">{gradingSubmission.aiEssayProposal.reviewNotes.filter(note=>typeof note==='string').map((note,index)=><li key={index}>{note}</li>)}</ul>}
           {!teacherApproved && gradingSubmission.aiEssayProposal?.rubricBreakdown && <details className="text-sm">
             <summary className="cursor-pointer font-semibold">Căn cứ đề xuất theo từng ý của barem</summary>
@@ -945,7 +945,7 @@ export default function EssayGradingModal() {
             className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow transition flex items-center space-x-1.5"
           >
             <span>💾</span>
-            <span>{recovered ? (savingApproval ? 'Đang lưu điểm đã duyệt…' : 'Duyệt và lưu điểm') : 'LƯU ĐIỂM CHẤM & CẬP NHẬT TỔNG ĐIỂM'}</span>
+            <span>{savingApproval ? 'Đang lưu điểm…' : 'LƯU ĐIỂM CHẤM & CẬP NHẬT TỔNG ĐIỂM'}</span>
           </button>
         </div>
 

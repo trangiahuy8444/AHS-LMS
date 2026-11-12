@@ -21,6 +21,35 @@ it('recovered modal closes only after server acknowledgement; rejected save keep
  const {state,actions}=setup();let resolve;window.AsianSchoolStorage.gradeEssaySubmission.mockImplementation(()=>new Promise(r=>{resolve=r;}));const pending=actions.handleSaveGrading();expect(state.setGradingSubmission).not.toHaveBeenCalled();resolve({success:true,submission:recovered({isGraded:true})});await pending;expect(state.setGradingSubmission).toHaveBeenCalledWith(null);expect(window.AsianSchoolStorage.gradeEssaySubmission).toHaveBeenCalledWith('fake-recovery',state.tempEssayScores,'Teacher feedback',{expectedGradeRevision:0,expectedProposalVersion:0});
  const fail=setup();window.AsianSchoolStorage.gradeEssaySubmission.mockRejectedValue(new Error('fake-server-failure'));await fail.actions.handleSaveGrading();expect(fail.state.setGradingSubmission).not.toHaveBeenCalled();expect(fail.state.showToast).not.toHaveBeenCalled();expect(fail.state.showDialog).toHaveBeenCalled();
 });
-it('batch AI creates proposals and never grades or overwrites already approved recovery records',async()=>{
- const pending=recovered(),approved=recovered({id:'fake-approved',isGraded:true,teacherApprovedAt:'2026-11-11T00:00:00Z'});const {actions}=setup(pending);window.AsianSchoolStorage.getSubmissions=()=>[pending,approved];await actions.handleStartBatchGrading('8/21',false);expect(gradeSubmissionWithGemini).toHaveBeenCalledTimes(1);expect(window.AsianSchoolStorage.saveRecoveredEssayProposal).toHaveBeenCalledTimes(1);expect(window.AsianSchoolStorage.gradeEssaySubmission).not.toHaveBeenCalled();
+it('batch Gemini saves final recovered scores directly and waits for server acknowledgement',async()=>{
+ const pending=recovered({aiEssayProposal:{version:2,pending:true}}),approved=recovered({id:'fake-approved',isGraded:true,teacherApprovedAt:'2026-11-11T00:00:00Z'});
+ const {state,actions}=setup(pending);window.AsianSchoolStorage.getSubmissions=()=>[pending,approved];
+ let commit;window.AsianSchoolStorage.gradeEssaySubmission.mockImplementation(()=>new Promise(resolve=>{commit=resolve;}));
+ const run=actions.handleStartBatchGrading('8/21');
+ await vi.waitFor(()=>expect(commit).toBeTypeOf('function'));
+ expect(state.showToast).not.toHaveBeenCalled();
+ expect(window.AsianSchoolStorage.gradeEssaySubmission).toHaveBeenCalledWith(pending.id,{1:1,2:.75,3:.5},'Synthetic issue',{expectedGradeRevision:0,expectedProposalVersion:2});
+ commit({success:true,submission:{...pending,isGraded:true,teacherApprovedAt:'synthetic-time',aiEssayProposal:null,essayTotal:2.25,finalScore:8.75}});await run;
+ expect(gradeSubmissionWithGemini).toHaveBeenCalledTimes(1);expect(window.AsianSchoolStorage.saveRecoveredEssayProposal).not.toHaveBeenCalled();
+ expect(state.showToast.mock.calls[0][0]).toContain('1/1');expect(state.showToast.mock.calls[0][0]).not.toContain('cần thầy');
+});
+it('explicit regrading includes graded recovery rows and guards their displayed revision',async()=>{
+ const sub=recovered({isGraded:true,teacherApprovedAt:'synthetic-time',gradeRevision:3,scoreConfirmed:true});const {actions}=setup(sub);
+ window.AsianSchoolStorage.gradeEssaySubmission.mockResolvedValue({success:true,submission:{...sub,essayTotal:2.25,finalScore:8.75}});
+ await actions.handleStartBatchGrading('8/21',false);
+ expect(window.AsianSchoolStorage.gradeEssaySubmission).toHaveBeenCalledWith(sub.id,{1:1,2:.75,3:.5},'Synthetic issue',{expectedGradeRevision:3,expectedProposalVersion:0});
+});
+it('server rejection is a failed batch item and leaves pending recovery data intact',async()=>{
+ const sub=recovered();const before=JSON.stringify(sub);const {state,actions}=setup(sub);
+ window.AsianSchoolStorage.gradeEssaySubmission.mockResolvedValue({success:false,error:'Synthetic conflict'});
+ await actions.handleStartBatchGrading('8/21');
+ expect(JSON.stringify(sub)).toBe(before);expect(state.showToast.mock.calls[0][0]).toContain('0/1');expect(state.showToast.mock.calls[0][1]).toBe('warning');
+ const updates=state.setBatchGradingState.mock.calls.map(([f])=>typeof f==='function'?f({}):f);expect(updates.some(u=>u.errorCount===1&&u.completedCount===0)).toBe(true);
+});
+it('ordinary exam batch continues using the existing Gemini final-grade flow',async()=>{
+ const sub=recovered({id:'ordinary',studentClass:'8/19',examCode:'101',recoveryAssessment:undefined});const {actions}=setup(sub);
+ window.EXAM_DATA_G8={officialExams:{101:{essayQuestions:[{num:1,question:'Synthetic prompt',points:1}]}}};
+ window.AsianSchoolStorage.gradeEssaySubmission.mockResolvedValue({success:true,submission:{...sub,essayTotal:2.25,finalScore:8.75}});
+ await actions.handleStartBatchGrading('8/19');
+ expect(window.AsianSchoolStorage.gradeEssaySubmission).toHaveBeenCalledWith(sub.id,{1:1,2:.75,3:.5},'Synthetic issue');delete window.EXAM_DATA_G8;
 });

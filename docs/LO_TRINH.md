@@ -149,4 +149,5 @@ Hướng dẫn: [Bảo toàn ôn tập](BAO_TOAN_ON_TAP_2026_11_11.md).
 - [x] Rules mới đã Publish và đối chiếu hash trước dữ liệu đánh giá.
 - [x] Client `2e973a2` đã phát hành và đối chiếu web thật:3 trang HTTP200,6asset nội bộ khớp byte.
 - [x] Tạo19 nguồn đánh giá/19 đề xuất AI có điều kiện, bật xem riêng lớp; đọc lại chứng minh0bài tự duyệt/0xác nhận, điểmTN và nguồn ôn tập giữ nguyên, cấu hình khác không đổi.
-- [ ] Giáo viên kiểm tra, điều chỉnh và duyệt từng bài; học sinh đối soát và xác nhận sau duyệt.
+- [x] Giáo viên thay yêu cầu duyệt từng bài bằng chấm nhanh Gemini/lưu điểm như các lớp khác.
+- [ ] Phát hành bản điều chỉnh; giáo viên chạy Chấm nhanh, học sinh đối soát/xác nhận sau khi lưu thành công.
