@@ -1147,55 +1147,61 @@
     // Gói Spark không có máy chủ: học sinh chỉ gửi bài làm, trang quản trị (đã nạp exam_bank kèm đáp án) chấm.
     // examsByGrade: { 8: { '101': exam, ... }, 9: {...}, 10: {...} }. Trả về số bài vừa chấm.
     autoGradeExamSubmissions(examsByGrade) {
-      const pkg = (typeof window !== 'undefined' && window.AsianSchoolExamPackage) || require('./exam-package.js');
-      const toMillis = (t) => (t && typeof t.toMillis === 'function') ? t.toMillis() : (t && typeof t.seconds === 'number' ? t.seconds * 1000 : null);
-      const cfg = this.getConfig();
-      const timingPkg = (typeof window !== 'undefined' && window.AsianSchoolExamTiming) || require('./exam-timing.js');
-      const list = this.getSubmissions();
-      const graded = [];
+      if (this._isAutoGrading) return 0;
+      this._isAutoGrading = true;
+      try {
+        const pkg = (typeof window !== 'undefined' && window.AsianSchoolExamPackage) || require('./exam-package.js');
+        const toMillis = (t) => (t && typeof t.toMillis === 'function') ? t.toMillis() : (t && typeof t.seconds === 'number' ? t.seconds * 1000 : null);
+        const cfg = this.getConfig();
+        const timingPkg = (typeof window !== 'undefined' && window.AsianSchoolExamTiming) || require('./exam-timing.js');
+        const list = this.getSubmissions();
+        const graded = [];
 
-      list.forEach((sub, idx) => {
-        if (isRecoveredAssessmentRecord(sub) || sub.mode !== 'exam' || sub.autoGradedAt || !sub.answers) return;
-        const exam = ((examsByGrade || {})[sub.grade] || {})[sub.examCode];
-        if (!exam) return;
-        const r = pkg.gradeExam(exam, sub.answers, { tfScoringPolicy: cfg.tfScoringPolicy });
-        const penalty = VIOLATION_PENALTY_POINTS;
-        const essayTotal = sub.isGraded ? (parseFloat(sub.essayTotal) || 0) : 0;
-        const startMs = toMillis(sub.startedAt);
-        const endMs = toMillis(sub.serverSubmittedAt);
-        const durationSeconds = startMs && endMs ? Math.max(0, Math.round((endMs - startMs) / 1000)) : (sub.durationSeconds || 0);
-        const mins = Math.floor(durationSeconds / 60);
-        const secs = durationSeconds % 60;
-        const timing = timingPkg.getSubmissionTiming(sub);
-        const update = {
-          mcqPoints: r.mcqPoints,
-          maxMcqPoints: r.maxMcqPoints,
-          correctMcq: r.correctMcq,
-          penaltyPoints: penalty,
-          finalScore: Math.max(0, Math.min(10, Math.round((r.mcqPoints + essayTotal - penalty) * 100) / 100)),
-          durationSeconds,
-          durationFormatted: `${mins} phút ${secs < 10 ? '0' : ''}${secs} giây`,
-          // Chỉ ghi độ trễ khi đủ mốc máy chủ, thời lượng và giờ được cấp của chính lượt thi.
-          overtimeSeconds: timing.known ? timing.lateSeconds : null,
-          mcqResults: r.mcqResults,
-          tfResults: r.tfResults,
-          autoGradedAt: new Date().toISOString()
-        };
-        list[idx] = { ...sub, ...update };
-        graded.push({ id: sub.id, update });
-      });
-
-      if (!graded.length) return 0;
-      this.safeSetLocal(SUBMISSIONS_KEY, JSON.stringify(list));
-      this.notify(this.submissionListeners, list);
-      if (typeof window !== 'undefined' && window.firebaseDb && typeof window.firebaseDb.collection === 'function') {
-        graded.forEach(({ id, update }) => {
-          writeArchivedSource('submissions', id, update, { merge: true }, list.find(sub => sub.id === id))
-            .catch(e => console.warn('Firestore auto-grade err', e));
+        list.forEach((sub, idx) => {
+          if (isRecoveredAssessmentRecord(sub) || sub.mode !== 'exam' || sub.autoGradedAt || !sub.answers) return;
+          const exam = ((examsByGrade || {})[sub.grade] || {})[sub.examCode];
+          if (!exam) return;
+          const r = pkg.gradeExam(exam, sub.answers, { tfScoringPolicy: cfg.tfScoringPolicy });
+          const penalty = VIOLATION_PENALTY_POINTS;
+          const essayTotal = sub.isGraded ? (parseFloat(sub.essayTotal) || 0) : 0;
+          const startMs = toMillis(sub.startedAt);
+          const endMs = toMillis(sub.serverSubmittedAt);
+          const durationSeconds = startMs && endMs ? Math.max(0, Math.round((endMs - startMs) / 1000)) : (sub.durationSeconds || 0);
+          const mins = Math.floor(durationSeconds / 60);
+          const secs = durationSeconds % 60;
+          const timing = timingPkg.getSubmissionTiming(sub);
+          const update = {
+            mcqPoints: r.mcqPoints,
+            maxMcqPoints: r.maxMcqPoints,
+            correctMcq: r.correctMcq,
+            penaltyPoints: penalty,
+            finalScore: Math.max(0, Math.min(10, Math.round((r.mcqPoints + essayTotal - penalty) * 100) / 100)),
+            durationSeconds,
+            durationFormatted: `${mins} phút ${secs < 10 ? '0' : ''}${secs} giây`,
+            // Chỉ ghi độ trễ khi đủ mốc máy chủ, thời lượng và giờ được cấp của chính lượt thi.
+            overtimeSeconds: timing.known ? timing.lateSeconds : null,
+            mcqResults: r.mcqResults,
+            tfResults: r.tfResults,
+            autoGradedAt: new Date().toISOString()
+          };
+          list[idx] = { ...sub, ...update };
+          graded.push({ id: sub.id, update });
         });
+
+        if (!graded.length) return 0;
+        this.safeSetLocal(SUBMISSIONS_KEY, JSON.stringify(list));
+        this.notify(this.submissionListeners, list);
+        if (typeof window !== 'undefined' && window.firebaseDb && typeof window.firebaseDb.collection === 'function') {
+          graded.forEach(({ id, update }) => {
+            writeArchivedSource('submissions', id, update, { merge: true }, list.find(sub => sub.id === id))
+              .catch(e => console.warn('Firestore auto-grade err', e));
+          });
+        }
+        this.logAudit('Chấm tự động trắc nghiệm', `${graded.length} bài thi chính thức`);
+        return graded.length;
+      } finally {
+        this._isAutoGrading = false;
       }
-      this.logAudit('Chấm tự động trắc nghiệm', `${graded.length} bài thi chính thức`);
-      return graded.length;
     }
 
     onSubmissionsChange(cb) {
