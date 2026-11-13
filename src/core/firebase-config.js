@@ -250,31 +250,17 @@
             if (!snapshot) return;
             const cloudSessions = [];
             const cloudSessionIds = new Set();
-            const staleDocRefs = [];
             const now = Date.now();
-            const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
             if (!snapshot.empty) {
               snapshot.forEach((doc) => {
                 const data = doc.data();
                 const lastPing = Number(data.lastPing || 0);
-                // Tự động gom các phiên cũ quá 12 giờ để xóa dọn dẹp Firestore
-                if (!lastPing || (now - lastPing) > TWELVE_HOURS_MS) {
-                  staleDocRefs.push(doc.ref);
-                } else if ((now - lastPing) < 90 * 60 * 1000) {
-                  // Chỉ hiển thị trên bảng giám thị các phiên còn hoạt động trong vòng 90 phút
+                // Chỉ hiển thị trên bảng giám thị các phiên còn hoạt động trong vòng 90 phút
+                if (lastPing && (now - lastPing) < 90 * 60 * 1000) {
                   cloudSessions.push({ sessionId: doc.id, ...data });
                   cloudSessionIds.add(doc.id);
                 }
               });
-            }
-
-            // Tự động thanh lọc các phiên cũ quá 12 giờ khỏi Cloud Firestore (tối đa 50 mỗi lượt để không nghẽn mạng)
-            if (staleDocRefs.length > 0 && typeof db.batch === 'function') {
-              try {
-                const batch = db.batch();
-                staleDocRefs.slice(0, 50).forEach(ref => batch.delete(ref));
-                batch.commit().catch(() => {});
-              } catch (e) { /* ignore */ }
             }
 
             const currentSessions = storage.getLiveSessions();
