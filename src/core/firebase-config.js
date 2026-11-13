@@ -67,18 +67,9 @@
       if (typeof firebase.firestore === 'function') {
         db = firebase.firestore();
         if (isLocalSandbox) db.useEmulator('127.0.0.1', 8188);
-        // Cho phép lưu cache offline trên trình duyệt
-        try {
-          if (!isLocalSandbox) db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
-            if (err.code === 'failed-precondition') {
-              console.warn('[Firebase] Đa tab đang mở, persistence kích hoạt tab đầu tiên.');
-            } else if (err.code === 'unimplemented') {
-              console.warn('[Firebase] Trình duyệt không hỗ trợ IndexedDB persistence.');
-            }
-          });
-        } catch (e) {
-          // ignore persistence errors on unsupported contexts
-        }
+        // KHÔNG bật persistence IndexedDB: SDK 10.12.0 dễ báo "INTERNAL ASSERTION FAILED: Unexpected state"
+        // (đa tab / máy lab đóng băng / cache hỏng) và làm treo toàn bộ kết nối Firestore của trình duyệt đó.
+        // Mọi luồng quan trọng đều đọc từ máy chủ (source: 'server') nên không cần cache offline.
       }
 
       if (typeof firebase.analytics === 'function') {
@@ -144,9 +135,11 @@
 
             const cloudList = [];
             const cloudIdSet = new Set();
+            const noAutoGradeOnCloud = new Set();
             if (!snapshot.empty) {
               snapshot.forEach((doc) => {
                 const data = doc.data();
+                if (!data.autoGradedAt && !doc.metadata.hasPendingWrites) noAutoGradeOnCloud.add(doc.id);
                 if (data.scoreConfirmedAt && typeof data.scoreConfirmedAt.toDate === 'function') {
                   data.scoreConfirmedAt = data.scoreConfirmedAt.toDate().toISOString();
                 }
@@ -171,6 +164,16 @@
                   return; // Không giữ lại bản ghi đã bị xóa trên Cloud Firestore
                 }
                 localMap.set(sub.id, sub);
+              }
+            });
+
+            // Tự phục hồi: máy giáo viên ghi nhớ đã chấm nhưng máy chủ chưa có điểm (ghi lỗi/đứt mạng) -> chấm lại
+            localMap.forEach((sub, id) => {
+              if ((sub.mode === 'exam' || !sub.mode) && sub.autoGradedAt && noAutoGradeOnCloud.has(id)
+                && !sub.isGraded && !sub.recoveryAssessment) {
+                const { autoGradedAt, ...rest } = sub;
+                localMap.set(id, rest);
+                changed = true;
               }
             });
 

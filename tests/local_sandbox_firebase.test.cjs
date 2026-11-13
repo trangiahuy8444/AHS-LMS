@@ -24,8 +24,8 @@ test('sandbox Firebase uses only demo project and connects emulators before list
   assert.equal(calls[0][1],'demo-ahs-local');assert.equal(calls[1][1],'http://127.0.0.1:9098');
   assert.equal(calls[2][1],'127.0.0.1');assert.equal(calls[2][2],8188);
 });
-test('normal profile retains production config and persistence without emulator calls',()=>{
-  const {calls}=boot(false);assert.equal(calls[0][1],'ahs-lms');assert.deepEqual(calls.map(c=>c[0]),['init','persist']);
+test('normal profile uses production config without emulator calls and without IndexedDB persistence (SDK 10.12 assertion bug)',()=>{
+  const {calls}=boot(false);assert.equal(calls[0][1],'ahs-lms');assert.deepEqual(calls.map(c=>c[0]),['init']);
 });
 test('sandbox refuses pre-existing production Firebase app rather than exposing real auth',()=>{
   assert.throws(()=>boot(true,'ahs-lms'),/Firebase thật/);

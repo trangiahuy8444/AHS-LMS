@@ -1194,7 +1194,18 @@
         if (typeof window !== 'undefined' && window.firebaseDb && typeof window.firebaseDb.collection === 'function') {
           graded.forEach(({ id, update }) => {
             writeArchivedSource('submissions', id, update, { merge: true }, list.find(sub => sub.id === id))
-              .catch(e => console.warn('Firestore auto-grade err', e));
+              .catch((e) => {
+                console.warn('Firestore auto-grade err', e);
+                // Ghi lỗi: bỏ dấu "đã chấm" trên máy để lần đồng bộ sau chấm và ghi lại
+                try {
+                  const cur = this.getSubmissions();
+                  const i = cur.findIndex(sub => sub.id === id);
+                  if (i >= 0 && cur[i].autoGradedAt) {
+                    delete cur[i].autoGradedAt;
+                    this.safeSetLocal(SUBMISSIONS_KEY, JSON.stringify(cur));
+                  }
+                } catch { /* bỏ qua */ }
+              });
           });
         }
         this.logAudit('Chấm tự động trắc nghiệm', `${graded.length} bài thi chính thức`);
