@@ -196,6 +196,8 @@
                 }
                 const infoChanged = cloudItem.fullName !== local.fullName
                   || cloudItem.finalScore !== local.finalScore
+                  || cloudItem.mcqPoints !== local.mcqPoints
+                  || cloudItem.score !== local.score
                   || cloudItem.teacherFeedback !== local.teacherFeedback
                   || cloudItem.studentClass !== local.studentClass
                   || cloudItem.studentId !== local.studentId

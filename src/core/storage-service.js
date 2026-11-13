@@ -159,11 +159,13 @@
     }
 
     safeGetLocal(key) {
-      if (this._memFailedKeys && this._memFailedKeys.has(key) && this._memStore.has(key)) {
+      if (this._memFailedKeys && this._memFailedKeys.has(key) && this._memStore && this._memStore.has(key)) {
         return this._memStore.get(key);
       }
       try {
-        return localStorage.getItem(key);
+        const val = localStorage.getItem(key);
+        if (val !== null) return val;
+        return this._memStore ? (this._memStore.get(key) ?? null) : null;
       } catch {
         return this._memStore ? (this._memStore.get(key) ?? null) : null;
       }
@@ -180,6 +182,12 @@
         console.warn(`[Storage] Bộ nhớ cục bộ đầy hoặc bị chặn khi lưu "${key}", chuyển sang bộ nhớ phiên tạm:`, err?.message || err);
         return false;
       }
+    }
+
+    safeRemoveLocal(key) {
+      if (this._memStore) this._memStore.delete(key);
+      if (this._memFailedKeys) this._memFailedKeys.delete(key);
+      try { localStorage.removeItem(key); } catch {}
     }
 
     notify(listeners, data) {
@@ -515,7 +523,7 @@
 
     getPracticeSubmissions() {
       try {
-        const raw = JSON.parse(localStorage.getItem(PRACTICE_SUBMISSIONS_KEY) || '[]');
+        const raw = JSON.parse((this.safeGetLocal ? this.safeGetLocal(PRACTICE_SUBMISSIONS_KEY) : localStorage.getItem(PRACTICE_SUBMISSIONS_KEY)) || '[]');
         if (!Array.isArray(raw)) return [];
         let modified = false;
         const normalized = raw.map(item => {
@@ -539,7 +547,7 @@
           return item;
         });
         if (modified) {
-          localStorage.setItem(PRACTICE_SUBMISSIONS_KEY, JSON.stringify(normalized));
+          this.safeSetLocal(PRACTICE_SUBMISSIONS_KEY, JSON.stringify(normalized));
         }
         return normalized;
       } catch {
@@ -626,7 +634,7 @@
 
       // Giới hạn lưu tối đa 500 bài ôn tập gần nhất để tối ưu bộ nhớ
       const trimmed = list.slice(0, 500);
-      localStorage.setItem(PRACTICE_SUBMISSIONS_KEY, JSON.stringify(trimmed));
+      this.safeSetLocal(PRACTICE_SUBMISSIONS_KEY, JSON.stringify(trimmed));
       this.notify(this.practiceSubmissionListeners, trimmed);
       return subDoc;
     }
@@ -634,7 +642,7 @@
     deletePracticeSubmission(subId) {
       const list = this.getPracticeSubmissions();
       const filtered = list.filter(s => s.id !== subId);
-      localStorage.setItem(PRACTICE_SUBMISSIONS_KEY, JSON.stringify(filtered));
+      this.safeSetLocal(PRACTICE_SUBMISSIONS_KEY, JSON.stringify(filtered));
       this.notify(this.practiceSubmissionListeners, filtered);
       return { success: true, count: filtered.length };
     }
@@ -642,7 +650,7 @@
     clearPracticeSubmissionsByClass(studentClass) {
       const list = this.getPracticeSubmissions();
       const filtered = list.filter(s => s.studentClass !== studentClass);
-      localStorage.setItem(PRACTICE_SUBMISSIONS_KEY, JSON.stringify(filtered));
+      this.safeSetLocal(PRACTICE_SUBMISSIONS_KEY, JSON.stringify(filtered));
       this.notify(this.practiceSubmissionListeners, filtered);
       this.logAudit('Xóa bảng điểm ôn tập lớp', `Đã xóa kết quả ôn tập của Lớp ${studentClass}`);
       return { success: true, count: filtered.length };
@@ -657,7 +665,8 @@
 
     getSubmissions() {
       try {
-        return JSON.parse(localStorage.getItem(SUBMISSIONS_KEY) || '[]');
+        const raw = this.safeGetLocal ? this.safeGetLocal(SUBMISSIONS_KEY) : localStorage.getItem(SUBMISSIONS_KEY);
+        return JSON.parse(raw || '[]');
       } catch {
         return [];
       }
@@ -679,7 +688,7 @@
       targetExamSub = examList.find(s => String(s.id) === targetId || String(s.sessionId) === targetId);
       const filteredExam = examList.filter(s => String(s.id) !== targetId && String(s.sessionId) !== targetId);
       if (filteredExam.length !== examList.length) {
-        localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(filteredExam));
+        this.safeSetLocal(SUBMISSIONS_KEY, JSON.stringify(filteredExam));
         this.notify(this.submissionListeners, filteredExam);
         deletedFromExam = true;
       }
@@ -688,7 +697,7 @@
       const practiceList = this.getPracticeSubmissions();
       const filteredPractice = practiceList.filter(s => String(s.id) !== targetId && String(s.sessionId) !== targetId);
       if (filteredPractice.length !== practiceList.length) {
-        localStorage.setItem(PRACTICE_SUBMISSIONS_KEY, JSON.stringify(filteredPractice));
+        this.safeSetLocal(PRACTICE_SUBMISSIONS_KEY, JSON.stringify(filteredPractice));
         this.notify(this.practiceSubmissionListeners, filteredPractice);
         deletedFromPractice = true;
       }
@@ -787,9 +796,9 @@
         return { success: false, error: 'Đang bảo vệ dữ liệu lưu Drive. Cần đối chiếu bản lưu hiện tại trước khi xóa hoặc đặt lại lượt thi.' };
       }
       // 1. Xóa sạch dữ liệu cục bộ LocalStorage
-      localStorage.removeItem(SUBMISSIONS_KEY);
-      localStorage.removeItem(PRACTICE_SUBMISSIONS_KEY);
-      localStorage.removeItem(LIVE_KEY);
+      this.safeRemoveLocal(SUBMISSIONS_KEY);
+      this.safeRemoveLocal(PRACTICE_SUBMISSIONS_KEY);
+      this.safeRemoveLocal(LIVE_KEY);
 
       this.notify(this.submissionListeners, []);
       this.notify(this.practiceSubmissionListeners, []);
@@ -889,7 +898,7 @@
         teacherFeedback: ''
       };
       list.unshift(newDoc);
-      localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(list));
+      this.safeSetLocal(SUBMISSIONS_KEY, JSON.stringify(list));
       this.notify(this.submissionListeners, list);
 
       if (typeof window !== 'undefined' && window.firebaseDb) {
@@ -970,10 +979,10 @@
       list[idx] = sub;
 
       if (isPractice) {
-        localStorage.setItem(PRACTICE_SUBMISSIONS_KEY, JSON.stringify(list));
+        this.safeSetLocal(PRACTICE_SUBMISSIONS_KEY, JSON.stringify(list));
         this.notify(this.practiceSubmissionListeners, list);
       } else {
-        localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(list));
+        this.safeSetLocal(SUBMISSIONS_KEY, JSON.stringify(list));
         this.notify(this.submissionListeners, list);
 
         if (typeof window !== 'undefined' && window.firebaseDb) {
@@ -1026,7 +1035,7 @@
         const list = this.getSubmissions();
         const idx = list.findIndex(row => row.id === sub.id);
         if (idx >= 0) list[idx] = saved; else list.unshift(saved);
-        localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(list));
+        this.safeSetLocal(SUBMISSIONS_KEY, JSON.stringify(list));
         this.notify(this.submissionListeners, list);
         return { success: true, submission: saved };
       } catch (error) { return { success: false, error: error.message || 'Chưa xác nhận lưu trên máy chủ.' }; }
@@ -1105,7 +1114,7 @@
       };
 
       if (isPractice) {
-        localStorage.setItem(PRACTICE_SUBMISSIONS_KEY, JSON.stringify(list));
+        this.safeSetLocal(PRACTICE_SUBMISSIONS_KEY, JSON.stringify(list));
         this.notify(this.practiceSubmissionListeners, list);
         if (typeof window !== 'undefined' && window.firebaseDb) {
           try {
@@ -1114,7 +1123,7 @@
           } catch (e) { /* fallback */ }
         }
       } else {
-        localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(list));
+        this.safeSetLocal(SUBMISSIONS_KEY, JSON.stringify(list));
         this.notify(this.submissionListeners, list);
         if (typeof window !== 'undefined' && window.firebaseDb) {
           try {
@@ -1177,7 +1186,7 @@
       });
 
       if (!graded.length) return 0;
-      localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(list));
+      this.safeSetLocal(SUBMISSIONS_KEY, JSON.stringify(list));
       this.notify(this.submissionListeners, list);
       if (typeof window !== 'undefined' && window.firebaseDb && typeof window.firebaseDb.collection === 'function') {
         graded.forEach(({ id, update }) => {
@@ -1215,7 +1224,7 @@
           sub.confirmedByAdmin = true;
         }
         list[idx] = sub;
-        localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(list));
+        this.safeSetLocal(SUBMISSIONS_KEY, JSON.stringify(list));
         this.notify(this.submissionListeners, list);
 
         if (options.confirmedByAdmin && typeof window !== 'undefined' && window.firebaseDb && typeof window.firebaseDb.collection === 'function') {
@@ -1265,7 +1274,7 @@
       });
 
       if (updatedSubs.length > 0) {
-        localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(list));
+        this.safeSetLocal(SUBMISSIONS_KEY, JSON.stringify(list));
         this.notify(this.submissionListeners, list);
 
         if (typeof window !== 'undefined' && window.firebaseDb && typeof window.firebaseDb.collection === 'function') {
@@ -1521,7 +1530,7 @@
         }
       });
 
-      localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(toKeep));
+      this.safeSetLocal(SUBMISSIONS_KEY, JSON.stringify(toKeep));
       this.notify(this.submissionListeners, toKeep);
 
       // Xóa đồng bộ trên Firestore nếu có kết nối
@@ -2087,7 +2096,7 @@
       if (item) {
         if (!item.consumedBy) item.consumedBy = [];
         if (!item.consumedBy.includes(sessionId)) item.consumedBy.push(sessionId);
-        localStorage.setItem(PROCTOR_CMD_KEY, JSON.stringify(list));
+        this.safeSetLocal(PROCTOR_CMD_KEY, JSON.stringify(list));
       }
     }
 
